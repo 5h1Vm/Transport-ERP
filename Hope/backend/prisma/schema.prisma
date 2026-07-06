@@ -1,0 +1,537 @@
+// Transit Ledger — Prisma Schema
+// Fleet Operating System for Indian Transport Businesses
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════
+// MULTI-TENANCY
+// ═══════════════════════════════════════════════
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  gstin     String?
+  pan       String?
+  address   String?
+  phone     String?
+  language  String   @default("hi") // hi | en
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  vehicles      Vehicle[]
+  drivers       Driver[]
+  transporters  Transporter[]
+  parties       Party[]
+  routes        Route[]
+  trips         Trip[]
+  documents     Document[]
+}
+
+// ═══════════════════════════════════════════════
+// AUTHENTICATION & USERS
+// ═══════════════════════════════════════════════
+
+enum Role {
+  OWNER
+  MANAGER
+  DISPATCHER
+  ACCOUNTANT
+  TRANSPORTER
+  DRIVER
+}
+
+model User {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  email          String?      @unique
+  phone          String?
+  name           String
+  passwordHash   String
+  role           Role
+  language       String       @default("hi")
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // For TRANSPORTER role — link to their transporter record
+  transporterId String?        @unique
+  transporter   Transporter? @relation(fields: [transporterId], references: [id])
+
+  // For DRIVER role — link to their driver record
+  driverId String?             @unique
+  driver   Driver?   @relation(fields: [driverId], references: [id])
+
+  createdTrips      Trip[]        @relation("TripCreator")
+  createdPayments   Payment[]     @relation("PaymentCreator")
+  createdDocuments  Document[]    @relation("DocumentCreator")
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+}
+
+// ═══════════════════════════════════════════════
+// MASTER DATA — TRANSPORTERS
+// ═══════════════════════════════════════════════
+
+enum CommissionType {
+  PERCENTAGE
+  FIXED_PER_TRIP
+  FIXED_PER_TON
+}
+
+model Transporter {
+  id              String         @id @default(cuid())
+  organizationId  String
+  organization    Organization   @relation(fields: [organizationId], references: [id])
+  firmName        String
+  contactPerson   String?
+  phone           String?
+  email           String?
+  gstin           String?
+  pan             String?
+  address         String?
+  commissionType  CommissionType @default(PERCENTAGE)
+  commissionValue Float          @default(0)
+  isActive        Boolean        @default(true)
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user       User?              // for TRANSPORTER self-login
+  trips      Trip[]
+  rateCards  RateCard[]
+  ledger     TransporterLedgerEntry[]
+  payments   Payment[]
+
+  @@index([organizationId])
+}
+
+// ═══════════════════════════════════════════════
+// MASTER DATA — VEHICLES
+// ═══════════════════════════════════════════════
+
+enum OwnershipStatus {
+  OWNED
+  ATTACHED
+  LEASED
+}
+
+model Vehicle {
+  id               String          @id @default(cuid())
+  organizationId   String
+  organization     Organization    @relation(fields: [organizationId], references: [id])
+  vehicleNumber    String
+  make             String?
+  model            String?
+  year             Int?
+  ownershipStatus  OwnershipStatus @default(OWNED)
+  chassisNumber    String?
+  engineNumber     String?
+  insuranceExpiry  DateTime?
+  pucExpiry        DateTime?
+  fitnessExpiry    DateTime?
+  permitExpiry     DateTime?
+  nationalPermitExpiry DateTime?
+  isActive         Boolean         @default(true)
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  trips        Trip[]
+  expenses     VehicleExpense[]
+
+  @@unique([organizationId, vehicleNumber])
+  @@index([organizationId])
+}
+
+// ═══════════════════════════════════════════════
+// MASTER DATA — DRIVERS
+// ═══════════════════════════════════════════════
+
+model Driver {
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  name             String
+  phone            String?
+  licenseNumber    String?
+  licenseExpiry    DateTime?
+  aadhaarNumber    String?      // encrypted at rest
+  panNumber        String?      // encrypted at rest
+  bankAccount      String?      // encrypted at rest
+  bankIfsc         String?
+  address          String?
+  monthlySalary    Float        @default(0)
+  isActive         Boolean      @default(true)
+  notes            String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  user             User?              // for DRIVER self-login
+  tripAssignments  TripDriver[]
+  expenses         TripExpense[]      @relation("DriverExpenses")
+  settlements      DriverSettlement[]
+
+  @@index([organizationId])
+}
+
+// ═══════════════════════════════════════════════
+// MASTER DATA — PARTIES (CONSIGNOR/CONSIGNEE)
+// ═══════════════════════════════════════════════
+
+model Party {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  partyName      String
+  gstNumber      String?
+  contactPerson  String?
+  phone          String?
+  email          String?
+  address        String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  tripsConsignor Trip[]       @relation("Consignor")
+  tripsConsignee Trip[]       @relation("Consignee")
+
+  @@index([organizationId])
+}
+
+// ═══════════════════════════════════════════════
+// MASTER DATA — ROUTES & RATE CARDS
+// ═══════════════════════════════════════════════
+
+model Route {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  origin         String
+  destination    String
+  distanceKm     Float?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  rateCards RateCard[]
+  trips     Trip[]
+
+  @@unique([organizationId, origin, destination])
+  @@index([organizationId])
+}
+
+model RateCard {
+  id             String      @id @default(cuid())
+  transporterId  String
+  transporter    Transporter @relation(fields: [transporterId], references: [id])
+  routeId        String
+  route          Route       @relation(fields: [routeId], references: [id])
+  ratePerTon     Float
+  validFrom      DateTime    @default(now())
+  validUntil     DateTime?
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([transporterId, routeId])
+}
+
+// ═══════════════════════════════════════════════
+// CORE — TRIPS
+// ═══════════════════════════════════════════════
+
+enum TripStatus {
+  DRAFT
+  LOADING
+  IN_TRANSIT
+  DELIVERED
+  POD_RECEIVED
+  BILLED
+  SETTLED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  OVERPAID
+}
+
+model Trip {
+  id              String        @id @default(cuid())
+  organizationId  String
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+  transporterId   String
+  transporter     Transporter   @relation(fields: [transporterId], references: [id])
+  vehicleId       String
+  vehicle         Vehicle       @relation(fields: [vehicleId], references: [id])
+  routeId         String?
+  route           Route?        @relation(fields: [routeId], references: [id])
+  consignorId     String?
+  consignor       Party?        @relation("Consignor", fields: [consignorId], references: [id])
+  consigneeId     String?
+  consignee       Party?        @relation("Consignee", fields: [consigneeId], references: [id])
+
+  // Trip details
+  tripDate        DateTime      @default(now())
+  material        String?
+  weightTons      Float         @default(0)
+  freightAmount   Float         @default(0)
+  freightPerTon   Float?
+  advanceGiven    Float         @default(0)
+  notes           String?
+  internalRef     String?       // your handwritten bilty number
+
+  // Status
+  status          TripStatus    @default(DRAFT)
+  paymentStatus   PaymentStatus @default(UNPAID)
+
+  // Dates
+  loadingDate     DateTime?
+  departureDate   DateTime?
+  deliveryDate    DateTime?
+  podReceivedDate DateTime?
+  billedDate      DateTime?
+  settledDate     DateTime?
+
+  // POD
+  podImageUrl     String?
+  podNotes        String?
+
+  // Audit
+  createdById     String
+  createdBy       User          @relation("TripCreator", fields: [createdById], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  drivers         TripDriver[]
+  expenses        TripExpense[]
+  ledgerEntries   TransporterLedgerEntry[]
+  payments        Payment[]
+
+  @@index([organizationId])
+  @@index([transporterId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════
+// TRIP → DRIVER (MANY-TO-MANY)
+// ═══════════════════════════════════════════════
+
+model TripDriver {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  driverId  String
+  driver    Driver   @relation(fields: [driverId], references: [id])
+  role      String   @default("PRIMARY") // PRIMARY | RELIEF | CO_DRIVER
+  joinedAt  DateTime @default(now())
+  leftAt    DateTime?
+
+  @@unique([tripId, driverId])
+}
+
+// ═══════════════════════════════════════════════
+// TRIP EXPENSES
+// ═══════════════════════════════════════════════
+
+enum ExpenseCategory {
+  FUEL
+  TOLL
+  FOOD
+  LOADING_UNLOADING
+  REPAIR_EN_ROUTE
+  EMERGENCY
+  OTHER
+}
+
+model TripExpense {
+  id             String          @id @default(cuid())
+  tripId         String
+  trip           Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  category       ExpenseCategory
+  amount         Float
+  description    String?
+  date           DateTime        @default(now())
+  paidToDriverId String?
+  paidToDriver   Driver?         @relation("DriverExpenses", fields: [paidToDriverId], references: [id])
+  receiptUrl     String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([tripId])
+}
+
+// ═══════════════════════════════════════════════
+// TRANSPORTER LEDGER (per-trip entries)
+// ═══════════════════════════════════════════════
+
+model TransporterLedgerEntry {
+  id                String    @id @default(cuid())
+  transporterId     String
+  transporter       Transporter @relation(fields: [transporterId], references: [id])
+  tripId            String
+  trip              Trip      @relation(fields: [tripId], references: [id])
+  freightCredited   Float     @default(0)
+  commissionDeducted Float   @default(0)
+  netReceivable     Float     @default(0)  // freight - commission
+  outstandingBefore Float     @default(0)
+  outstandingAfter  Float     @default(0)
+  createdAt         DateTime  @default(now())
+
+  @@index([transporterId])
+  @@index([tripId])
+}
+
+// ═══════════════════════════════════════════════
+// PAYMENTS
+// ═══════════════════════════════════════════════
+
+enum PaymentMode {
+  CASH
+  BANK_TRANSFER
+  UPI
+  CHEQUE
+}
+
+model Payment {
+  id                String      @id @default(cuid())
+  transporterId     String
+  transporter       Transporter @relation(fields: [transporterId], references: [id])
+  tripId            String?
+  trip              Trip?       @relation(fields: [tripId], references: [id])
+  amount            Float
+  mode              PaymentMode
+  referenceNumber   String?     // cheque number, UTR, UPI ref
+  bankAccount       String?     // which of your accounts it landed in
+  notes             String?
+  paymentDate       DateTime    @default(now())
+  createdById       String
+  createdBy         User        @relation("PaymentCreator", fields: [createdById], references: [id])
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([transporterId])
+  @@index([tripId])
+  @@index([paymentDate])
+}
+
+// ═══════════════════════════════════════════════
+// DRIVER SETTLEMENTS
+// ═══════════════════════════════════════════════
+
+enum SettlementType {
+  SALARY
+  INCENTIVE
+  ADVANCE
+  DEDUCTION
+  PENALTY
+  CASH_COLLECTED
+  ALLOWANCE
+}
+
+model DriverSettlement {
+  id          String         @id @default(cuid())
+  driverId    String
+  driver      Driver         @relation(fields: [driverId], references: [id])
+  tripId      String?
+  type        SettlementType
+  amount      Float
+  description String?
+  date        DateTime       @default(now())
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([driverId])
+  @@index([date])
+}
+
+// ═══════════════════════════════════════════════
+// VEHICLE EXPENSES (non-trip)
+// ═══════════════════════════════════════════════
+
+enum VehicleExpenseCategory {
+  REPAIR
+  MAINTENANCE
+  TYRE
+  BATTERY
+  INSURANCE
+  PERMIT
+  OTHER
+}
+
+model VehicleExpense {
+  id          String                @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle               @relation(fields: [vehicleId], references: [id])
+  category    VehicleExpenseCategory
+  amount      Float
+  description String?
+  date        DateTime              @default(now())
+  receiptUrl  String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([vehicleId])
+}
+
+// ═══════════════════════════════════════════════
+// DOCUMENTS
+// ═══════════════════════════════════════════════
+
+enum DocumentType {
+  RC
+  INSURANCE
+  PUC
+  FITNESS
+  PERMIT
+  NATIONAL_PERMIT
+  POD
+  LR
+  DRIVER_LICENSE
+  AADHAAR
+  PAN
+  OTHER
+}
+
+enum DocumentEntityType {
+  VEHICLE
+  DRIVER
+  TRIP
+  ORGANIZATION
+}
+
+model Document {
+  id               String             @id @default(cuid())
+  organizationId   String
+  organization     Organization       @relation(fields: [organizationId], references: [id])
+  type             DocumentType
+  entityType       DocumentEntityType
+  entityId         String             // polymorphic FK
+  title            String
+  fileUrl          String?
+  expiryDate       DateTime?
+  reminderSent     Boolean            @default(false)
+  notes            String?
+  createdById      String
+  createdBy        User               @relation("DocumentCreator", fields: [createdById], references: [id])
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([organizationId])
+  @@index([entityType, entityId])
+  @@index([expiryDate])
+}

@@ -1,10 +1,8 @@
 # Dependencies
 node_modules/
-*/node_modules/
 
 # Build outputs
 dist/
-*/dist/
 
 # Environment files
 .env
@@ -31,12 +29,11 @@ Thumbs.db
 
 # Uploads
 uploads/
-*/uploads/
 
 # Prisma
-backend/prisma/migrations/
-backend/prisma/*.db
-backend/prisma/*.sqlite
+prisma/migrations/
+prisma/*.db
+prisma/*.sqlite
 
 # Docker
 .docker/
@@ -47,6 +44,3 @@ backend/prisma/*.sqlite
 
 # TypeScript
 *.tsbuildinfo
-
-# Lock files (keep package-lock.json in root for reproducibility)
-# package-lock.json
