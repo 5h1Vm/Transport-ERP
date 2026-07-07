@@ -221,10 +221,12 @@ function render() {
   app.innerHTML = `
     <div class="shell white-shell">
       <aside class="sidebar white">
-        <div>
+        <div class="sidebar-brand-row">
           <div class="brand-mark">TL</div>
-          <div class="eyebrow dark">Transit Ledger</div>
-          <h1 class="sidebar-title">Indian transport ERP</h1>
+          <div class="sidebar-brand-text">
+            <div class="eyebrow dark">Transit Ledger</div>
+            <h1 class="sidebar-title">Indian transport ERP</h1>
+          </div>
         </div>
         <nav class="nav white-nav">
           ${navItem('#dashboard', 'Dashboard')}
