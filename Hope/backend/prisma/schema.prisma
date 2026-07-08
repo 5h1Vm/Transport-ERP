@@ -111,8 +111,10 @@ model Transporter {
   rateCards  RateCard[]
   ledger     TransporterLedgerEntry[]
   payments   Payment[]
+  vehicles   Vehicle[]
 
   @@index([organizationId])
+  @@unique([organizationId, firmName])
 }
 
 // ═══════════════════════════════════════════════
@@ -146,11 +148,15 @@ model Vehicle {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  trips        Trip[]
-  expenses     VehicleExpense[]
+  transporterId    String?
+  transporter      Transporter?    @relation(fields: [transporterId], references: [id])
+
+  trips            Trip[]
+  expenses         VehicleExpense[]
 
   @@unique([organizationId, vehicleNumber])
   @@index([organizationId])
+  @@index([transporterId])
 }
 
 // ═══════════════════════════════════════════════
@@ -171,6 +177,7 @@ model Driver {
   bankIfsc         String?
   address          String?
   monthlySalary    Float        @default(0)
+  dailyExpenseRate Float        @default(0)
   isActive         Boolean      @default(true)
   notes            String?
   createdAt        DateTime     @default(now())
@@ -292,6 +299,7 @@ model Trip {
   advanceGiven    Float         @default(0)
   notes           String?
   internalRef     String?       // your handwritten bilty number
+  lrNumber        String?       // LR (Lorry Receipt) number
 
   // Status
   status          TripStatus    @default(DRAFT)
@@ -325,6 +333,7 @@ model Trip {
   @@index([vehicleId])
   @@index([status])
   @@index([createdAt])
+  @@unique([organizationId, internalRef])
 }
 
 // ═══════════════════════════════════════════════
@@ -355,6 +364,7 @@ enum ExpenseCategory {
   LOADING_UNLOADING
   REPAIR_EN_ROUTE
   EMERGENCY
+  DAILY_EXPENSE
   OTHER
 }
 
@@ -407,6 +417,14 @@ enum PaymentMode {
   CHEQUE
 }
 
+enum PaymentType {
+  ADVANCE
+  DIESEL_ADVANCE
+  PART_PAYMENT
+  FULL_SETTLEMENT
+  OTHER
+}
+
 model Payment {
   id                String      @id @default(cuid())
   transporterId     String
@@ -414,6 +432,7 @@ model Payment {
   tripId            String?
   trip              Trip?       @relation(fields: [tripId], references: [id])
   amount            Float
+  paymentType       PaymentType @default(OTHER)
   mode              PaymentMode
   referenceNumber   String?     // cheque number, UTR, UPI ref
   bankAccount       String?     // which of your accounts it landed in

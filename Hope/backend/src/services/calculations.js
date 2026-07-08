@@ -59,9 +59,13 @@ async function calculateTripPaymentSummary(prisma, tripId) {
   }
 
   const tripExpenseTotal = sumBy(trip.expenses, (expense) => expense.amount);
+  // Total payments made to transporter for this trip (advances, partial payments, etc.)
   const tripPaymentTotal = sumBy(trip.payments, (payment) => payment.amount);
   const ledgerReceivableTotal = sumBy(trip.ledgerEntries, (entry) => entry.netReceivable);
+  // Amount transporter chargeTotal = what transporter earned from this trip
   const chargeTotal = ledgerReceivableTotal > 0 ? ledgerReceivableTotal : toNumber(trip.freightAmount);
+  // outstanding = what we still owe transporter for this trip
+  // Positive = we owe them money, Negative = they've been overpaid/owe us money
   const outstanding = chargeTotal - tripPaymentTotal;
 
   return {
@@ -74,11 +78,86 @@ async function calculateTripPaymentSummary(prisma, tripId) {
   };
 }
 
+async function calculateDriverTripExpenses(prisma, driverId, options = {}) {
+  const where = { driverId };
+  if (options.fromDate || options.toDate) {
+    where.date = {};
+    if (options.fromDate) where.date.gte = new Date(options.fromDate);
+    if (options.toDate) where.date.lte = new Date(options.toDate);
+  }
+
+  const trips = await prisma.tripDriver.findMany({
+    where,
+    include: {
+      driver: true,
+      trip: {
+        include: {
+          drivers: { include: { driver: true } }
+        }
+      }
+    }
+  });
+
+  let totalDailyExpenses = 0;
+  const tripExpenses = [];
+
+  for (const td of trips) {
+    const trip = td.trip;
+    if (!trip.departureDate || !trip.deliveryDate) continue;
+
+    const driver = td.driver;
+    if (!driver || !driver.dailyExpenseRate) continue;
+
+    const startDate = new Date(trip.departureDate);
+    const endDate = new Date(trip.deliveryDate);
+    const diffTime = Math.abs(endDate - startDate);
+    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
+
+    const dailyExpense = driver.dailyExpenseRate * days;
+    totalDailyExpenses += dailyExpense;
+    tripExpenses.push({
+      tripId: trip.id,
+      driverId: driver.id,
+      driverName: driver.name,
+      tripDays: days,
+      dailyRate: driver.dailyExpenseRate,
+      totalExpense: dailyExpense,
+      departureDate: trip.departureDate,
+      deliveryDate: trip.deliveryDate
+    });
+  }
+
+  return { totalDailyExpenses, tripExpenses };
+}
+
+async function calculateDriverOutstanding(prisma, driverId) {
+  const driver = await prisma.driver.findUnique({
+    where: { id: driverId },
+    include: {
+      settlements: true,
+      expenses: { where: { paidToDriverId: driverId } }
+    }
+  });
+
+  if (!driver) return { outstanding: 0, details: null };
+
+  const settlementTotal = driver.settlements.reduce((sum, s) => sum + toNumber(s.amount), 0);
+  const tripExpensesPaid = driver.expenses.reduce((sum, e) => sum + toNumber(e.amount), 0);
+
+  const { totalDailyExpenses } = await calculateDriverTripExpenses(prisma, driverId);
+
+  const outstanding = toNumber(settlementTotal) + toNumber(tripExpensesPaid) + toNumber(totalDailyExpenses);
+
+  return { outstanding, details: { settlementTotal, tripExpensesPaid, dailyExpenses: totalDailyExpenses } };
+}
+
 module.exports = {
   calculateFreightAmount,
   calculateCommission,
   calculateTransporterOutstanding,
   calculateTripPaymentSummary,
+  calculateDriverTripExpenses,
+  calculateDriverOutstanding,
   sumBy,
   toNumber
 };
