@@ -191,7 +191,11 @@ body { padding: 12px; padding-bottom: calc(var(--bottom-nav-height) + 12px); }
   }
 
   .sidebar-overlay {
-    /* Hidden by default via opacity, shown when .visible is added */
+    /* Hidden by default, shown when .visible is added */
+    display: none !important;
+  }
+
+  .sidebar-overlay.visible {
     display: block !important;
   }
 
@@ -299,7 +303,7 @@ h4 { font-size: 0.9rem; font-weight: 600; }
   position: fixed;
   inset: 0;
   background: rgba(15,23,42,0.4);
-  z-index: 99;
+  z-index: 1002;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -326,7 +330,7 @@ h4 { font-size: 0.9rem; font-weight: 600; }
   border-right: 1px solid var(--border);
   background: var(--panel);
   box-shadow: 0 8px 24px rgba(15,23,42,0.04);
-  z-index: 100;
+  z-index: 1003;
   transform: translateX(-100%);
   transition: transform 0.25s ease;
   overflow-y: auto;

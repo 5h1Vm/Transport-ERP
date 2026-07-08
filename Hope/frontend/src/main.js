@@ -128,9 +128,22 @@ function normalizeFormBody(form, type, rawBody) {
     }
 
     // Handle multiple select fields (like driverId for trips)
-    if (type === 'trip' && key === 'driverId' && Array.isArray(value)) {
-      body[key] = value;
-      continue;
+    // Check both array (legacy multi-select) and JSON string (new custom dropdown)
+    if (type === 'trip' && key === 'driverId') {
+      if (Array.isArray(value)) {
+        body[key] = value;
+        continue;
+      }
+      // Handle JSON string from custom multi-select dropdown
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          body[key] = parsed;
+          continue;
+        }
+      } catch {
+        // Not JSON, treat as single value
+      }
     }
 
     body[key] = value;
@@ -702,7 +715,7 @@ function renderTripsPage() {
 
   return `
     <section class="page-header"><div><p class="eyebrow dark">Trips</p><h2>Trip workspace</h2><p class="page-copy">This page owns trip creation and workflow updates. It is the business core.</p></div></section>
-    <section class="panel white full-width form-panel"><h3>Create trip</h3><form data-form="trip" class="form-grid white trip-grid"><select name="transporterId" required id="trip-transporter-select">${optionList(transporters, (item) => item.firmName, 'Select transporter')}</select><select name="vehicleId" required id="trip-vehicle-select"><option value="">Select vehicle</option>${vehicles.map(v => `<option value="${v.id}" data-transporter-id="${v.transporterId || ''}">${v.vehicleNumber}</option>`).join('')}</select><select name="routeId">${optionList(routes.filter(route => route.origin.trim().toLowerCase() !== route.destination.trim().toLowerCase()), (item) => item.origin + ' → ' + item.destination, 'Select route')}</select><select name="driverId" multiple>${optionList(drivers, (item) => item.name, 'Select drivers')}</select><input name="material" placeholder="Material" /><input name="weightTons" type="number" step="0.1" placeholder="Weight tons" value="0" /><input name="freightAmount" type="number" step="0.01" placeholder="Freight amount" /><input name="freightPerTon" type="number" step="0.01" placeholder="Freight per ton" /><input name="internalRef" placeholder="Internal reference" /><input name="lrNumber" placeholder="LR Number" /><input name="loadingDate" type="datetime-local" /><button type="submit">Save trip</button></form></section>
+    <section class="panel white full-width form-panel"><h3>Create trip</h3><form data-form="trip" class="form-grid white trip-grid"><select name="transporterId" required id="trip-transporter-select">${optionList(transporters, (item) => item.firmName, 'Select transporter')}</select><select name="vehicleId" required id="trip-vehicle-select"><option value="">Select vehicle</option>${vehicles.map(v => `<option value="${v.id}" data-transporter-id="${v.transporterId || ''}">${v.vehicleNumber}</option>`).join('')}</select><select name="routeId">${optionList(routes.filter(route => route.origin.trim().toLowerCase() !== route.destination.trim().toLowerCase()), (item) => item.origin + ' → ' + item.destination, 'Select route')}</select><div class="driver-multi-select" id="driver-multi-select"><button type="button" class="driver-select-trigger ghost-btn" id="driver-select-trigger" style="width: 100%; justify-content: space-between; text-align: left;"><span class="driver-select-placeholder">Select drivers</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button><div class="driver-select-dropdown" id="driver-select-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border); border-radius: 8px; margin-top: 4px; box-shadow: 0 8px 24px rgba(15,23,42,0.12); z-index: 100; max-height: 200px; overflow-y: auto;">${drivers.map(d => `<label class="driver-select-option" style="display: flex; align-items: center; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--border);"><input type="checkbox" name="driverId" value="${d.id}" style="margin-right: 10px; width: 18px; height: 18px; accent-color: var(--primary);" />${d.name}</label>`).join('')}</div></div><input name="material" placeholder="Material" /><input name="weightTons" type="number" step="0.1" placeholder="Weight tons" value="0" /><input name="freightAmount" type="number" step="0.01" placeholder="Freight amount" /><input name="freightPerTon" type="number" step="0.01" placeholder="Freight per ton" /><input name="internalRef" placeholder="Internal reference" /><input name="lrNumber" placeholder="LR Number" /><input name="loadingDate" type="datetime-local" /><button type="submit">Save trip</button></form></section>
     <section class="panel white full-width"><div class="panel-head"><div><p class="eyebrow dark">Trips overview</p><h3>Operational timeline</h3></div></div>${filterHtml}<div class="stack">${filteredTrips.length ? filteredTrips.map(renderTripCard).join('') : '<div class="empty-state">No trips created yet.</div>'}</div></section>
   `;
 }
@@ -826,6 +839,7 @@ async function render() {
   bindTransporterFilter();
   bindVehicleFilterByTransporter();
   bindDriverSettlementForm();
+  bindDriverMultiSelect();
   bindVehicleSearch();
   bindDriverSearch();
   bindTripsSearch();
@@ -956,6 +970,67 @@ function bindDriverSettlementForm() {
   if (amountInput) amountInput.value = state.driverSettlementFormData.amount || '';
   if (tripIdSelect) tripIdSelect.value = state.driverSettlementFormData.tripId || '';
   if (descriptionInput) descriptionInput.value = state.driverSettlementFormData.description || '';
+}
+
+// Custom driver multi-select dropdown for trip form
+function bindDriverMultiSelect() {
+  const trigger = document.getElementById('driver-select-trigger');
+  const dropdown = document.getElementById('driver-select-dropdown');
+  const form = document.querySelector('form[data-form="trip"]');
+  if (!trigger || !dropdown || !form) return;
+
+  // Prevent multiple bindings
+  if (trigger.dataset.bound === 'true') return;
+  trigger.dataset.bound = 'true';
+
+  // Toggle dropdown on trigger click
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!trigger.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+
+  // Handle checkbox changes
+  dropdown.querySelectorAll('input[type="checkbox"][name="driverId"]').forEach(checkbox => {
+    checkbox.addEventListener('change', () => {
+      const selected = Array.from(dropdown.querySelectorAll('input[type="checkbox"][name="driverId"]:checked'))
+        .map(cb => cb.value);
+      const placeholder = trigger.querySelector('.driver-select-placeholder');
+      if (selected.length === 0) {
+        placeholder.textContent = 'Select drivers';
+        placeholder.style.color = 'var(--muted)';
+      } else if (selected.length <= 2) {
+        // Show driver names
+        const names = Array.from(dropdown.querySelectorAll('input[type="checkbox"][name="driverId"]:checked'))
+          .map(cb => cb.parentElement.textContent.trim());
+        placeholder.textContent = names.join(', ');
+        placeholder.style.color = 'var(--text)';
+      } else {
+        placeholder.textContent = `${selected.length} drivers selected`;
+        placeholder.style.color = 'var(--text)';
+      }
+      // Update hidden field for form submission
+      let hiddenInput = form.querySelector('input[type="hidden"][name="driverId"]');
+      if (!hiddenInput) {
+        hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'driverId';
+        form.appendChild(hiddenInput);
+      }
+      hiddenInput.value = JSON.stringify(selected);
+    });
+  });
+
+  // Restore selection from state if editing
+  if (state.editing && state.editing.entity === 'trip') {
+    // Would need to fetch trip data to restore - handled in edit button click
+  }
 }
 
 function bindVehicleFilterByTransporter() {
@@ -1178,10 +1253,39 @@ function bindEditButtons() {
           Object.keys(data).forEach(key => {
             // Special handling for trip drivers when editing
             if (entity === 'trip' && key === 'drivers' && Array.isArray(data[key])) {
-              const driverSelect = form.elements.namedItem('driverId');
-              if (driverSelect && driverSelect.multiple) {
-                const driverIds = data[key].map(driver => driver.driver?.id).filter(id => id);
-                driverSelect.value = driverIds;
+              const driverIds = data[key].map(driver => driver.driver?.id).filter(id => id);
+              // Handle new custom multi-select dropdown
+              const dropdown = document.getElementById('driver-select-dropdown');
+              const trigger = document.getElementById('driver-select-trigger');
+              if (dropdown && trigger) {
+                const checkboxes = dropdown.querySelectorAll('input[type="checkbox"][name="driverId"]');
+                checkboxes.forEach(cb => {
+                  cb.checked = driverIds.includes(cb.value);
+                });
+                // Update placeholder text
+                const placeholder = trigger.querySelector('.driver-select-placeholder');
+                if (driverIds.length === 0) {
+                  placeholder.textContent = 'Select drivers';
+                  placeholder.style.color = 'var(--muted)';
+                } else if (driverIds.length <= 2) {
+                  const names = Array.from(checkboxes)
+                    .filter(cb => driverIds.includes(cb.value))
+                    .map(cb => cb.parentElement.textContent.trim());
+                  placeholder.textContent = names.join(', ');
+                  placeholder.style.color = 'var(--text)';
+                } else {
+                  placeholder.textContent = `${driverIds.length} drivers selected`;
+                  placeholder.style.color = 'var(--text)';
+                }
+                // Update hidden input
+                let hiddenInput = form.querySelector('input[type="hidden"][name="driverId"]');
+                if (!hiddenInput) {
+                  hiddenInput = document.createElement('input');
+                  hiddenInput.type = 'hidden';
+                  hiddenInput.name = 'driverId';
+                  form.appendChild(hiddenInput);
+                }
+                hiddenInput.value = JSON.stringify(driverIds);
               }
               return; // Skip normal processing for this key
             }
@@ -1191,7 +1295,7 @@ function bindEditButtons() {
               if (input.type === 'checkbox') {
                 input.checked = data[key];
               } else if (input.tagName === 'SELECT') {
-                // Handle multiple select for drivers
+                // Handle multiple select for drivers (legacy)
                 if (input.multiple && key === 'driverId' && Array.isArray(data[key])) {
                   input.value = data[key];
                 } else {
@@ -1297,18 +1401,23 @@ function bindNavigation() {
   // Handle mobile header hamburger menu button
   const mobileMenuBtn = document.getElementById('mobile-menu-btn');
   if (mobileMenuBtn) {
-    mobileMenuBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const sidebar = document.querySelector('.sidebar');
-      const overlay = document.querySelector('.sidebar-overlay');
-      if (sidebar && overlay) {
-        const isOpen = sidebar.classList.toggle('open');
-        overlay.classList.toggle('visible');
-        document.body.classList.toggle('sidebar-open');
-        mobileMenuBtn.setAttribute('aria-expanded', isOpen);
-      }
-    });
+    // Remove existing listener to avoid duplicates
+    mobileMenuBtn.replaceWith(mobileMenuBtn.cloneNode(true));
+    const newMobileMenuBtn = document.getElementById('mobile-menu-btn');
+    if (newMobileMenuBtn) {
+      newMobileMenuBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (sidebar && overlay) {
+          const isOpen = sidebar.classList.toggle('open');
+          overlay.classList.toggle('visible');
+          document.body.classList.toggle('sidebar-open');
+          newMobileMenuBtn.setAttribute('aria-expanded', isOpen);
+        }
+      });
+    }
   }
 
   // Close sidebar when overlay is clicked
@@ -1325,29 +1434,29 @@ function bindNavigation() {
       }
     });
   }
-
-  // Close sidebar on hash change (route navigation)
-  window.addEventListener('hashchange', () => {
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-    if (sidebar && overlay) {
-      sidebar.classList.remove('open');
-      overlay.classList.remove('visible');
-      document.body.classList.remove('sidebar-open');
-      if (mobileMenuBtn) {
-        mobileMenuBtn.setAttribute('aria-expanded', 'false');
-      }
-    }
-
-    state.route = window.location.hash || '#dashboard';
-    state.error = ''; // Clear error when changing routes
-    render();
-  });
 }
 
 loadData().catch((error) => {
   state.loading = false;
   state.message = error.message;
+  render();
+});
+
+// Set up hashchange listener once (not in render cycle)
+window.addEventListener('hashchange', () => {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.querySelector('.sidebar-overlay');
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  if (sidebar && overlay) {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('visible');
+    document.body.classList.remove('sidebar-open');
+    if (mobileMenuBtn) {
+      mobileMenuBtn.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  state.route = window.location.hash || '#dashboard';
+  state.error = ''; // Clear error when changing routes
   render();
 });
