@@ -498,10 +498,137 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .ghost-btn:active { background: #e2e8f0; }
 
-.danger-btn { background: #fff1f2; color: #be123c; border-color: rgba(190,18,60,0.12); }
-.danger-btn:active { background: #ffe4e6; }
+/* =====================================================================
+   Driver Multi-select Dropdown (Custom)
+   ===================================================================== */
+.driver-multi-select {
+  position: relative;
+  width: 100%;
+}
 
-.text-link { color: var(--primary); font-weight: 600; }
+.driver-select-trigger {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: 12px;
+  background: white;
+  color: var(--text);
+  font-size: 16px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.driver-select-trigger:hover {
+  border-color: var(--primary);
+}
+
+.driver-select-trigger:focus,
+.driver-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(15,23,42,0.1);
+}
+
+.driver-select-placeholder {
+  color: var(--muted);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.driver-select-trigger svg {
+  flex-shrink: 0;
+  margin-left: 8px;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.driver-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15,23,42,0.12);
+  z-index: 100;
+  max-height: 240px;
+  overflow-y: auto;
+  display: none;
+}
+
+.driver-select-dropdown.show {
+  display: block;
+}
+
+.driver-select-option {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+  gap: 10px;
+}
+
+.driver-select-option:last-child {
+  border-bottom: none;
+}
+
+.driver-select-option:hover {
+  background: #f8fafc;
+}
+
+.driver-select-option input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  min-height: auto;
+  cursor: pointer;
+}
+
+.driver-select-option span {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Responsive */
+@media (min-width: 640px) {
+  .driver-select-trigger {
+    padding: 9px 12px;
+    min-height: 38px;
+    font-size: 0.88rem;
+  }
+
+  .driver-select-option {
+    padding: 8px 12px;
+  }
+
+  .driver-select-option span {
+    font-size: 0.85rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .driver-select-trigger {
+    font-size: 0.85rem;
+  }
+
+  .driver-select-option span {
+    font-size: 0.8rem;
+  }
+}
 
 /* ---------- Forms ---------- */
 .form-grid.white { margin-top: 12px; display: grid; gap: 8px; }
