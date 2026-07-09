@@ -1,0 +1,111 @@
+/**
+ * CSS Variables - Design Tokens
+ */
+
+:root {
+  /* Color Scheme */
+  color-scheme: light;
+
+  /* Spacing Scale */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Border Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
+
+  /* Layout */
+  --sidebar-width: 220px;
+  --header-height: 56px;
+  --bottom-nav-height: 64px;
+  --max-width: 1600px;
+
+  /* Z-Index Scale */
+  --z-dropdown: 100;
+  --z-sidebar: 102;
+  --z-overlay: 101;
+  --z-mobile-header: 103;
+  --z-bottom-nav: 104;
+  --z-toast: 200;
+  --z-modal: 300;
+
+  /* Transitions */
+  --transition-fast: 80ms ease;
+  --transition-base: 120ms ease;
+  --transition-slow: 200ms ease;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-base: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.1);
+  --shadow-xl: 0 16px 48px rgba(15, 23, 42, 0.12);
+
+  /* Light Theme Colors */
+  --bg: #f5f7fb;
+  --bg-elevated: #fbfcfe;
+  --panel: rgba(255, 255, 255, 0.96);
+  --panel-hover: rgba(255, 255, 255, 1);
+
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.12);
+  --border-focus: var(--color-primary);
+
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+
+  --primary: #0f172a;
+  --primary-light: #f8fafc;
+  --primary-dark: #020617;
+
+  --color-success: #059669;
+  --color-success-bg: #dcfce7;
+  --color-success-border: #bbf7d0;
+
+  --color-warning: #d97706;
+  --color-warning-bg: #fef3c7;
+  --color-warning-border: #fde68a;
+
+  --color-danger: #dc2626;
+  --color-danger-bg: #fee2e2;
+  --color-danger-border: #fecaca;
+
+  --color-info: #0891b2;
+  --color-info-bg: #cffafe;
+  --color-info-border: #a5f3fc;
+
+  /* Semantic colors */
+  --color-primary: var(--primary);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-background: var(--bg);
+  --color-panel: var(--panel);
+  --color-border: var(--border);
+}
+
+/* Dark theme support (future) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --bg-elevated: #1e293b;
+    --panel: rgba(30, 41, 59, 0.96);
+    --border: rgba(255, 255, 255, 0.1);
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --primary: #f8fafc;
+    --primary-light: #1e293b;
+  }
+}
