@@ -325,6 +325,11 @@ body.sidebar-open {
 
 /* Desktop (1024px+) */
 @media (min-width: 1024px) {
+  /* Hide mobile-only elements */
+  .mobile-header { display: none !important; }
+  .bottom-nav { display: none !important; }
+  .sidebar-overlay { display: none !important; }
+
   body { padding: var(--space-5); }
 
   .shell {
