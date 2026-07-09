@@ -4,18 +4,6 @@
  */
 
 /* ========== DESKTOP DEFAULTS (1024px+) ========== */
-.mobile-header {
-  display: none;
-}
-
-.bottom-nav {
-  display: none;
-}
-
-.sidebar-overlay {
-  display: none;
-}
-
 .sidebar {
   position: sticky;
   top: var(--space-5);
@@ -67,7 +55,7 @@
 .sidebar .eyebrow {
   display: block;
   font-size: 0.7rem;
-  color: var(--color-muted);
+  color: var(--color-text-muted);
 }
 
 .sidebar .sidebar-card {
@@ -105,7 +93,7 @@
 }
 
 .nav-item:hover {
-  background: var(--color-primary-light);
+  background: var(--color-primary_light);
   border-color: var(--color-border);
 }
 
@@ -115,6 +103,13 @@
   border-color: var(--color-primary);
   font-weight: 600;
   box-shadow: var(--shadow-md);
+}
+
+/* Mobile elements hidden on desktop */
+.mobile-header,
+.bottom-nav,
+.sidebar-overlay {
+  display: none !important;
 }
 
 /* ========== TABLET (640px - 1023px) ========== */
@@ -175,7 +170,7 @@
 
   /* Show mobile header */
   .mobile-header {
-    display: flex;
+    display: flex !important;
     position: fixed;
     top: var(--space-3);
     left: var(--space-3);
@@ -211,12 +206,12 @@
 
   .mobile-menu-btn:hover,
   .mobile-menu-btn:active {
-    background: var(--color-primary-light);
+    background: var(--color-primary_light);
     border-color: var(--color-primary);
   }
 
   .mobile-menu-btn[aria-expanded="true"] {
-    background: var(--color-primary-light);
+    background: var(--color-primary_light);
     border-color: var(--color-primary);
     color: var(--color-primary);
   }
@@ -250,7 +245,7 @@
 
   .mobile-header .eyebrow {
     font-size: 9px;
-    color: var(--color-muted);
+    color: var(--color-text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -296,20 +291,20 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.4);
+    background: rgba(44, 74, 110, 0.4);
     z-index: var(--z-overlay);
     opacity: 0;
     transition: opacity var(--transition-base);
   }
 
   .sidebar-overlay.visible {
-    display: block;
+    display: block !important;
     opacity: 1;
   }
 
   /* Bottom navigation */
   .bottom-nav {
-    display: block;
+    display: block !important;
     position: fixed;
     bottom: 0;
     left: 0;
@@ -317,7 +312,7 @@
     height: var(--bottom-nav-height);
     background: var(--color-panel);
     border-top: 1px solid var(--color-border);
-    box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 -4px 20px rgba(44, 74, 110, 0.08);
     z-index: var(--z-bottom-nav);
   }
 
@@ -341,6 +336,7 @@
     font-size: 0.7rem;
     font-weight: 500;
     transition: all var(--transition-fast);
+    cursor: pointer;
   }
 
   .bottom-nav-item:hover,
@@ -354,12 +350,12 @@
   }
 
   .bottom-nav-item.menu-item {
-    color: var(--color-muted);
+    color: var(--color-text-muted);
   }
 }
 
 /* ========== FOCUS STATES ========== */
 :focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }

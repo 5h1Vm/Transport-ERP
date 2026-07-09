@@ -40,14 +40,14 @@ export function createBottomNav(currentRoute = '#dashboard') {
       <ul class="bottom-nav-list">
         ${navItems.map(item => `
           <li>
-            <a class="bottom-nav-item ${item.hash === currentRoute ? 'active' : ''} ${item.isMenu ? 'menu-item' : ''}"
-               href="#"
+            <button class="bottom-nav-item ${item.hash === currentRoute ? 'active' : ''} ${item.isMenu ? 'menu-item' : ''}"
                data-bottom-nav="${item.hash}"
                aria-current="${item.hash === currentRoute ? 'page' : 'false'}"
-               aria-label="${item.label}">
+               aria-label="${item.label}"
+               type="button">
               <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${item.icon}</svg>
               <span>${item.label}</span>
-            </a>
+            </button>
           </li>
         `).join('')}
       </ul>
