@@ -1,5 +1,6 @@
 /**
  * Cards & Panels
+ * Consistent visual hierarchy with proper contrast
  */
 
 /* Base panel */
@@ -20,23 +21,28 @@
 /* Text elements */
 .metric-label, .metric-helper,
 .record-card p, .empty-state, .blank-card p {
-  color: var(--color-muted);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
 }
 
 .metric-value {
   margin-top: var(--space-2);
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
+  color: var(--color-text);
 }
 
 .record-card h4 {
-  font-size: 0.88rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
 }
 
 .record-card p {
   margin-top: var(--space-1);
   font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 /* Panel grid */
@@ -79,7 +85,7 @@
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-3);
-  color: var(--color-muted);
+  color: var(--color-text-muted);
   font-size: 0.8rem;
 }
 
@@ -105,29 +111,47 @@
 /* Hero stats */
 .hero-stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-2);
 }
 
+@media (min-width: 640px) {
+  .hero-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-stats {
+    max-width: 600px;
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
 .hero-stats > div {
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
-  background: white;
+  background: var(--color-panel);
   border: 1px solid var(--color-border);
+  min-width: 0;
 }
 
 .hero-stats span {
   display: block;
-  color: var(--color-text-muted);
-  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .hero-stats strong {
   display: block;
   margin-top: var(--space-2);
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 700;
+  color: var(--color-text);
+  white-space: nowrap;
 }
 
 /* Form panel */
@@ -140,35 +164,68 @@
 
 /* Empty state */
 .empty-state {
-  padding: var(--space-6);
+  padding: var(--space-8);
   text-align: center;
-  color: var(--color-muted);
+  color: var(--color-text-muted);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-elevated);
+}
+
+.empty-state h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
 }
 
 /* Loading card */
 .loading-card {
-  padding: var(--space-5);
+  padding: var(--space-8);
   text-align: center;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
 }
 
-/* Toast */
+/* Toast notifications */
 .toast {
   border-radius: var(--radius-lg);
   padding: var(--space-3) var(--space-4);
   font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid;
 }
 
-.toast-success {
+.toast--success {
   background: var(--color-success-bg);
-  color: var(--color-success-text);
-  border-color: #bbf7d0;
+  color: #064e3b;
+  border-color: var(--color-success-border);
 }
 
-.toast-error {
+.toast--error {
   background: var(--color-danger-bg);
-  color: var(--color-danger-text);
-  border-color: #fecaca;
+  color: #7f1d1d;
+  border-color: var(--color-danger-border);
+}
+
+.toast--warning {
+  background: var(--color-warning-bg);
+  color: #78350f;
+  border-color: var(--color-warning-border);
+}
+
+.toast--info {
+  background: var(--color-info-bg);
+  color: #0c4a6e;
+  border-color: var(--color-info-border);
 }
 
 /* Page header */
@@ -183,28 +240,31 @@
 
 .page-header h2 {
   margin: var(--space-2) 0 0;
-  font-size: var(--font-size-2xl);
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
   line-height: 1.1;
   flex: 1;
+  color: var(--color-text);
 }
 
 /* Page copy */
 .page-copy {
   margin-top: var(--space-2);
-  color: var(--color-muted);
-  line-height: 1.55;
-  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  font-size: 0.9rem;
+  max-width: 600px;
 }
 
 /* Eyebrow */
 .eyebrow {
   text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-size: 10px;
-  color: var(--color-muted);
-  font-weight: 600;
+  letter-spacing: 0.15em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin: 0;
 }
 
 .eyebrow.dark {
-  color: #475569;
+  color: var(--color-primary);
 }

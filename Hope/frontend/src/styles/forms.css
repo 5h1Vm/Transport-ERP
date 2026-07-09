@@ -1,5 +1,6 @@
 /**
  * Forms
+ * High contrast, accessible form elements
  */
 
 /* Form grid */
@@ -17,6 +18,12 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
+@media (min-width: 1200px) {
+  .form-grid.three-col {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 /* Form field */
 .form-field {
   display: flex;
@@ -25,9 +32,11 @@
 }
 
 .form-field label {
-  font-size: 0.78rem;
-  font-weight: 500;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* Inputs */
@@ -35,12 +44,16 @@ input, select, textarea {
   width: 100%;
   padding: var(--space-3) var(--space-4);
   font-size: 16px; /* Prevents zoom on iOS */
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: white;
+  background: var(--input-bg);
   color: var(--color-text);
-  min-height: 44px;
+  min-height: 48px;
   transition: all var(--transition-fast);
+}
+
+input:hover, select:hover, textarea:hover {
+  border-color: var(--color-border-strong);
 }
 
 input:focus, select:focus, textarea:focus {
@@ -50,19 +63,20 @@ input:focus, select:focus, textarea:focus {
 }
 
 input::placeholder {
-  color: #a0aec0;
+  color: var(--input-placeholder);
 }
 
 input[disabled], select[disabled], textarea[disabled] {
-  background: #f8fafc;
+  background: var(--color-bg);
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* Error state */
 input.field-error,
 select.field-error,
 textarea.field-error {
-  border-color: var(--color-danger) !important;
+  border-color: var(--input-error) !important;
   box-shadow: 0 0 0 3px var(--color-danger-bg) !important;
 }
 
@@ -70,16 +84,22 @@ textarea.field-error {
   display: block;
   margin-top: var(--space-1);
   font-size: 0.75rem;
-  color: var(--color-danger);
+  color: var(--input-error);
+  font-weight: 500;
 }
 
 /* Select */
 select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2340403d' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 40px;
+  cursor: pointer;
+}
+
+select:hover {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
 /* Checkbox */
@@ -98,8 +118,9 @@ select {
 }
 
 .checkbox-label {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   cursor: pointer;
+  color: var(--color-text);
 }
 
 /* Search/filter inputs */
@@ -120,11 +141,11 @@ select {
 }
 
 .filter-field label {
-  font-size: 11px;
-  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  color: var(--color-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .filter-field input,
@@ -136,16 +157,8 @@ select {
 /* Responsive */
 @media (min-width: 640px) {
   input, select, textarea {
-    padding: var(--space-2) var(--space-3);
-    min-height: 38px;
-    font-size: 0.88rem;
-  }
-
-  .form-grid.two-col {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .form-grid.three-col {
-    grid-template-columns: repeat(3, 1fr);
+    padding: var(--space-3) var(--space-4);
+    min-height: 44px;
+    font-size: 0.95rem;
   }
 }

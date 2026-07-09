@@ -1,5 +1,6 @@
 /**
  * CSS Variables - Design Tokens
+ * High contrast, accessible color system
  */
 
 :root {
@@ -27,17 +28,20 @@
   --radius-full: 9999px;
 
   /* Layout */
-  --sidebar-width: 220px;
+  --sidebar-width: 240px;
   --header-height: 56px;
   --bottom-nav-height: 64px;
-  --max-width: 1600px;
+  --max-width: 1400px;
+  --max-content-width: 1600px;
 
   /* Z-Index Scale */
+  --z-base: 0;
   --z-dropdown: 100;
-  --z-sidebar: 102;
-  --z-overlay: 101;
-  --z-mobile-header: 103;
-  --z-bottom-nav: 104;
+  --z-sticky: 101;
+  --z-overlay: 102;
+  --z-sidebar: 103;
+  --z-mobile-header: 104;
+  --z-bottom-nav: 105;
   --z-toast: 200;
   --z-modal: 300;
 
@@ -47,65 +51,179 @@
   --transition-slow: 200ms ease;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow-base: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.1);
-  --shadow-xl: 0 16px 48px rgba(15, 23, 42, 0.12);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-base: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.14);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.16);
 
-  /* Light Theme Colors */
-  --bg: #f5f7fb;
-  --bg-elevated: #fbfcfe;
-  --panel: rgba(255, 255, 255, 0.96);
-  --panel-hover: rgba(255, 255, 255, 1);
+  /*
+   * PRIMARY COLORS - Deep navy blue (professional, trustworthy)
+   * High contrast against white backgrounds
+   */
+  --color-primary: #1e3a5f;
+  --color-primary-hover: #162d4d;
+  --color-primary_light: #e8f1f8;
+  --color-primary-focus: #2c5282;
 
-  --border: rgba(15, 23, 42, 0.08);
-  --border-strong: rgba(15, 23, 42, 0.12);
-  --border-focus: var(--color-primary);
+  /*
+   * BACKGROUND COLORS
+   * Subtle warm gray for app bg, pure white for cards/panels
+   */
+  --color-bg: #f5f5f2;
+  --color-bg-elevated: #fafaf9;
+  --color-panel: #ffffff;
+  --color-panel-hover: #ffffff;
 
-  --text: #0f172a;
-  --text-muted: #64748b;
-  --text-subtle: #94a3b8;
+  /*
+   * BORDER COLORS
+   * Visible but subtle - 15% contrast minimum
+   */
+  --color-border: #d4d4d0;
+  --color-border-strong: #a8a8a3;
+  --color-border-focus: var(--color-primary);
 
-  --primary: #0f172a;
-  --primary-light: #f8fafc;
-  --primary-dark: #020617;
+  /*
+   * TEXT COLORS
+   * Near-black for maximum readability
+   */
+  --color-text: #171717;
+  --color-text-secondary: #40403d;
+  --color-text-muted: #737370;
+  --color-text-inverse: #ffffff;
 
-  --color-success: #059669;
+  /*
+   * SUCCESS - Green (completed, paid, healthy)
+   */
+  --color-success: #15803d;
   --color-success-bg: #dcfce7;
-  --color-success-border: #bbf7d0;
+  --color-success-border: #4ade80;
+  --color-success-light: #f0fdf4;
 
-  --color-warning: #d97706;
+  /*
+   * WARNING - Amber (pending, attention needed)
+   */
+  --color-warning: #b45309;
   --color-warning-bg: #fef3c7;
-  --color-warning-border: #fde68a;
+  --color-warning-border: #fbbf24;
+  --color-warning-light: #fffbeb;
 
-  --color-danger: #dc2626;
+  /*
+   * DANGER - Red (errors, cancelled, overdue)
+   */
+  --color-danger: #b91c1c;
   --color-danger-bg: #fee2e2;
-  --color-danger-border: #fecaca;
+  --color-danger-border: #ef4444;
+  --color-danger-light: #fef2f2;
 
-  --color-info: #0891b2;
-  --color-info-bg: #cffafe;
-  --color-info-border: #a5f3fc;
+  /*
+   * INFO - Blue (informational states)
+   */
+  --color-info: #0369a1;
+  --color-info-bg: #e0f2fe;
+  --color-info-border: #38bdf8;
+  --color-info-light: #f0f9ff;
 
-  /* Semantic colors */
-  --color-primary: var(--primary);
-  --color-text: var(--text);
-  --color-text-muted: var(--text-muted);
-  --color-background: var(--bg);
-  --color-panel: var(--panel);
-  --color-border: var(--border);
+  /*
+   * FOCUS RING - Accessible blue
+   */
+  --color-focus: #2563eb;
+  --color-focus-ring: rgba(37, 99, 235, 0.3);
+
+  /*
+   * CHIP/BADGE COLORS
+   */
+  --chip-primary-bg: var(--color-primary);
+  --chip-primary-text: #ffffff;
+  --chip-success-bg: var(--color-success);
+  --chip-success-text: #ffffff;
+  --chip-warning-bg: var(--color-warning);
+  --chip-warning-text: #ffffff;
+  --chip-danger-bg: var(--color-danger);
+  --chip-danger-text: #ffffff;
+  --chip-muted-bg: #e7e7e6;
+  --chip-muted-text: #40403d;
+
+  /*
+   * FORM ELEMENTS
+   */
+  --input-bg: #ffffff;
+  --input-border: var(--color-border);
+  --input-border-focus: var(--color-primary);
+  --input-error: var(--color-danger);
+  --input-placeholder: #a8a8a3;
+
+  /*
+   * BUTTON VARIANTS
+   */
+  --btn-primary-bg: var(--color-primary);
+  --btn-primary-text: #ffffff;
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-text: var(--color-text);
+  --btn-secondary-border: var(--color-border);
+  --btn-ghost-bg: transparent;
+  --btn-ghost-text: var(--color-text);
 }
 
-/* Dark theme support (future) */
+/* Dark mode support (auto-detect) */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f172a;
-    --bg-elevated: #1e293b;
-    --panel: rgba(30, 41, 59, 0.96);
-    --border: rgba(255, 255, 255, 0.1);
-    --text: #f1f5f9;
-    --text-muted: #94a3b8;
-    --primary: #f8fafc;
-    --primary-light: #1e293b;
+    /* Backgrounds */
+    --color-bg: #0a0e1a;
+    --color-bg-elevated: #111827;
+    --color-panel: #1f2937;
+    --color-panel-hover: #374151;
+
+    /* Borders */
+    --color-border: #374151;
+    --color-border-strong: #4b5563;
+
+    /* Text */
+    --color-text: #f9fafb;
+    --color-text-secondary: #e5e7eb;
+    --color-text-muted: #9ca3af;
+    --color-text-inverse: #111827;
+
+    /* Primary - lighter for dark mode */
+    --color-primary: #60a5fa;
+    --color-primary_hover: #3b82f6;
+    --color-primary_light: #1e3a5f;
+    --color-primary-focus: #93c5fd;
+
+    /* Success */
+    --color-success: #4ade80;
+    --color-success-bg: #064e3b;
+    --color-success-border: #22c55e;
+
+    /* Warning */
+    --color-warning: #fbbf24;
+    --color-warning-bg: #451a03;
+    --color-warning-border: #f59e0b;
+
+    /* Danger */
+    --color-danger: #ef4444;
+    --color-danger-bg: #450a0a;
+    --color-danger-border: #dc2626;
+
+    /* Info */
+    --color-info: #38bdf8;
+    --color-info-bg: #0c4a6e;
+    --color-info-border: #0ea5e9;
+
+    /* Focus */
+    --color-focus: #60a5fa;
+    --color-focus-ring: rgba(96, 165, 250, 0.3);
+
+    /* Chips */
+    --chip-muted-bg: #374151;
+    --chip-muted-text: #d1d5db;
+
+    /* Forms */
+    --input-bg: #1f2937;
+    --input-placeholder: #6b7280;
+
+    /* Buttons */
+    --btn-secondary-bg: #374151;
+    --btn-secondary-border: #4b5563;
   }
 }

@@ -1,5 +1,6 @@
 /**
  * Buttons
+ * High contrast, accessible button styles
  */
 
 /* Base button */
@@ -11,8 +12,11 @@
   border-radius: var(--radius-lg);
   font-weight: 600;
   min-height: 44px;
+  padding: var(--space-3) var(--space-4);
   transition: all var(--transition-base);
   white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
 }
 
 .btn:active {
@@ -24,25 +28,32 @@
   cursor: not-allowed;
 }
 
+/* Focus states for all buttons */
+.btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 /* Primary button */
 .btn-primary {
   background: var(--color-primary);
   color: white;
-  padding: var(--space-3) var(--space-5);
+  border-color: var(--color-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+  background: var(--color-primary_hover);
+  border-color: var(--color-primary_hover);
 }
 
-.btn-primary:active {
-  background: var(--color-primary-dark);
+.btn-primary:active:not(:disabled) {
+  background: var(--color-primary);
 }
 
 /* Secondary/Ghost button */
 .btn-ghost {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
+  background: transparent;
+  color: var(--color-text);
   border: 1px solid var(--color-border);
   padding: var(--space-2) var(--space-4);
   min-height: 36px;
@@ -51,12 +62,13 @@
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: #e2e8f0;
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-strong);
 }
 
-/* Danger button */
+/* Danger button (ghost style for destructive actions) */
 .btn-danger {
-  background: var(--color-danger-bg);
+  background: var(--color-danger-light);
   color: var(--color-danger);
   border: 1px solid var(--color-danger-border);
   padding: var(--space-2) var(--space-4);
@@ -66,7 +78,8 @@
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #ffe4e6;
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
 }
 
 /* Form submit button */
@@ -74,25 +87,29 @@ button[type="submit"] {
   width: 100%;
   background: var(--color-primary);
   color: white;
+  border-color: var(--color-primary);
   padding: var(--space-3) var(--space-5);
   border-radius: var(--radius-lg);
-  font-weight: 700;
-  font-size: 0.9rem;
-  min-height: 44px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  min-height: 48px;
   transition: all var(--transition-base);
+  cursor: pointer;
 }
 
 button[type="submit"]:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+  background: var(--color-primary_hover);
+  border-color: var(--color-primary_hover);
 }
 
-button[type="submit"]:active {
-  opacity: 0.9;
+button[type="submit"]:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 button[type="submit"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  background: var(--color-border);
 }
 
 /* Button sizes */
@@ -127,31 +144,60 @@ button[type="submit"]:disabled {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: var(--space-1) var(--space-2);
-  color: var(--color-text-muted);
-  font-size: 0.65rem;
+  gap: 4px;
+  padding: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
   font-weight: 500;
-  min-height: 44px;
-  min-width: 44px;
+  min-height: 48px;
+  min-width: 48px;
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
+  cursor: pointer;
 }
 
 .bottom-nav-item:hover,
 .bottom-nav-item:active {
-  background: var(--color-primary-light);
+  background: var(--color-bg-elevated);
   color: var(--color-primary);
 }
 
 .bottom-nav-item.active {
   color: var(--color-primary);
-  background: var(--color-primary-light);
+  background: var(--color-primary_light);
   font-weight: 600;
 }
 
 .bottom-nav-icon {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
+  stroke-width: 2px;
+}
+
+/* Mobile menu button */
+.mobile-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.mobile-menu-btn:hover,
+.mobile-menu-btn:active {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-strong);
+}
+
+.mobile-menu-btn[aria-expanded="true"] {
+  background: var(--color-primary_light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
