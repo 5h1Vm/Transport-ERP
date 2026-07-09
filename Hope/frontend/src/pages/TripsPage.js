@@ -53,9 +53,10 @@ export function renderTripsPage() {
       ${formField({ label: 'Transporter', type: 'select', id: 'transporterId', name: 'transporterId', options: transporters.map(t => ({ value: t.id, label: t.firmName })) })}
       ${formField({ label: 'Vehicle', type: 'select', id: 'vehicleId', name: 'vehicleId', options: vehicles.map(v => ({ value: v.id, label: v.vehicleNumber })) })}
       ${formField({ label: 'Route', type: 'select', id: 'routeId', name: 'routeId', options: routes.map(r => ({ value: r.id, label: r.name })) })}
+      <input type="hidden" id="distanceKm" name="distanceKm" />
       ${formField({ label: 'Date', type: 'date', id: 'date', name: 'date', required: true })}
-      ${formField({ label: 'Freight Amount (₹)', type: 'number', id: 'freightAmount', name: 'freightAmount', placeholder: '0', min: '0', step: '1' })}
-      ${formField({ label: 'Rate per km (₹)', type: 'number', id: 'ratePerKm', name: 'ratePerKm', placeholder: 'Auto from route' })}
+      ${formField({ label: 'Freight Amount (₹)', type: 'number', id: 'freightAmount', name: 'freightAmount', placeholder: 'Select route for auto-calc', min: '0', step: '1' })}
+      ${formField({ label: 'Rate per km (₹)', type: 'number', id: 'ratePerKm', name: 'ratePerKm', placeholder: 'Optional: manual rate' })}
       ${formField({ label: 'Status', type: 'select', id: 'status', name: 'status', options: [
           { value: 'draft', label: 'Draft' },
           { value: 'active', label: 'Active' },

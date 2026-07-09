@@ -1,6 +1,7 @@
 /**
  * Event Binding Utilities - Centralized event binding for components
  */
+import { state } from '../store/index.js';
 
 /**
  * Bind form submit handlers
@@ -313,6 +314,60 @@ export function bindDriverMultiSelect(state) {
     }
   };
   document.addEventListener('click', document._driverDropdownClickHandler);
+}
+
+/**
+ * Bind freight auto-calculator based on route distance and rate
+ */
+export function bindFreightCalculator() {
+  const routeSelect = document.getElementById('routeId');
+  const distanceInput = document.getElementById('distanceKm');
+  const rateInput = document.getElementById('ratePerKm');
+  const freightInput = document.getElementById('freightAmount');
+
+  if (!routeSelect || !freightInput) return;
+
+  routeSelect.removeEventListener('change', routeSelect._changeHandler);
+  routeSelect._changeHandler = () => {
+    const routes = state.data.routes || [];
+    const selectedRoute = routes.find(r => r.id === routeSelect.value);
+
+    if (selectedRoute) {
+      // Auto-fill distance if field exists
+      if (distanceInput && selectedRoute.distanceKm) {
+        distanceInput.value = selectedRoute.distanceKm;
+      }
+
+      // Calculate freight: baseRate or distance × ratePerKm
+      const distance = selectedRoute.distanceKm || 0;
+      const baseRate = selectedRoute.baseRate || 0;
+      const currentRate = rateInput ? parseFloat(rateInput.value) : 0;
+
+      // Use baseRate from route, or calculate from ratePerKm × distance
+      if (baseRate > 0) {
+        freightInput.value = baseRate;
+      } else if (currentRate > 0 && distance > 0) {
+        freightInput.value = Math.round(currentRate * distance);
+      }
+    }
+  };
+  routeSelect.addEventListener('change', routeSelect._changeHandler);
+
+  // Also recalculate when ratePerKm changes
+  if (rateInput) {
+    rateInput.removeEventListener('input', rateInput._inputHandler);
+    rateInput._inputHandler = () => {
+      const selectedRoute = routes.find(r => r.id === routeSelect.value);
+      if (selectedRoute && rateInput.value) {
+        const distance = selectedRoute.distanceKm || 0;
+        const rate = parseFloat(rateInput.value);
+        if (distance > 0 && rate > 0) {
+          freightInput.value = Math.round(rate * distance);
+        }
+      }
+    };
+    rateInput.addEventListener('input', rateInput._inputHandler);
+  }
 }
 
 /**

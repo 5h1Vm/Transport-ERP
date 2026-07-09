@@ -29,7 +29,7 @@ import { showToast, showStateMessages } from './components/Toast.js';
 import { confirmDialog } from './components/Dialog.js';
 
 // Utils
-import { bindForms, bindDeleteButtons, bindEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindVehicleFilterByTransporter, applyValidationErrors, clearValidationErrors, populateForm, resetForm } from './utils/binding.js';
+import { bindForms, bindDeleteButtons, bindEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindVehicleFilterByTransporter, bindFreightCalculator, applyValidationErrors, clearValidationErrors, populateForm, resetForm } from './utils/binding.js';
 
 // App container
 const app = document.querySelector('#app');
@@ -113,6 +113,9 @@ function bindEventHandlers() {
 
   // Vehicle filter by transporter
   bindVehicleFilterByTransporter(() => state.data.vehicles);
+
+  // Freight auto-calculator
+  bindFreightCalculator();
 
   // Apply validation errors
   applyValidationErrors(state.validationErrors);
