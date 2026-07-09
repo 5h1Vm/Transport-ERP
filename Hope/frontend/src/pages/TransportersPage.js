@@ -1,11 +1,12 @@
 /**
  * Transporters Page
  */
-import { createRecordCard, createEmptyState, createPanel } from '../components/CardComponents.js';
-import { currency, formatDate, editButton, deleteButton, optionList } from '../utils/helpers.js';
+import { createMainLayout } from '../components/Layout.js';
+import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
+import { currency, formatDate, editButton, deleteButton } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
-function renderTransportersPage() {
+export function renderTransportersPage() {
   const items = state.data.transporters || [];
   const filter = state.filters.transporters?.toLowerCase() || '';
   const filteredItems = filter
@@ -81,5 +82,3 @@ function renderTransportersPage() {
 
   return createMainLayout('transporters', content);
 }
-
-export { renderTransportersPage };

@@ -63,7 +63,7 @@ export function renderTripsPage() {
           { value: 'delivered', label: 'Delivered' },
           { value: 'cancelled', label: 'Cancelled' }
         ] })}
-      <div class="form-field full-width" id="driver-multi-select-container"></div>
+      <div class="form-field full-width" id="driver-multi-select-container">${createDriverMultiSelect('driver-multi-select-container')}</div>
       ${formField({ label: 'Remarks', type: 'text', id: 'remarks', name: 'remarks', placeholder: 'Notes' })}
       <div class="form-field full-width">${formSubmit('trip')}</div>
     </form>

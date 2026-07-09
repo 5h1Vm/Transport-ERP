@@ -148,7 +148,7 @@ export function bindFilters(handlers) {
   if (transporterSearch && handlers.transporters) {
     transporterSearch.removeEventListener('input', transporterSearch._inputHandler);
     transporterSearch._inputHandler = (e) => handlers.transporters(e.target.value);
-    transporterSearch.addEventListener('input', transportersSearch._inputHandler);
+    transporterSearch.addEventListener('input', transporterSearch._inputHandler);
   }
 
   // Vehicle search
@@ -194,51 +194,81 @@ export function bindFilters(handlers) {
  * @param {Object} state - Form state reference
  */
 export function bindDriverMultiSelect(state) {
+  const container = document.getElementById('driver-multi-select-container');
   const trigger = document.getElementById('driver-select-trigger');
   const dropdown = document.getElementById('driver-select-dropdown');
   const form = document.querySelector('form[data-form="trip"]');
 
-  if (!trigger || !dropdown || !form) return;
+  // Populate driver options if container exists and has options element
+  if (container) {
+    const optionsEl = container.querySelector('.driver-select-options');
+    const footerEl = container.querySelector('.driver-select-footer');
+    const drivers = state.data.drivers || [];
 
-  if (trigger.dataset.bound === 'true') return;
-  trigger.dataset.bound = 'true';
+    if (optionsEl && drivers.length > 0) {
+      optionsEl.innerHTML = drivers.map(d => `
+        <label class="driver-select-option">
+          <input type="checkbox" name="driverId" value="${d.id}" />
+          <span>${d.name}</span>
+        </label>
+      `).join('');
 
-  // Toggle dropdown
-  trigger.removeEventListener('click', trigger._clickHandler);
-  trigger._clickHandler = (e) => {
-    e.stopPropagation();
-    dropdown.classList.toggle('show');
-  };
-  trigger.addEventListener('click', trigger._clickHandler);
-
-  // Close on outside click
-  document.removeEventListener('click', document._driverDropdownClickHandler);
-  document._driverDropdownClickHandler = (e) => {
-    if (!trigger.contains(e.target) && !dropdown.contains(e.target)) {
-      dropdown.classList.remove('show');
+      // Add footer if missing
+      if (!footerEl) {
+        const footer = document.createElement('div');
+        footer.className = 'driver-select-footer';
+        footer.innerHTML = `
+          <span class="driver-select-count">0 selected</span>
+          <button type="button" class="driver-select-clear">Clear all</button>
+        `;
+        container.querySelector('.driver-select-dropdown').appendChild(footer);
+      }
     }
-  };
-  document.addEventListener('click', document._driverDropdownClickHandler);
 
-  // Handle checkbox changes
-  dropdown.querySelectorAll('input[type="checkbox"][name="driverId"]').forEach(checkbox => {
-    checkbox.removeEventListener('change', checkbox._changeHandler);
-    checkbox._changeHandler = () => {
-      const selected = Array.from(dropdown.querySelectorAll('input[type="checkbox"][name="driverId"]:checked'))
+    // Re-bind checkboxes and clear button after populating
+    const clearBtn = container.querySelector('.driver-select-clear');
+    const countEl = container.querySelector('.driver-select-count');
+
+    if (clearBtn) {
+      clearBtn.removeEventListener('click', clearBtn._clickHandler);
+      clearBtn._clickHandler = () => {
+        container.querySelectorAll('input[type="checkbox"][name="driverId"]').forEach(cb => {
+          cb.checked = false;
+        });
+        updateDriverSelect();
+        trigger.querySelector('.driver-select-placeholder').textContent = 'Select drivers';
+        trigger.querySelector('.driver-select-placeholder').style.color = 'var(--muted)';
+      };
+      clearBtn.addEventListener('click', clearBtn._clickHandler);
+    }
+
+    function updateDriverSelect() {
+      const selected = Array.from(container.querySelectorAll('input[type="checkbox"][name="driverId"]:checked'))
         .map(cb => cb.value);
 
+      // Update count
+      if (countEl) {
+        countEl.textContent = `${selected.length} selected`;
+      }
+
+      // Update placeholder/chips
       const placeholder = trigger.querySelector('.driver-select-placeholder');
+      const chipsContainer = trigger.querySelector('.driver-selected-chips');
+
       if (selected.length === 0) {
         placeholder.textContent = 'Select drivers';
         placeholder.style.color = 'var(--muted)';
+        if (chipsContainer) chipsContainer.innerHTML = '';
       } else if (selected.length <= 2) {
-        const names = Array.from(dropdown.querySelectorAll('input[type="checkbox"][name="driverId"]:checked'))
+        const names = Array.from(container.querySelectorAll('input[type="checkbox"][name="driverId"]:checked'))
           .map(cb => cb.parentElement.textContent.trim());
         placeholder.textContent = names.join(', ');
         placeholder.style.color = 'var(--text)';
+        if (chipsContainer) chipsContainer.innerHTML = '';
       } else {
         placeholder.textContent = `${selected.length} drivers selected`;
         placeholder.style.color = 'var(--text)';
+        if (chipsContainer) chipsContainer.innerHTML = '';
       }
 
       // Update hidden field
@@ -250,9 +280,39 @@ export function bindDriverMultiSelect(state) {
         form.appendChild(hiddenInput);
       }
       hiddenInput.value = JSON.stringify(selected);
-    };
-    checkbox.addEventListener('change', checkbox._changeHandler);
-  });
+    }
+
+    // Bind all checkboxes
+    container.querySelectorAll('input[type="checkbox"][name="driverId"]').forEach(checkbox => {
+      checkbox.removeEventListener('change', checkbox._changeHandler);
+      checkbox._changeHandler = updateDriverSelect;
+      checkbox.addEventListener('change', checkbox._changeHandler);
+    });
+  }
+
+  if (!trigger || !dropdown || !form) return;
+
+  if (trigger.dataset.bound === 'true') return;
+  trigger.dataset.bound = 'true';
+
+  // Toggle dropdown
+  trigger.removeEventListener('click', trigger._clickHandler);
+  trigger._clickHandler = (e) => {
+    e.stopPropagation();
+    trigger.classList.toggle('open');
+    dropdown.classList.toggle('show');
+  };
+  trigger.addEventListener('click', trigger._clickHandler);
+
+  // Close on outside click
+  document.removeEventListener('click', document._driverDropdownClickHandler);
+  document._driverDropdownClickHandler = (e) => {
+    if (!trigger.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.classList.remove('show');
+      trigger.classList.remove('open');
+    }
+  };
+  document.addEventListener('click', document._driverDropdownClickHandler);
 }
 
 /**

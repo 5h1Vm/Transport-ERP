@@ -26,14 +26,27 @@ export async function renderDriverDetail(id) {
   // This month
   const now = new Date();
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const thisMonthTrips = trips.filter(t => t.date && new Date(t.date) >= thisMonthStart);
-  const thisMonthSettlements = settlements.filter(s => s.date && new Date(s.date) >= thisMonthStart);
+  const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const thisMonthTrips = trips.filter(t => t.date && new Date(t.date) >= thisMonthStart && new Date(t.date) <= thisMonthEnd);
+  const thisMonthSettlements = settlements.filter(s => s.date && new Date(s.date) >= thisMonthStart && new Date(s.date) <= thisMonthEnd);
+
+  // Calculate this month earnings from trips (via driver ledger entries)
+  const thisMonthEarnings = thisMonthTrips.reduce((sum, trip) => {
+    const ledger = state.data.driverLedgerEntries?.find(e => e.tripId === trip.id && e.driverId === driver.id);
+    return sum + (ledger?.netPayable || ledger?.amount || trip.freightAmount || 0);
+  }, 0);
+
+  const thisMonthSettled = thisMonthSettlements.reduce((sum, s) => sum + s.amount, 0);
+  const thisMonthOutstanding = thisMonthEarnings - thisMonthSettled;
+
+  // Helper for month display
+  const monthName = thisMonthStart.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
   // Hero stats
   const heroStats = `
     <div class="hero-stats">
       ${createHeroStat({ label: 'Total Trips', value: totalTrips, helper: 'All time' })}
-      ${createHeroStat({ label: 'This Month', value: thisMonthTrips.length, helper: 'Active trips' })}
+      ${createHeroStat({ label: `This Month (${monthName})`, value: currency(thisMonthEarnings), helper: `${thisMonthTrips.length} trips • ${currency(thisMonthOutstanding)} outstanding`, className: thisMonthOutstanding > 0 ? 'warning' : 'success' })}
       ${createHeroStat({ label: 'Settled', value: currency(settledAmount), helper: 'Total paid', className: 'success' })}
       ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: 'Advances - Settlements', className: outstanding > 0 ? 'warning' : 'success' })}
       ${createHeroStat({ label: 'Daily Rate', value: currency(driver.dailyRate || 0), helper: 'Per day' })}
@@ -89,6 +102,41 @@ export async function renderDriverDetail(id) {
       copy: `${driver.phone} • ${driver.licenseNumber || 'No license'} • ${driver.status || 'Active'}`
     })}
     ${heroStats}
+
+    <!-- This Month Breakdown -->
+    <section class="panel-grid white two-col">
+      <article class="panel white">
+        <div class="panel-head">
+          <div><p class="eyebrow dark">${monthName}</p><h3>Earnings</h3></div>
+          <span class="chip primary">${thisMonthTrips.length} trips</span>
+        </div>
+        <p class="page-copy">Gross earnings from trips completed this month</p>
+        <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-text);">${currency(thisMonthEarnings)}</div>
+      </article>
+      <article class="panel white">
+        <div class="panel-head">
+          <div><p class="eyebrow dark">${monthName}</p><h3>Settlements</h3></div>
+          <span class="chip success">${thisMonthSettlements.length} paid</span>
+        </div>
+        <p class="page-copy">Total amount settled this month</p>
+        <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-success);">${currency(thisMonthSettled)}</div>
+      </article>
+    </section>
+
+    ${thisMonthOutstanding !== 0 ? `
+    <section class="panel-grid white">
+      <article class="panel white full-width">
+        <div class="panel-head">
+          <div><p class="eyebrow dark">${monthName}</p><h3>Outstanding Balance</h3></div>
+          <span class="chip ${thisMonthOutstanding > 0 ? 'warning' : 'success'}">${thisMonthOutstanding > 0 ? 'Pending' : 'Overpaid'}</span>
+        </div>
+        <p class="page-copy">${thisMonthOutstanding > 0 ? 'Amount owed to driver' : 'Amount to recover from driver'}</p>
+        <div style="font-size: 1.5rem; font-weight: 700; color: ${thisMonthOutstanding > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">
+          ${currency(Math.abs(thisMonthOutstanding))}
+        </div>
+      </article>
+    </section>
+    ` : ''}
 
     <section class="panel-grid white two-col">
       <article class="panel white form-panel">

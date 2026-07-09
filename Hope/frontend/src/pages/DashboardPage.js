@@ -1,12 +1,10 @@
 /**
  * Dashboard Page
  */
-import { createMobileHeader, createBottomNav } from '../components/MobileHeader.js';
-import { createSidebar, createSidebarOverlay } from '../components/Sidebar.js';
-import { createMetricCard, createPanel, createRecordCard, createEmptyState, createLoadingCard } from '../components/CardComponents.js';
-import { currency, formatDate } from '../utils/helpers.js';
-import { editButton, deleteButton } from '../utils/helpers.js';
-import { state, currentPage } from '../store/index.js';
+import { createMainLayout } from '../components/Layout.js';
+import { createMetricCard, createRecordCard, createEmptyState } from '../components/CardComponents.js';
+import { currency, formatDate, editButton, deleteButton } from '../utils/helpers.js';
+import { state } from '../store/index.js';
 
 /**
  * Render Dashboard page
@@ -29,11 +27,12 @@ export function renderDashboardPage() {
   // Metrics grid
   const metricsHtml = metrics.length
     ? metrics.map(m => createMetricCard({ label: m.label, value: m.value, helper: 'Operational summary' })).join('')
-    : createBlankCard({
-        title: 'No records yet',
-        message: 'Create masters and trips from the dedicated pages on the left.',
-        action: ''
-      });
+    : `
+      <div class="blank-card">
+        <h3>No records yet</h3>
+        <p>Create masters and trips from the dedicated pages on the left.</p>
+      </div>
+    `;
 
   // Recent trips panel
   const recentTripsHtml = recentTrips.length

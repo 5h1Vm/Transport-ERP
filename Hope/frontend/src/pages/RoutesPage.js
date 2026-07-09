@@ -1,11 +1,12 @@
 /**
  * Routes Page
  */
+import { createMainLayout } from '../components/Layout.js';
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
 import { currency, formatDate, editButton, deleteButton } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
-function renderRoutesPage() {
+export function renderRoutesPage() {
   const items = state.data.routes || [];
   const filter = state.filters.routes?.toLowerCase() || '';
   const filteredItems = filter
@@ -63,5 +64,3 @@ function renderRoutesPage() {
 
   return createMainLayout('routes', content);
 }
-
-export { renderRoutesPage };
