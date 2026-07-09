@@ -1,14 +1,14 @@
 /**
  * Driver Detail Page
  */
-import { createMainLayout, createPageHeader } from '../components/Layout.js';
+import { createPageHeader } from '../components/Layout.js';
 import { createRecordCard, createEmptyState, createHeroStat } from '../components/CardComponents.js';
 import { currency, formatDate, formatDateTime, editButton, deleteButton, formField, formSubmit } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
 export async function renderDriverDetail(id) {
   const driver = state.data.drivers?.find(d => d.id === id);
-  if (!driver) return createMainLayout(`driver/${id}`, createEmptyState('Driver not found.'));
+  if (!driver) return createEmptyState('Driver not found.');
 
   const trips = state.data.trips?.filter(t => t.driverIds?.includes(driver.id)) || [];
   const settlements = state.data.driverSettlements?.filter(s => s.driverId === driver.id) || [];
@@ -174,5 +174,5 @@ export async function renderDriverDetail(id) {
     </section>
   `;
 
-  return createMainLayout(`driver/${id}`, content);
+  return content;
 }

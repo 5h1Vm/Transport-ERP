@@ -1,7 +1,7 @@
 /**
  * Drivers Page
  */
-import { createMainLayout, createPageHeader, createFilterRow } from '../components/Layout.js';
+import { createPageHeader, createFilterRow } from '../components/Layout.js';
 import { createRecordCard, createEmptyState, createLoadingCard } from '../components/CardComponents.js';
 import { editButton, deleteButton, formField, formSubmit, createDriverMultiSelect } from '../utils/helpers.js';
 import { state } from '../store/index.js';
@@ -57,5 +57,5 @@ export function renderDriversPage() {
     </section>
   `;
 
-  return createMainLayout('drivers', content);
+  return content;
 }

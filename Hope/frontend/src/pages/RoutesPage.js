@@ -1,7 +1,6 @@
 /**
  * Routes Page
  */
-import { createMainLayout } from '../components/Layout.js';
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
 import { currency, formatDate, editButton, deleteButton } from '../utils/helpers.js';
 import { state } from '../store/index.js';
@@ -62,5 +61,5 @@ export function renderRoutesPage() {
     </section>
   `;
 
-  return createMainLayout('routes', content);
+  return content;
 }

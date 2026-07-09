@@ -1,7 +1,7 @@
 /**
  * Trips Page
  */
-import { createMainLayout, createPageHeader, createFilterRow } from '../components/Layout.js';
+import { createPageHeader, createFilterRow } from '../components/Layout.js';
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
 import { currency, formatDate, editButton, deleteButton, formField, formSubmit, createDriverMultiSelect } from '../utils/helpers.js';
 import { state } from '../store/index.js';
@@ -115,5 +115,5 @@ export function renderTripsPage() {
     </section>
   `;
 
-  return createMainLayout('trips', content);
+  return content;
 }

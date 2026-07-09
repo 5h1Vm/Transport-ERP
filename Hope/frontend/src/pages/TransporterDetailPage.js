@@ -2,14 +2,14 @@
  * Transporter Detail Page
  */
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
-import { createPageHeader, createMainLayout } from '../components/Layout.js';
+import { createPageHeader } from '../components/Layout.js';
 import { currency, formatDate, deleteButton } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
 async function renderTransporterDetail(id) {
   const transporter = (state.data.transporters || []).find(t => t.id === id);
   if (!transporter) {
-    return createMainLayout('transporter', `<div class="error-card">Transporter not found</div>`);
+    return '<div class="error-card">Transporter not found</div>';
   }
 
   const trips = (state.data.trips || []).filter(t => t.transporterId === id);
@@ -97,7 +97,7 @@ async function renderTransporterDetail(id) {
     </section>
   `;
 
-  return createMainLayout(`transporter/${id}`, content);
+  return content;
 }
 
 export { renderTransporterDetail };

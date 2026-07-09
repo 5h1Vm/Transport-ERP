@@ -1,14 +1,14 @@
 /**
  * Trip Detail Page
  */
-import { createMainLayout, createPageHeader } from '../components/Layout.js';
+import { createPageHeader } from '../components/Layout.js';
 import { createRecordCard, createEmptyState, createHeroStat } from '../components/CardComponents.js';
 import { currency, formatDate, formatDateTime, editButton, deleteButton, formField, formSubmit, createDriverMultiSelect } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
 export async function renderTripDetail(id) {
   const trip = state.data.trips?.find(t => t.id === id);
-  if (!trip) return createMainLayout(`trip/${id}`, createEmptyState('Trip not found.'));
+  if (!trip) return createEmptyState('Trip not found.');
 
   const transporters = state.data.transporters || [];
   const vehicles = state.data.vehicles || [];
@@ -151,5 +151,5 @@ export async function renderTripDetail(id) {
     ${podForm}
   `;
 
-  return createMainLayout(`trip/${id}`, content);
+  return content;
 }

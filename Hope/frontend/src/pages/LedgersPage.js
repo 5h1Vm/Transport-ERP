@@ -2,7 +2,7 @@
  * Ledgers Page - Transporter & Driver ledger summaries
  */
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
-import { createPageHeader, createMainLayout } from '../components/Layout.js';
+import { createPageHeader } from '../components/Layout.js';
 import { currency, formatDate } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
@@ -99,7 +99,7 @@ function renderLedgersPage() {
     </section>
   `;
 
-  return createMainLayout('ledgers', content);
+  return content;
 }
 
 export { renderLedgersPage };

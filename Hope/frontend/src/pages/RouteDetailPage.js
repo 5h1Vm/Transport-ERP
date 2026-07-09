@@ -2,14 +2,14 @@
  * Route Detail Page
  */
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
-import { createPageHeader, createPanelGrid, createMainLayout } from '../components/Layout.js';
+import { createPageHeader } from '../components/Layout.js';
 import { currency, formatDate } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
 export function renderRouteDetail(id) {
   const route = (state.data.routes || []).find(r => r.id === id);
   if (!route) {
-    return createMainLayout('route', `<div class="error-card">Route not found</div>`);
+    return '<div class="error-card">Route not found</div>';
   }
 
   const trips = (state.data.trips || []).filter(t => t.routeId === id);
@@ -61,5 +61,5 @@ export function renderRouteDetail(id) {
     </section>
   `;
 
-  return createMainLayout('routes', content);
+  return content;
 }
