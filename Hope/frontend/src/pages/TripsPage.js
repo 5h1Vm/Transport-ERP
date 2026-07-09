@@ -76,6 +76,12 @@ export function renderTripsPage() {
     const drivers = state.data.drivers?.filter(d => driverIds.includes(d.id)) || [];
     const driverNames = drivers.map(d => d.name).join(', ') || '—';
 
+    // Calculate payment info for this trip
+    const tripPayments = state.data.payments?.filter(p => p.tripId === trip.id) || [];
+    const totalPaid = tripPayments.reduce((s, p) => s + p.amount, 0);
+    const amountDue = (trip.freightAmount || 0) - totalPaid;
+    const paymentInfo = tripPayments.length > 0 ? `${tripPayments.length} payment(s) • Paid: ${currency(totalPaid)} • Due: ${currency(amountDue)}` : 'No payments';
+
     return createRecordCard({
       title: trip.internalRef || trip.id.slice(0, 8),
       subtitle: `${transporter?.firmName || '—'} • ${vehicle?.vehicleNumber || '—'}`,
@@ -83,7 +89,8 @@ export function renderTripsPage() {
         trip.lrNumber ? `LR: ${trip.lrNumber}` : '',
         `Drivers: ${driverNames}`,
         `Status: ${trip.status}`,
-        formatDate(trip.date)
+        formatDate(trip.date),
+        `<span style="color: ${amountDue > 0 ? 'var(--color-warning)' : 'var(--color-success)'}">${paymentInfo}</span>`
       ].filter(Boolean),
       chip: currency(trip.freightAmount || 0),
       chipClass: trip.status === 'cancelled' ? 'danger' : trip.status === 'delivered' ? 'success' : 'primary',

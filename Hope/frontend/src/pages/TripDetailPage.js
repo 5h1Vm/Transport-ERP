@@ -66,13 +66,20 @@ export async function renderTripDetail(id) {
     </form>
   `;
 
-  // Payment history
-  const paymentsHtml = payments.length ? payments.map(p => createRecordCard({
-    title: currency(p.amount),
-    subtitle: `${p.method || '—'} • ${p.reference || 'No ref'}`,
-    meta: [formatDateTime(p.createdAt), formatDateTime(p.date)],
-    actions: deleteButton('payment', p.id)
-  })).join('') : createEmptyState('No payments recorded yet.');
+  // Payment history with running balance
+  const paymentsHtml = payments.length ? `
+    <div class="stack">
+      ${payments.map((p, index) => {
+        const runningBalance = (trip.freightAmount || 0) - payments.slice(0, index + 1).reduce((s, pm) => s + pm.amount, 0);
+        return createRecordCard({
+          title: currency(p.amount),
+          subtitle: `${p.method || '—'} • ${p.reference || 'No ref'}`,
+          meta: [formatDateTime(p.createdAt), formatDateTime(p.date), `<span style="color: ${runningBalance > 0 ? 'var(--color-warning)' : 'var(--color-success)'}">Balance: ${currency(runningBalance)}</span>`],
+          actions: deleteButton('payment', p.id)
+        });
+      }).join('')}
+    </div>
+  ` : createEmptyState('No payments recorded yet.');
 
   // Driver advances table
   const driverAdvancesHtml = driverAdvances.length ? driverAdvances.map(da => createRecordCard({
