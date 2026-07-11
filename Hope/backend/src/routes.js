@@ -4,12 +4,29 @@ const {
   calculateCommission,
   calculateFreightAmount,
   calculateTransporterOutstanding,
+  calculateTransporterOutstandingBulk,
   calculateTripPaymentSummary,
+  computeTripPaymentSummary,
   calculateDriverTripExpenses,
   calculateDriverOutstanding,
+  calculateDriverOutstandingBulk,
   sumBy,
   toNumber
 } = require('./services/calculations');
+
+// Clamp a client-supplied limit into a safe range so a single request can never
+// ask the DB for an unbounded result set.
+function parseLimit(value, fallback, max) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(Math.floor(n), max);
+}
+
+function parseOffset(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.floor(n);
+}
 
 function createRoutes(prisma) {
   const router = express.Router();
@@ -149,15 +166,13 @@ function createRoutes(prisma) {
       prisma.transporter.findMany({ where: { organizationId: organization.id }, orderBy: { firmName: 'asc' } })
     ]);
 
-    const transporterBalances = [];
-    for (const transporter of transporters) {
-      const outstanding = await calculateTransporterOutstanding(prisma, transporter.id);
-      transporterBalances.push({
-        id: transporter.id,
-        name: transporter.firmName,
-        outstanding
-      });
-    }
+    // Bulk-compute every transporter's outstanding in 2 queries instead of 2 per row.
+    const outstandingMap = await calculateTransporterOutstandingBulk(prisma, transporters.map((t) => t.id));
+    const transporterBalances = transporters.map((transporter) => ({
+      id: transporter.id,
+      name: transporter.firmName,
+      outstanding: outstandingMap.get(transporter.id) || 0
+    }));
 
     res.json({
       organization,
@@ -181,21 +196,25 @@ function createRoutes(prisma) {
   }));
 
   router.get('/transporters', asyncHandler(async (req, res) => {
+    const take = parseLimit(req.query.limit, 100, 500);
+    const skip = parseOffset(req.query.offset);
+
     const items = await prisma.transporter.findMany({
       orderBy: { createdAt: 'desc' },
+      take,
+      skip,
       include: {
         trips: { orderBy: { createdAt: 'desc' }, take: 5 },
         payments: { orderBy: { paymentDate: 'desc' }, take: 5 }
       }
     });
 
-    const result = [];
-    for (const transporter of items) {
-      result.push({
-        ...transporter,
-        outstanding: await calculateTransporterOutstanding(prisma, transporter.id)
-      });
-    }
+    // Bulk-compute outstanding for all transporters in this page (2 queries total).
+    const outstandingMap = await calculateTransporterOutstandingBulk(prisma, items.map((t) => t.id));
+    const result = items.map((transporter) => ({
+      ...transporter,
+      outstanding: outstandingMap.get(transporter.id) || 0
+    }));
 
     res.json(result);
   }));
@@ -317,6 +336,8 @@ function createRoutes(prisma) {
   router.get('/vehicles', asyncHandler(async (req, res) => {
     const vehicles = await prisma.vehicle.findMany({
       orderBy: { createdAt: 'desc' },
+      take: parseLimit(req.query.limit, 100, 500),
+      skip: parseOffset(req.query.offset),
       include: { trips: { orderBy: { createdAt: 'desc' }, take: 3 } }
     });
     res.json(vehicles);
@@ -386,19 +407,26 @@ function createRoutes(prisma) {
   }));
 
   router.get('/drivers', asyncHandler(async (req, res) => {
+    const take = parseLimit(req.query.limit, 100, 500);
+    const skip = parseOffset(req.query.offset);
+
     const drivers = await prisma.driver.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take,
+      skip
     });
 
-    const resultWithOutstanding = [];
-    for (const driver of drivers) {
-      const { outstanding, details } = await calculateDriverOutstanding(prisma, driver.id);
-      resultWithOutstanding.push({
+    // Bulk-compute outstanding for all drivers in this page (2 queries total).
+    const outstandingMap = await calculateDriverOutstandingBulk(prisma, drivers.map((d) => d.id));
+    const resultWithOutstanding = drivers.map((driver) => {
+      const entry = outstandingMap.get(driver.id) || { outstanding: 0, details: { settlementTotal: 0, tripExpensesPaid: 0, dailyExpenses: 0 } };
+      const { outstanding, details } = entry;
+      return {
         ...driver,
         settlementTotal: details.settlementTotal + details.tripExpensesPaid + details.dailyExpenses,
         outstandingBalance: outstanding
-      });
-    }
+      };
+    });
 
     res.json(resultWithOutstanding);
   }));
@@ -531,7 +559,11 @@ function createRoutes(prisma) {
   }));
 
   router.get('/routes', asyncHandler(async (req, res) => {
-    const routes = await prisma.route.findMany({ orderBy: { createdAt: 'desc' } });
+    const routes = await prisma.route.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: parseLimit(req.query.limit, 200, 500),
+      skip: parseOffset(req.query.offset)
+    });
     res.json(routes);
   }));
 
@@ -593,8 +625,13 @@ function createRoutes(prisma) {
   }));
 
   router.get('/trips', asyncHandler(async (req, res) => {
+    const take = parseLimit(req.query.limit, 100, 500);
+    const skip = parseOffset(req.query.offset);
+
     const trips = await prisma.trip.findMany({
       orderBy: { createdAt: 'desc' },
+      take,
+      skip,
       include: {
         transporter: true,
         vehicle: true,
@@ -607,11 +644,12 @@ function createRoutes(prisma) {
       }
     });
 
-    const enrichedTrips = [];
-    for (const trip of trips) {
-      const summary = await calculateTripPaymentSummary(prisma, trip.id);
-      enrichedTrips.push({ ...trip, financialSummary: summary });
-    }
+    // The summary is derived from expenses/payments/ledgerEntries which are already
+    // included above, so compute it in-memory — no extra query per trip.
+    const enrichedTrips = trips.map((trip) => ({
+      ...trip,
+      financialSummary: computeTripPaymentSummary(trip)
+    }));
 
     res.json(enrichedTrips);
   }));
@@ -719,7 +757,7 @@ function createRoutes(prisma) {
 
     res.json({
       ...fullTrip,
-      financialSummary: await calculateTripPaymentSummary(prisma, trip.id)
+      financialSummary: computeTripPaymentSummary(fullTrip)
     });
   }));
 
@@ -744,7 +782,7 @@ function createRoutes(prisma) {
 
     res.json({
       ...trip,
-      financialSummary: await calculateTripPaymentSummary(prisma, trip.id)
+      financialSummary: computeTripPaymentSummary(trip)
     });
   }));
 
@@ -932,7 +970,7 @@ function createRoutes(prisma) {
 
     res.status(201).json({
       ...fullTrip,
-      financialSummary: await calculateTripPaymentSummary(prisma, trip.id)
+      financialSummary: computeTripPaymentSummary(fullTrip)
     });
   }));
 
