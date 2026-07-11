@@ -1,0 +1,115 @@
+const express = require('express');
+const { z } = require('zod');
+const asyncHandler = require('../middleware/asyncHandler');
+const { parseLimit, parseOffset } = require('../utils/pagination');
+const {
+  calculateTransporterOutstanding,
+  calculateTransporterOutstandingBulk
+} = require('../services/calculations');
+
+const transporterSchema = z.object({
+  firmName: z.string().min(2),
+  contactPerson: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  gstin: z.string().optional(),
+  pan: z.string().optional(),
+  address: z.string().optional(),
+  commissionType: z.enum(['PERCENTAGE', 'FIXED_PER_TRIP', 'FIXED_PER_TON']).default('PERCENTAGE'),
+  commissionValue: z.coerce.number().default(0),
+  isActive: z.coerce.boolean().default(true),
+  notes: z.string().optional()
+});
+
+module.exports = function transporterRoutes(ctx) {
+  const { prisma, getOrganization } = ctx;
+  const router = express.Router();
+
+  router.get('/transporters', asyncHandler(async (req, res) => {
+    const take = parseLimit(req.query.limit, 100, 500);
+    const skip = parseOffset(req.query.offset);
+
+    const items = await prisma.transporter.findMany({
+      orderBy: { createdAt: 'desc' },
+      take,
+      skip,
+      include: {
+        trips: { orderBy: { createdAt: 'desc' }, take: 5 },
+        payments: { orderBy: { paymentDate: 'desc' }, take: 5 }
+      }
+    });
+
+    // Bulk-compute outstanding for all transporters in this page (2 queries total).
+    const outstandingMap = await calculateTransporterOutstandingBulk(prisma, items.map((t) => t.id));
+    const result = items.map((transporter) => ({
+      ...transporter,
+      outstanding: outstandingMap.get(transporter.id) || 0
+    }));
+
+    res.json(result);
+  }));
+
+  router.get('/transporters/:transporterId', asyncHandler(async (req, res) => {
+    const transporter = await prisma.transporter.findUnique({
+      where: { id: req.params.transporterId },
+      include: {
+        trips: { orderBy: { createdAt: 'desc' }, take: 5 },
+        payments: { orderBy: { paymentDate: 'desc' }, take: 5 }
+      }
+    });
+
+    if (!transporter) {
+      return res.status(404).json({ message: 'Transporter not found' });
+    }
+
+    res.json({
+      ...transporter,
+      outstanding: await calculateTransporterOutstanding(prisma, transporter.id)
+    });
+  }));
+
+  router.put('/transporters/:transporterId', asyncHandler(async (req, res) => {
+    const payload = transporterSchema.parse(req.body);
+
+    const transporter = await prisma.transporter.update({
+      where: { id: req.params.transporterId },
+      data: {
+        ...payload,
+        email: payload.email || null
+      }
+    });
+
+    res.json(transporter);
+  }));
+
+  router.post('/transporters', asyncHandler(async (req, res) => {
+    const payload = transporterSchema.parse(req.body);
+
+    const organization = await getOrganization();
+    const transporter = await prisma.transporter.create({
+      data: {
+        organizationId: organization.id,
+        ...payload,
+        email: payload.email || null
+      }
+    });
+
+    res.status(201).json(transporter);
+  }));
+
+  router.delete('/transporters/:transporterId', asyncHandler(async (req, res) => {
+    const transporterId = req.params.transporterId;
+    const tripCount = await prisma.trip.count({ where: { transporterId } });
+    const paymentCount = await prisma.payment.count({ where: { transporterId } });
+    const ledgerCount = await prisma.transporterLedgerEntry.count({ where: { transporterId } });
+
+    if (tripCount || paymentCount || ledgerCount) {
+      return res.status(400).json({ message: 'Delete linked trips and payments first.' });
+    }
+
+    await prisma.transporter.delete({ where: { id: transporterId } });
+    res.status(204).send();
+  }));
+
+  return router;
+};

@@ -34,8 +34,13 @@ import { bindForms, bindDeleteButtons, bindEditButtons, bindTripStatusButtons, b
 // App container
 const app = document.querySelector('#app');
 
-// Initialize hash change listener
+// Initialize hash change listener (keeps state.route in sync + closes mobile nav)
 initHashChangeListener();
+
+// Repaint the page whenever the route changes. The store's hashchange listener
+// (registered above) updates state.route first, then this repaints for it. Without
+// this, clicking a nav link updated state but never re-rendered — you had to refresh.
+window.addEventListener('hashchange', () => { render(); });
 
 // Main render function
 async function render() {
