@@ -11,44 +11,28 @@ function renderLedgersPage() {
   const drivers = state.data.drivers || [];
   const trips = state.data.trips || [];
   const transporterEntries = state.data.transporterLedgerEntries || [];
-  const transporterPayments = state.data.payments?.filter(p => p.type === 'TRANSPORTER') || [];
-  const driverSettlements = state.data.driverSettlements || [];
+  const payments = state.data.payments || [];
 
-  // Transporter ledger summary
+  // Transporter ledger summary — outstanding comes authoritative from the server.
   const transporterSummary = transporters.map(t => {
     const tTrips = trips.filter(tr => tr.transporterId === t.id);
     const tEntries = tTrips.flatMap(tr => transporterEntries.filter(e => e.tripId === tr.id));
-    const tPayments = transporterPayments.filter(p => p.transporterId === t.id);
+    const tPayments = payments.filter(p => p.transporterId === t.id);
 
     const totalFreight = tEntries.reduce((sum, e) => sum + (e.netReceivable || 0), 0);
-    const totalPaid = tPayments.reduce((sum, p) => sum + p.amount, 0);
-    const outstanding = totalFreight - totalPaid;
+    const totalPaid = tPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const outstanding = typeof t.outstanding === 'number' ? t.outstanding : totalFreight - totalPaid;
 
-    // Advance given to drivers on these trips
-    const driverEntries = tTrips.flatMap(tr => {
-      const de = state.data.driverLedgerEntries?.filter(e => e.tripId === tr.id);
-      return de || [];
-    });
-    const totalAdvance = driverEntries.reduce((sum, e) => sum + (e.advanceGiven || 0), 0);
-
-    return { transporter: t, totalFreight: currency(totalFreight), totalPaid: currency(totalPaid), outstanding: currency(outstanding), totalAdvance: currency(totalAdvance), trips: tTrips.length };
+    return { transporter: t, totalFreight: currency(totalFreight), totalPaid: currency(totalPaid), outstanding: currency(outstanding), trips: tTrips.length };
   });
 
-  // Driver ledger summary
+  // Driver ledger summary — settlementTotal & outstandingBalance come from the server.
   const driverSummary = drivers.map(d => {
-    const dTrips = trips.filter(tr => tr.driverIds?.includes(d.id));
-    const dSettlements = driverSettlements.filter(s => s.driverId === d.id);
-    const dEntries = dTrips.flatMap(tr => {
-      const de = state.data.driverLedgerEntries?.filter(e => e.tripId === tr.id);
-      return de || [];
-    });
+    const dTrips = trips.filter(tr => (tr.drivers || []).some(td => td.driver?.id === d.id || td.driverId === d.id));
+    const settled = currency(d.settlementTotal || 0);
+    const outstanding = currency(d.outstandingBalance || 0);
 
-    const totalAdvance = dEntries.reduce((sum, e) => sum + (e.advanceGiven || 0), 0);
-    const totalSettled = dSettlements.reduce((sum, s) => sum + s.amount, 0);
-    const openingBalance = d.advanceBalance || 0;
-    const outstanding = openingBalance + totalAdvance - totalSettled;
-
-    return { driver: d, trips: dTrips.length, totalAdvance: currency(totalAdvance), totalSettled: currency(totalSettled), outstanding: currency(outstanding), openingBalance: currency(openingBalance) };
+    return { driver: d, trips: dTrips.length, settled, outstanding };
   });
 
   const transporterHtml = transporterSummary.length
@@ -59,7 +43,6 @@ function renderLedgersPage() {
           `Trips: ${item.trips}`,
           `Freight: ${item.totalFreight}`,
           `Paid: ${item.totalPaid}`,
-          `Advance: ${item.totalAdvance}`,
           `Outstanding: ${item.outstanding}`
         ],
         actions: `<a href="#transporter/${item.transporter.id}" class="text-link">View Details</a>`
@@ -72,9 +55,7 @@ function renderLedgersPage() {
         subtitle: `${item.driver.phone || 'No phone'} • License: ${item.driver.licenseNumber || 'N/A'}`,
         meta: [
           `Trips: ${item.trips}`,
-          `Opening: ${item.openingBalance}`,
-          `Advance: ${item.totalAdvance}`,
-          `Settled: ${item.totalSettled}`,
+          `Paid to driver: ${item.settled}`,
           `Outstanding: ${item.outstanding}`
         ],
         actions: `<a href="#driver/${item.driver.id}" class="text-link">View Details</a>`

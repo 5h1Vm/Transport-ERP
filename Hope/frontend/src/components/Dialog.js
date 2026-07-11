@@ -50,27 +50,33 @@ export function confirmDialog({ title, message, confirmText = 'Confirm', cancelT
       </div>
     `;
 
-    const cleanup = () => {
+    // Settle exactly once, and tear down every listener we attach so repeated
+    // dialogs don't accumulate handlers on the shared container / document.
+    let settled = false;
+    const settle = (result) => {
+      if (settled) return;
+      settled = true;
+      dialogContainer.removeEventListener('click', onOverlayClick);
+      document.removeEventListener('keydown', onKeydown);
       dialogContainer.innerHTML = '';
+      resolve(result);
     };
 
-    dialogContainer.querySelector('.dialog-cancel').addEventListener('click', () => {
-      cleanup();
-      resolve(false);
-    });
+    const onOverlayClick = (e) => {
+      if (e.target === dialogContainer) settle(false);
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') settle(false);
+      if (e.key === 'Enter') settle(true);
+    };
 
-    dialogContainer.querySelector('.dialog-confirm').addEventListener('click', () => {
-      cleanup();
-      resolve(true);
-    });
+    dialogContainer.querySelector('.dialog-cancel').addEventListener('click', () => settle(false));
+    dialogContainer.querySelector('.dialog-confirm').addEventListener('click', () => settle(true));
+    dialogContainer.addEventListener('click', onOverlayClick);
+    document.addEventListener('keydown', onKeydown);
 
-    // Close on overlay click
-    dialogContainer.addEventListener('click', (e) => {
-      if (e.target === dialogContainer) {
-        cleanup();
-        resolve(false);
-      }
-    });
+    // Focus the confirm button so Enter/Escape work immediately.
+    dialogContainer.querySelector('.dialog-confirm').focus();
   });
 }
 

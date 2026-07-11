@@ -95,6 +95,24 @@
   justify-content: center;
 }
 
+/* Each meta value gets a soft pill so label/value pairs never run together. */
+.meta-item {
+  padding: 2px 8px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-surface-muted, #f1f5f9);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* Action row (edit / delete / detail links) under a record card. */
+.record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
 /* Metric grid */
 .metrics-grid {
   display: grid;

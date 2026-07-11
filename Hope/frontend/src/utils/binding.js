@@ -171,7 +171,7 @@ export function bindFilters(handlers) {
   // Trips filters
   if (handlers.trips) {
     const tripFilters = {
-      'transporter-filter': 'transporter',
+      'trip-transporter-filter': 'transporter',
       'trip-status-filter': 'status',
       'trip-internalref-filter': 'internalRef',
       'trip-datefrom-filter': 'dateFrom',
@@ -196,8 +196,9 @@ export function bindFilters(handlers) {
  */
 export function bindDriverMultiSelect(state) {
   const container = document.getElementById('driver-multi-select-container');
-  const trigger = document.getElementById('driver-select-trigger');
-  const dropdown = document.getElementById('driver-select-dropdown');
+  // The component uses classes, not IDs — query within the container.
+  const trigger = container?.querySelector('.driver-select-trigger');
+  const dropdown = container?.querySelector('.driver-select-dropdown');
   const form = document.querySelector('form[data-form="trip"]');
 
   // Populate driver options if container exists and has options element
@@ -209,7 +210,7 @@ export function bindDriverMultiSelect(state) {
     if (optionsEl && drivers.length > 0) {
       optionsEl.innerHTML = drivers.map(d => `
         <label class="driver-select-option">
-          <input type="checkbox" name="driverId" value="${d.id}" />
+          <input type="checkbox" name="driverIds" value="${d.id}" />
           <span>${d.name}</span>
         </label>
       `).join('');
@@ -233,7 +234,7 @@ export function bindDriverMultiSelect(state) {
     if (clearBtn) {
       clearBtn.removeEventListener('click', clearBtn._clickHandler);
       clearBtn._clickHandler = () => {
-        container.querySelectorAll('input[type="checkbox"][name="driverId"]').forEach(cb => {
+        container.querySelectorAll('input[type="checkbox"][name="driverIds"]').forEach(cb => {
           cb.checked = false;
         });
         updateDriverSelect();
@@ -244,7 +245,7 @@ export function bindDriverMultiSelect(state) {
     }
 
     function updateDriverSelect() {
-      const selected = Array.from(container.querySelectorAll('input[type="checkbox"][name="driverId"]:checked'))
+      const selected = Array.from(container.querySelectorAll('input[type="checkbox"][name="driverIds"]:checked'))
         .map(cb => cb.value);
 
       // Update count
@@ -261,7 +262,7 @@ export function bindDriverMultiSelect(state) {
         placeholder.style.color = 'var(--muted)';
         if (chipsContainer) chipsContainer.innerHTML = '';
       } else if (selected.length <= 2) {
-        const names = Array.from(container.querySelectorAll('input[type="checkbox"][name="driverId"]:checked'))
+        const names = Array.from(container.querySelectorAll('input[type="checkbox"][name="driverIds"]:checked'))
           .map(cb => cb.parentElement.textContent.trim());
         placeholder.textContent = names.join(', ');
         placeholder.style.color = 'var(--text)';
@@ -273,18 +274,18 @@ export function bindDriverMultiSelect(state) {
       }
 
       // Update hidden field
-      let hiddenInput = form.querySelector('input[type="hidden"][name="driverId"]');
+      let hiddenInput = form.querySelector('input[type="hidden"][name="driverIds"]');
       if (!hiddenInput) {
         hiddenInput = document.createElement('input');
         hiddenInput.type = 'hidden';
-        hiddenInput.name = 'driverId';
+        hiddenInput.name = 'driverIds';
         form.appendChild(hiddenInput);
       }
       hiddenInput.value = JSON.stringify(selected);
     }
 
     // Bind all checkboxes
-    container.querySelectorAll('input[type="checkbox"][name="driverId"]').forEach(checkbox => {
+    container.querySelectorAll('input[type="checkbox"][name="driverIds"]').forEach(checkbox => {
       checkbox.removeEventListener('change', checkbox._changeHandler);
       checkbox._changeHandler = updateDriverSelect;
       checkbox.addEventListener('change', checkbox._changeHandler);
@@ -300,8 +301,9 @@ export function bindDriverMultiSelect(state) {
   trigger.removeEventListener('click', trigger._clickHandler);
   trigger._clickHandler = (e) => {
     e.stopPropagation();
+    // CSS reveals the panel on `.open` (not `.show`).
     trigger.classList.toggle('open');
-    dropdown.classList.toggle('show');
+    dropdown.classList.toggle('open');
   };
   trigger.addEventListener('click', trigger._clickHandler);
 
@@ -309,7 +311,7 @@ export function bindDriverMultiSelect(state) {
   document.removeEventListener('click', document._driverDropdownClickHandler);
   document._driverDropdownClickHandler = (e) => {
     if (!trigger.contains(e.target) && !dropdown.contains(e.target)) {
-      dropdown.classList.remove('show');
+      dropdown.classList.remove('open');
       trigger.classList.remove('open');
     }
   };
@@ -357,7 +359,7 @@ export function bindFreightCalculator() {
   if (rateInput) {
     rateInput.removeEventListener('input', rateInput._inputHandler);
     rateInput._inputHandler = () => {
-      const selectedRoute = routes.find(r => r.id === routeSelect.value);
+      const selectedRoute = (state.data.routes || []).find(r => r.id === routeSelect.value);
       if (selectedRoute && rateInput.value) {
         const distance = selectedRoute.distanceKm || 0;
         const rate = parseFloat(rateInput.value);

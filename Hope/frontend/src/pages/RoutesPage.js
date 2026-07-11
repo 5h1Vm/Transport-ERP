@@ -27,22 +27,19 @@ export function renderRoutesPage() {
 
   const formHtml = `
     <form data-form="route" class="form-grid white">
-      <input name="name" placeholder="Route name (e.g., Mumbai - Delhi)" required />
-      <input name="origin" placeholder="Origin city" required />
-      <input name="destination" placeholder="Destination city" required />
-      <input name="distanceKm" type="number" step="1" placeholder="Distance (km)" />
-      <input name="estDays" type="number" step="1" placeholder="Estimated days" value="1" />
-      <input name="baseRate" type="number" step="1" placeholder="Base freight rate (₹)" value="0" />
+      <input name="origin" placeholder="Origin city" required maxlength="60" />
+      <input name="destination" placeholder="Destination city" required maxlength="60" />
+      <input name="distanceKm" type="number" step="1" min="0" placeholder="Distance (km)" />
       <button type="submit">Save route</button>
     </form>
   `;
 
   const listHtml = filteredItems.length
     ? filteredItems.map(item => createRecordCard({
-        title: item.name,
-        subtitle: `${item.origin} → ${item.destination} • ${item.distanceKm ? item.distanceKm + ' km' : 'No distance'} • ${item.estDays || 1} day(s)`,
-        chip: currency(item.baseRate || 0),
-        chipClass: 'primary',
+        title: `${item.origin} → ${item.destination}`,
+        subtitle: item.distanceKm ? `${item.distanceKm} km` : 'Distance not set',
+        chip: item.isActive === false ? 'Inactive' : 'Active',
+        chipClass: item.isActive === false ? 'muted' : 'success',
         actions: `${editButton('route', item.id)}${deleteButton('route', item.id)}`
       })).join('')
     : createEmptyState('No route records yet.');

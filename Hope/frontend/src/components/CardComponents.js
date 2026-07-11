@@ -76,6 +76,13 @@ export function createPanel({ title, children, className = 'white', fullWidth = 
  * Create a record card
  */
 export function createRecordCard({ title, subtitle = '', chip = '', chipClass = '', meta = [], actions = '' }) {
+  // Wrap each meta entry in its own chip-like span so values never run together
+  // ("Trips: 1Freight: ₹…"). Entries that are already HTML elements pass through.
+  const metaHtml = meta
+    .filter(Boolean)
+    .map((item) => (/^\s*</.test(String(item)) ? item : `<span class="meta-item">${item}</span>`))
+    .join('');
+
   return `
     <article class="record-card">
       <div class="row">
@@ -83,10 +90,10 @@ export function createRecordCard({ title, subtitle = '', chip = '', chipClass = 
           <h4>${title}</h4>
           ${subtitle ? `<p>${subtitle}</p>` : ''}
         </div>
-        <span class="chip ${chipClass}">${chip}</span>
+        ${chip !== '' ? `<span class="chip ${chipClass}">${chip}</span>` : ''}
       </div>
-      ${meta.length ? `<div class="record-meta">${meta.join('')}</div>` : ''}
-      ${actions ? `<div class="record-meta">${actions}</div>` : ''}
+      ${metaHtml ? `<div class="record-meta">${metaHtml}</div>` : ''}
+      ${actions ? `<div class="record-actions">${actions}</div>` : ''}
     </article>
   `;
 }

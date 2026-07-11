@@ -119,11 +119,12 @@ export function navItem(hash, label) {
  * @param {Object} options - Field options
  * @returns {string} - Form field HTML
  */
-export function formField({ label, type = 'text', id, name, placeholder = '', required = false, options = [], min, max, step }) {
+export function formField({ label, type = 'text', id, name, placeholder = '', required = false, options = [], min, max, step, maxlength }) {
   const requiredAttr = required ? 'required' : '';
   const minAttr = min !== undefined ? `min="${min}"` : '';
   const maxAttr = max !== undefined ? `max="${max}"` : '';
   const stepAttr = step !== undefined ? `step="${step}"` : '';
+  const maxlengthAttr = maxlength !== undefined ? `maxlength="${maxlength}"` : '';
 
   let inputHtml = '';
 
@@ -134,7 +135,7 @@ export function formField({ label, type = 'text', id, name, placeholder = '', re
     inputHtml = `<select id="${id}" name="${name}" ${requiredAttr}>${optionsHtml}</select>`;
   } else {
     const typeAttr = type === 'date' ? 'date' : (type === 'number' ? 'number' : 'text');
-    inputHtml = `<input type="${typeAttr}" id="${id}" name="${name}" placeholder="${placeholder}" ${requiredAttr} ${minAttr} ${maxAttr} ${stepAttr} />`;
+    inputHtml = `<input type="${typeAttr}" id="${id}" name="${name}" placeholder="${placeholder}" ${requiredAttr} ${minAttr} ${maxAttr} ${stepAttr} ${maxlengthAttr} />`;
   }
 
   return `
@@ -159,7 +160,7 @@ export function createDriverMultiSelect(containerId = 'driver-multi-select-conta
         <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
-        <input type="hidden" class="driver-multi-select-input" name="driverId" value="[]" />
+        <input type="hidden" class="driver-multi-select-input" name="driverIds" value="[]" />
       </button>
       <div class="driver-select-dropdown" role="listbox" aria-label="Select drivers">
         <div class="driver-select-options"></div>
@@ -222,8 +223,8 @@ export function normalizeFormBody(form, type, rawBody) {
       }
     }
 
-    // Handle driverId for trips (both array and JSON string)
-    if (type === 'trip' && key === 'driverId') {
+    // Handle driverIds for trips (both array and JSON string)
+    if (type === 'trip' && key === 'driverIds') {
       if (Array.isArray(value)) {
         body[key] = value;
         continue;

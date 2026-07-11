@@ -130,23 +130,28 @@ function bindEventHandlers() {
 async function handleFormSubmit(type, rawBody, form) {
   const body = normalizeFormBody(form, type, rawBody);
 
-  actions.setLoading(true);
-  actions.setMessage('');
+  // Disable the submit button and show a busy label instead of swapping the
+  // whole page to the loading card — the form (and the rest of the UI) stays put.
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const originalLabel = submitBtn ? submitBtn.textContent : '';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+  }
   actions.setError('');
-  render();
+  actions.clearValidationErrors();
 
   try {
-    let response;
     if (state.editing && state.editing.entity === type) {
       // Update
-      response = await api.request(`/${type}s/${state.editing.id}`, {
+      await api.request(`/${type}s/${state.editing.id}`, {
         method: 'PUT',
         body: JSON.stringify(body)
       });
       actions.setMessage(`${capitalize(type)} updated successfully.`);
     } else {
       // Create
-      response = await createEntity(type, body);
+      await createEntity(type, body);
       actions.setMessage(`${capitalize(type)} created successfully.`);
     }
 
@@ -157,9 +162,13 @@ async function handleFormSubmit(type, rawBody, form) {
     if (state.editing && state.editing.entity === type) {
       actions.clearEditing();
     }
-    await loadData();
+    // Silent refresh: refetch data and repaint without the full-page loading flash.
+    await loadData({ silent: true });
   } catch (error) {
-    actions.setLoading(false);
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
+    }
     actions.setError(error.message);
 
     // Store form data for re-population
@@ -194,17 +203,14 @@ async function handleDelete(entity, id) {
 
   if (!confirmed) return;
 
-  actions.setLoading(true);
-  actions.setMessage('');
+  // Keep the current page visible while the delete + refresh happens.
   actions.setError('');
-  render();
 
   try {
     await api.request(`/${entity}s/${id}`, { method: 'DELETE' });
     actions.setMessage('Deleted successfully.');
-    await loadData();
+    await loadData({ silent: true });
   } catch (error) {
-    actions.setLoading(false);
     actions.setError(error.message);
     render();
   }
@@ -229,16 +235,13 @@ async function handleEdit(entity, id) {
 
 // Trip status change handler
 async function handleTripStatusChange(tripId, status) {
-  actions.setLoading(true);
   actions.setError('');
-  render();
 
   try {
     await api.trip.updateStatus(tripId, status);
     actions.setMessage(`Trip updated to ${status}.`);
-    await loadData();
+    await loadData({ silent: true });
   } catch (error) {
-    actions.setLoading(false);
     actions.setError(error.message);
     render();
   }
@@ -281,7 +284,7 @@ function normalizeFormBody(form, type, rawBody) {
       }
     }
 
-    if (type === 'trip' && key === 'driverId') {
+    if (type === 'trip' && key === 'driverIds') {
       if (Array.isArray(value)) {
         body[key] = value;
         continue;
@@ -310,16 +313,22 @@ async function createEntity(type, body) {
     case 'trip': return api.trip.create(body);
     case 'driver-settlement': return api.driver.addSettlement(body.driverId, body);
     case 'trip-payment': return api.trip.addPayment(body);
-    case 'transporter-payment': return api.transporter.addPayment(body.transporterId, body);
+    // Both trip and transporter payments post to /payments (transporterId is required,
+    // tripId optional). There is no /transporters/:id/payments endpoint.
+    case 'transporter-payment': return api.trip.addPayment(body);
     case 'pod': return api.trip.addPod(body.tripId, body);
     default: throw new Error(`Unknown form type: ${type}`);
   }
 }
 
-// Load all data
-async function loadData() {
-  actions.setLoading(true);
-  render();
+// Load all data.
+// { silent: true } refreshes in place (after a mutation) without flipping the
+// global loading flag, so the page never flashes the "Preparing workspace" card.
+async function loadData({ silent = false } = {}) {
+  if (!silent) {
+    actions.setLoading(true);
+    render();
+  }
 
   try {
     const [dashboard, refs, transporters, vehicles, drivers, routes, trips, ledgerEntries, payments] = await Promise.all([
@@ -338,11 +347,12 @@ async function loadData() {
     actions.setRefs(refs);
     actions.setData({ transporters, vehicles, drivers, routes, trips, transporterLedgerEntries: ledgerEntries, payments });
     actions.setLoading(false);
-    actions.setMessage('');
+    // Note: don't clear state.message here — a mutation may have set a success
+    // toast just before calling loadData({ silent: true }); let it show.
     render();
   } catch (error) {
     actions.setLoading(false);
-    actions.setMessage(error.message);
+    actions.setError(error.message);
     render();
   }
 }

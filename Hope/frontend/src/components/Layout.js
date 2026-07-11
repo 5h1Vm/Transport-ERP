@@ -56,7 +56,6 @@ export function createFilterRow(filters) {
       ${f.label ? `<label style="font-size: 12px; color: var(--muted);">${f.label}</label>` : ''}
       ${f.type === 'select' ? `
         <select id="${f.id}" style="padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: white; font: inherit;">
-          <option value="">${f.placeholder || 'All'}</option>
           ${f.options?.map(opt => `<option value="${opt.value}" ${opt.selected ? 'selected' : ''}>${opt.label}</option>`).join('') || ''}
         </select>
       ` : `
