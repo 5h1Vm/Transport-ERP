@@ -4,6 +4,9 @@
  */
 import './styles/main.css';
 
+// Vercel Analytics
+import { inject } from '@vercel/analytics';
+
 // Core
 import { state, actions, initHashChangeListener, currentPage } from './store/index.js';
 
@@ -352,3 +355,6 @@ loadData().catch(error => {
   actions.setMessage(error.message);
   render();
 });
+
+// Initialize Vercel Analytics
+inject();
