@@ -1,212 +1,151 @@
 # Transit Ledger
 
-> Fleet Operating System for Modern Transport Businesses
+> Fleet Operating System for Indian Transport Businesses
 
-## Document Information
+**Start here.** This is the single source of truth for what this product is and why. Before touching schema or money logic, also read `DATABASE.md`. Before picking up work, check `TASKS.md` (status) and `DECISIONS.md` (settled calls + open questions). This doc set is frozen at six files — do not create new top-level docs; extend one of these instead.
 
 | Field | Value |
-| --- | --- |
-| Project Name | Transit Ledger |
-| Current Version | v0.1 |
-| Status | POC First |
-| Owner | Shivam Kumar Singh |
+|---|---|
+| Project | Transit Ledger |
 | Repository | https://github.com/5h1Vm/Transport-ERP |
-| Target Users | Fleet Owner, Dispatcher, Accountant |
-| Product Type | Multi-tenant web ERP / PWA |
+| Status | Working POC, pre-launch, single client onboarding in progress |
+| Product type | Multi-tenant SaaS (MSSP model — eventually many fleet-owner clients, each isolated) |
+| Target users | Fleet Owner, Dispatcher, Accountant (Driver and Transporter self-login are schema-ready, not built) |
 
-## Executive Summary
+## What this is
 
-Transit Ledger is a ledger-first fleet operating system for Indian transport businesses. It is not a generic logistics tool. The product is meant to replace handwritten khatabooks, WhatsApp tracking, phone-call memory, and scattered Excel sheets with a single connected platform for trips, payments, driver settlements, documents, and transporter balances.
+Transit Ledger replaces a fleet owner's handwritten khatabooks, WhatsApp message history, and phone-call memory with one connected system for trips, payments, driver settlements, documents, and transporter balances. It is **not** generic logistics software and it is **not** an accounting suite — it is ledger-first, built around the question "how much money is where, right now."
 
-The business model is fleet-owner centric. Transporters bring loads and become the practical customer from the owner’s point of view. The fleet owner assigns truck and driver, the trip runs, POD is shared, billing happens, and transporter payments are tracked until settlement is complete.
+**Design philosophy:** the software adapts to the business, not the other way round. The owner already thinks in terms of "khata", "trip", "driver", "payment" — the product should speak that language, not force SAP-style workflows onto someone who currently runs the business from a notebook and WhatsApp.
 
-## Problem Statement
+## The business model — read this before writing any code that touches vehicles or transporters
 
-The current operating process depends on physical registers, WhatsApp, phone calls, and memory. That creates recurring issues:
+```
+Party (has a load)
+   │
+   │ calls/WhatsApps
+   ▼
+Transporter  ──────────────  a BROKER. Brings loads. Does NOT own trucks.
+   │                          Owes the Fleet Owner money after a trip (this is
+   │ contacts                 the actual customer relationship, receivable-side).
+   ▼
+Fleet Owner (our client)  ──  OWNS the trucks. Owned outright, rented, or on EMI.
+   │                          EMI = a recurring liability against that vehicle,
+   │ assigns                  tracked separately from trip cost.
+   ▼
+Driver + Vehicle (his own)
+   │ delivers, sends POD via WhatsApp
+   ▼
+Owner forwards POD to Transporter, sends bill
+   │
+   ▼
+Transporter pays Owner (often in parts, over time, various modes)
+```
 
-- Payments are forgotten or only partially tracked.
-- Driver cash advances are not consistently deducted later.
-- PODs get lost in chat history.
-- Transporter balances are unclear.
-- Vehicle and driver history is fragmented.
-- Important actions are not searchable later.
-- Document expiry reminders are easy to miss.
+**The transporter is the customer, not the vehicle supplier.** Every vehicle belongs to the Fleet Owner (or is on lease/EMI to the Fleet Owner) — never to a transporter. Confirmed by client, multiple times, independently: *"Vehicles may be Company Owned, Purchased on EMI, Leased, or Rented. The system should not assume ownership type."*
 
-The product goal is to reduce revenue leakage and create one source of truth for the business.
+🔴 **Current known bug (see `DATABASE.md` → Known Issues):** the schema has `Vehicle.transporterId`, and the app was built treating it as "which transporter owns/uses this vehicle" — backwards from the model above. Fix this before building more vehicle-dependent features (trip P&L, vehicle profitability reports). No EMI/loan tracking exists in the schema at all yet.
 
-## What The Client Confirmed
+**Party** (the transporter's own customer) exists in the schema but the client confirmed **it is out of scope for now** — "no need for Party as we are not supposed to contact them directly." Don't build Party-facing features unless this changes.
 
-- There is no formal LR process today; everything is handwritten.
-- A printable LR generator can be added later.
-- The workflow starts with a transporter speaking to the dispatcher or owner about truck availability.
-- Details are shared to the driver, and after delivery the POD is sent on WhatsApp.
-- The owner forwards the POD and sends the bill.
-- Multiple databases or khatabooks are acceptable.
-- Party does not need to be a first-class concern in the first cut if the business is not directly dealing with them.
-- The system must remain flexible because drivers can switch trucks, trip patterns vary, and cash movements can happen outside the trip itself.
-- The UI must be mobile friendly.
-- WhatsApp-style messaging/sharing matters, but a costly formal API should not be the basis of the MVP.
+## How a trip actually works today (confirmed by client, on call)
 
-## Product Vision
+1. Transporter calls/WhatsApps the dispatcher (usually the owner) — shares pickup, destination, material, weight, freight amount, loading date.
+2. Owner checks his own truck + driver availability, assigns them. A trip is created.
+3. During loading/transit: driver may need a cash advance, diesel money, may receive money directly from the transporter or party — every one of these is a financial movement that must be captured, because it affects settlement later.
+4. Delivery happens. Driver sends a POD photo via WhatsApp.
+5. Dispatcher forwards the POD to the transporter, sends the bill.
+6. Transporter pays — often in parts, over time, across cash/UPI/bank transfer/cheque.
+7. Driver settlement happens separately from the trip billing: salary, advances, daily bhatta (fixed rate per day while on a trip), incentives, deductions, cash the driver collected directly.
 
-Build the most practical fleet operating system for transport businesses.
+No formal LR (Lorry Receipt) is generated today — it's all handwritten. A printable LR generator is an acceptable **future** feature, explicitly not MVP.
 
-The software should feel like a digital notebook with structure, not like an enterprise ERP that forces the user to change how the business works.
+## Trip lifecycle (state machine, enforced server-side)
 
-## Core Principles
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> LOADING
+    LOADING --> IN_TRANSIT
+    IN_TRANSIT --> DELIVERED
+    DELIVERED --> POD_RECEIVED
+    POD_RECEIVED --> BILLED
+    BILLED --> SETTLED
+    DRAFT --> CANCELLED
+    LOADING --> CANCELLED
+    IN_TRANSIT --> CANCELLED
+    DELIVERED --> CANCELLED
+    POD_RECEIVED --> CANCELLED
+    BILLED --> CANCELLED
+    SETTLED --> [*]
+    CANCELLED --> [*]
+```
 
-### 1. Ledger First
+Marking a trip `DELIVERED` auto-accrues each assigned driver's daily bhatta (`dailyExpenseRate × trip duration in days`) as expense rows. This is implemented (`Hope/backend/src/routes/trips.js`).
 
-Money is the most important asset. Every financial movement must be recorded and balances must be calculated, not hand-maintained.
+## What the two handwritten ledger types imply
 
-### 2. Mobile First
+The client's actual paper records split into two distinct patterns — this shaped the data model:
 
-Primary workflows must be usable on a phone without friction.
+1. **Cash-out register** — just "person, amount, done." Driver advance, fuel advance, emergency payment, petty cash. No calculation, no invoice. → This is `DriverSettlement` (types: `ADVANCE`, `CASH_COLLECTED`, etc.) and `TripExpense`, **not** a heavy accounting module.
+2. **Trip settlement ledger** (the "KPMG notebook") — one row per trip: freight = quantity × rate (never typed directly), route, a `Bank`/`Road` marker (⚠️ meaning unconfirmed — see `DECISIONS.md`), and a settlement breakup (freight → less driver bata → less diesel → less commission → net payable). → This is `TransporterLedgerEntry` + `Trip.financialSummary`.
 
-### 3. Audit Everything
+Hidden rules this implies, all already reflected in the schema: a trip can have **multiple** payments over time (never `Trip.payment`, always `Trip.payments[]`); the ledger is the product's home screen, not invoice PDFs; transporter balances matter more than any single invoice; driver advances can exist **before** a trip record does (a driver can ask for ₹5000 with no trip attached yet).
 
-Important changes should remain traceable so the owner can reconstruct what happened later.
+## Core business rules
 
-### 4. Flexible Assignments
+- A trip has exactly one vehicle, belongs to one transporter, may have multiple drivers, multiple expenses, multiple payments over time.
+- A vehicle cannot be active on two overlapping trips (not yet enforced in code — flag if this matters before launch).
+- Drivers can switch vehicles trip to trip; never assume a permanent driver↔vehicle pairing.
+- Payments can be partial, can exceed the outstanding balance (overpayment becomes credit), can land in different bank accounts.
+- Fuel and trip-time costs belong to the **trip**. Vehicle repairs/maintenance belong to the **vehicle** (`VehicleExpense`, separate from `TripExpense`).
+- Records are corrected via adjustment, never silently deleted — financial history must stay reconstructable.
+- Negative balances are acceptable (e.g., a transporter paid an advance before the trip that earns it exists).
+- Everything important should remain searchable later — this is a core expectation, not a polish item.
 
-Drivers can switch vehicles, trips can involve more than one driver, and financial adjustments can happen outside the trip lifecycle.
+## RBAC (roles exist in schema, only partially enforced)
 
-### 5. Workflow Mirrors Reality
+| Role | Sees |
+|---|---|
+| OWNER | Everything |
+| MANAGER | Trips, fleet, drivers, transporters |
+| DISPATCHER | Trip section only |
+| ACCOUNTANT | Billing, ledgers, payments |
+| TRANSPORTER (future self-login) | Only their own trips + outstanding balance |
+| DRIVER (future self-login) | Only their assigned trips + expense submission, ideally Hindi-first |
 
-The system should match the existing operating flow: call, assign, move, deliver, share POD, bill, collect payment, settle.
+No auth/session layer exists yet — see `DATABASE.md` → Known Issues and `TASKS.md`.
 
-## MVP Scope
+## UX direction (explicit, non-negotiable per product owner)
 
-The first usable product should include:
+- **Light/whitish theme only. No dark theme, no toggle.** Clean, big tap targets, "feels like a khatabook, not SAP."
+- **Workspace-driven, not CRUD-page-driven.** Every major entity answers one question: Trip Workspace = "what's happening on this trip?", Transporter Workspace = "how much do they owe?", Driver Workspace = "what's their current financial/operational status?", Vehicle Workspace = "how is this truck performing?", Dashboard = "what needs attention today?"
+- **Mobile-first.** Desktop: persistent left sidebar. Mobile: sticky top header + bottom tab bar with a "More" sheet for overflow. Must never require a page refresh to navigate — this was a real bug, now fixed (see `CHANGELOG.md`).
+- WhatsApp-style sharing matters (POD forwarding, payment follow-ups, document expiry reminders) — **without** the paid WhatsApp Business API. Use `wa.me` prefilled-text deep links.
 
-- Authentication
-- Dashboard
-- Vehicles
-- Drivers
-- Transporters
-- Trips
-- Payments
-- Driver Settlements
-- Documents
-- Reports
-- Settings
+## Dashboard priorities (in order)
 
-Supporting capabilities expected in the first release:
+Outstanding transporter balances → pending PODs → trips in progress → cash paid today → driver advances/cash-in-hand → expiring documents → trips needing attention.
 
-- Basic balance tracking
-- Partial payments
-- POD tracking
-- Mobile-friendly layout
-- Hindi and English support where needed
+## MVP module list
 
-Out of scope for the first release:
+Authentication (not built), Dashboard, Vehicles, Drivers, Transporters, Trips, Payments, Driver Settlements, Documents (schema only, no UI), Reports (minimal), Settings (not built).
 
-- GPS tracking
-- FASTag integration
-- OCR/document scanning
-- AI assistant features
-- Customer portal
-- Dedicated driver mobile app
-- SMS gateway dependence
-- Tally integration
-- Offline sync
+**Explicitly out of scope for now:** GPS tracking, FASTag integration, OCR, AI assistant features, a customer/transporter self-service portal, a dedicated driver mobile app, SMS gateway, Tally integration, offline sync, Party as a first-class entity, LR/bilty generation.
 
-## Business Workflow
+## Success criteria
 
-1. Transporter contacts the owner or dispatcher.
-2. Load details are shared: pickup, destination, material, weight, freight, loading date.
-3. Dispatcher checks available vehicles and drivers.
-4. Vehicle and driver are assigned.
-5. Trip is created and loading begins.
-6. Driver may receive cash, fuel, food, toll, or emergency support.
-7. Vehicle moves in transit and trip activity is tracked.
-8. Delivery happens.
-9. Driver sends POD through WhatsApp.
-10. Dispatcher uploads or forwards POD.
-11. Bill is sent to the transporter.
-12. Payments may arrive in one or multiple parts.
-13. Driver settlement is calculated separately.
-
-## Key Business Rules
-
-- A trip belongs to one transporter.
-- A trip uses one vehicle.
-- A trip may involve multiple drivers.
-- A trip may have multiple expenses.
-- A trip may receive multiple payments.
-- Payments may be partial or exceed the outstanding balance.
-- Excess payment becomes transporter credit.
-- Driver cash collected on the job must be deducted from the driver settlement.
-- Vehicle repair expense belongs to the vehicle, not the trip.
-- Fuel and trip-time costs belong to the trip.
-- Records should be adjusted, not silently erased.
-
-## Workspace Model
-
-The product should be organized around workspaces, not giant CRUD screens.
-
-- Dashboard: what needs attention today
-- Trip Workspace: what is happening on a trip
-- Transporter Workspace: how much is owed and what has been paid
-- Driver Workspace: current and historical driving/settlement activity
-- Vehicle Workspace: performance, assignment, and documents
-- Finance Workspace: cash in, cash out, balances, settlements
-
-## Dashboard Priorities
-
-The dashboard should prioritize:
-
-- Outstanding transporter balances
-- Pending PODs
-- Trips in progress
-- Cash paid today
-- Driver advances
-- Expiring documents
-- Trips that need attention
-
-## Financial Model
-
-The system needs to support two different ledger patterns that emerged from the handwritten notes:
-
-1. Cash paid register: a simple cash-out log for driver advance, fuel advance, emergency payment, and petty cash.
-2. Trip settlement ledger: a trip-based record where freight, deductions, commissions, advances, and final payable amounts are tracked.
-
-This means the product is not just accounting software. It needs operational finance that reflects transport business reality.
-
-## Notifications
-
-WhatsApp-style sharing is important for:
-
-- POD forwarding
-- Payment follow-up
-- Document expiry reminders
-- Trip status updates
-
-## Future Ideas
-
-These are not MVP requirements, but they should remain easy to add later:
-
-- Printable LR generation
-- GPS tracking
-- FASTag automation
-- OCR for documents and bills
-- Driver mobile experience
-- Route profitability analysis
-- Predictive maintenance
-- AI-assisted search and reminders
-
-## Success Criteria
-
-The system is successful if the owner can quickly answer:
-
-- Which transporter owes money?
-- Which trips are unpaid?
+The product works if the owner can answer these in under 30 seconds:
+- Which transporter owes money, and how much?
+- Which trips are still unpaid?
 - Which driver currently holds company cash?
-- Which vehicles are active?
+- Which vehicle earned the most this month?
 - Which documents expire soon?
-- Which trips still need POD?
-- What needs attention today?
+- Which trips are waiting for POD?
+- What needs my attention today?
 
-## Working Assumption For Implementation
+## Stack (see `DATABASE.md` for schema, `TASKS.md` for build status)
 
-The codebase should stay POC-first. The immediate goal is to ship a usable prototype around the shared operational core above, then expand the documentation and schema only as the product proves itself.
+- Backend: Node.js + Express (CommonJS), PostgreSQL + Prisma, Zod validation. Hosted on Railway.
+- Frontend: vanilla JS SPA, no framework (deliberate constraint — keep it simple, keep it fast, keep it cheap to run). Vite build. Hosted on Vercel.
+- Repo layout: `Hope/backend`, `Hope/frontend`.
