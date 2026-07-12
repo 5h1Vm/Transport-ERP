@@ -384,6 +384,31 @@ export function bindFreightCalculator() {
 }
 
 /**
+ * Restore driver checkboxes when opening a trip for edit. populateForm()
+ * can't do this generically — the API returns drivers as [{ role, driver }]
+ * (a join, not a plain driverIds field), and the checkboxes intentionally
+ * carry no `name` (see bindDriverMultiSelect) so a generic name-matching
+ * populate pass finds nothing to restore.
+ * @param {string[]} driverIds - IDs of drivers currently assigned to the trip
+ */
+export function populateDriverMultiSelect(driverIds = []) {
+  const container = document.getElementById('driver-multi-select-container');
+  const form = document.querySelector('form[data-form="trip"]');
+  if (!container || !form) return;
+
+  const idSet = new Set(driverIds);
+  const checkboxes = container.querySelectorAll('input.driver-option-checkbox');
+  checkboxes.forEach((cb) => { cb.checked = idSet.has(cb.value); });
+
+  // Re-use the change handler bindDriverMultiSelect already attached (it
+  // recomputes placeholder/count/hidden-field from whatever is checked, not
+  // just the event target) instead of duplicating that logic here.
+  if (checkboxes.length > 0) {
+    checkboxes[0].dispatchEvent(new Event('change'));
+  }
+}
+
+/**
  * Bind vehicle filter by transporter
  * @param {Function} getVehicles - Function to get vehicles list
  */

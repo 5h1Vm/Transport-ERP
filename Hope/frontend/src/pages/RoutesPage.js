@@ -49,7 +49,7 @@ export function renderRoutesPage() {
       <div>
         <p class="eyebrow dark">Routes</p>
         <h2>Master records</h2>
-        <p class="page-copy">Route master with distance and estimated days. Used for trip planning and auto-calculation.</p>
+        <p class="page-copy">Route master with distance. Used for trip planning and freight auto-calculation.</p>
       </div>
     </section>
     <section class="panel-grid white two-col">

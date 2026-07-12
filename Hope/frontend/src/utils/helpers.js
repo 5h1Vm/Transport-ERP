@@ -119,12 +119,14 @@ export function navItem(hash, label) {
  * @param {Object} options - Field options
  * @returns {string} - Form field HTML
  */
-export function formField({ label, type = 'text', id, name, placeholder = '', required = false, options = [], min, max, step, maxlength }) {
+export function formField({ label, type = 'text', id, name, placeholder = '', required = false, options = [], min, max, step, maxlength, pattern, title }) {
   const requiredAttr = required ? 'required' : '';
   const minAttr = min !== undefined ? `min="${min}"` : '';
   const maxAttr = max !== undefined ? `max="${max}"` : '';
   const stepAttr = step !== undefined ? `step="${step}"` : '';
   const maxlengthAttr = maxlength !== undefined ? `maxlength="${maxlength}"` : '';
+  const patternAttr = pattern !== undefined ? `pattern="${pattern}"` : '';
+  const titleAttr = title !== undefined ? `title="${title}"` : '';
 
   let inputHtml = '';
 
@@ -134,8 +136,8 @@ export function formField({ label, type = 'text', id, name, placeholder = '', re
     ).join('');
     inputHtml = `<select id="${id}" name="${name}" ${requiredAttr}>${optionsHtml}</select>`;
   } else {
-    const typeAttr = type === 'date' ? 'date' : (type === 'number' ? 'number' : 'text');
-    inputHtml = `<input type="${typeAttr}" id="${id}" name="${name}" placeholder="${placeholder}" ${requiredAttr} ${minAttr} ${maxAttr} ${stepAttr} ${maxlengthAttr} />`;
+    const typeAttr = type === 'date' ? 'date' : (type === 'number' ? 'number' : (type === 'tel' ? 'tel' : 'text'));
+    inputHtml = `<input type="${typeAttr}" id="${id}" name="${name}" placeholder="${placeholder}" ${requiredAttr} ${minAttr} ${maxAttr} ${stepAttr} ${maxlengthAttr} ${patternAttr} ${titleAttr} />`;
   }
 
   return `

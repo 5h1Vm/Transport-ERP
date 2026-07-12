@@ -25,6 +25,7 @@ import { renderTransporterDetail } from './pages/TransporterDetailPage.js';
 import { renderTripDetail } from './pages/TripDetailPage.js';
 import { renderDriverDetail } from './pages/DriverDetailPage.js';
 import { renderRouteDetail } from './pages/RouteDetailPage.js';
+import { renderVehicleDetail } from './pages/VehicleDetailPage.js';
 
 // Components
 import { createMainLayout } from './components/Layout.js';
@@ -32,7 +33,7 @@ import { showStateMessages } from './components/Toast.js';
 import { confirmDialog } from './components/Dialog.js';
 
 // Utils
-import { bindForms, bindDeleteButtons, bindEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindVehicleFilterByTransporter, bindFreightCalculator, applyValidationErrors, populateForm } from './utils/binding.js';
+import { bindForms, bindDeleteButtons, bindEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindVehicleFilterByTransporter, bindFreightCalculator, applyValidationErrors, populateForm, populateDriverMultiSelect } from './utils/binding.js';
 import { debounce } from './utils/helpers.js';
 
 // App container
@@ -107,12 +108,22 @@ function tripQueryParams() {
 // Fetch trips with current filters. `append` loads the next page; otherwise it
 // reloads from the top, keeping at least as many rows as were already visible
 // so a background refresh never shrinks the list under the user.
+//
+// Sequenced: two overlapping requests can resolve out of order (e.g. typing
+// fast in the Ref filter fires several searches, and a slower earlier one can
+// finish after a faster later one). Only the response to the MOST RECENTLY
+// issued request is applied — a stale one is silently dropped instead of
+// overwriting fresher results with the wrong filter's data.
+let tripsFetchSeq = 0;
 async function fetchTrips({ append = false } = {}) {
+  const token = ++tripsFetchSeq;
   const current = state.data.trips || [];
   const offset = append ? current.length : 0;
   const limit = append ? PAGE_SIZE : Math.min(Math.max(current.length, PAGE_SIZE), 200);
 
   const batch = await api.trip.list({ ...tripQueryParams(), limit, offset });
+  if (token !== tripsFetchSeq) return; // a newer fetch superseded this one
+
   state.tripsHasMore = batch.length === limit;
   actions.setData({ trips: append ? [...current, ...batch] : batch });
 }
@@ -152,6 +163,8 @@ async function render() {
       contentHtml = await renderDriverDetail(page.split('/')[1]);
     } else if (page.startsWith('route/')) {
       contentHtml = await renderRouteDetail(page.split('/')[1]);
+    } else if (page.startsWith('vehicle/')) {
+      contentHtml = await renderVehicleDetail(page.split('/')[1]);
     } else {
       // Sync list pages render from the store
       contentHtml = state.loading ? '<div class="loading-card">Preparing workspace...</div>' :
@@ -336,6 +349,11 @@ async function handleEdit(entity, id) {
     const form = document.querySelector(`form[data-form="${entity}"]`);
     if (form) {
       populateForm(form, data);
+      // Trips: restore the driver multi-select (data.drivers is a join
+      // [{ role, driver }], not a plain field populateForm can match by name).
+      if (entity === 'trip') {
+        populateDriverMultiSelect((data.drivers || []).map((td) => td.driver?.id || td.driverId).filter(Boolean));
+      }
     }
   } catch (error) {
     actions.setError(`Failed to load ${entity} for editing: ${error.message}`);

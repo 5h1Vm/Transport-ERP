@@ -8,13 +8,16 @@ const {
   calculateDriverTripExpenses
 } = require('../services/calculations');
 
+// At least 10 digits, digits/spaces/+/- only — matches the client-side pattern.
+const phoneSchema = z.string().regex(/^[+0-9 -]{10,20}$/, 'Enter a valid phone number (at least 10 digits)').optional().or(z.literal(''));
+
 const driverSchema = z.object({
-  name: z.string().min(2),
-  phone: z.string().optional(),
-  licenseNumber: z.string().optional(),
+  name: z.string().min(2).max(60),
+  phone: phoneSchema,
+  licenseNumber: z.string().max(30).optional(),
   licenseExpiry: z.string().datetime().optional(),
-  monthlySalary: z.coerce.number().default(0),
-  dailyExpenseRate: z.coerce.number().default(0),
+  monthlySalary: z.coerce.number().min(0).default(0),
+  dailyExpenseRate: z.coerce.number().min(0).default(0),
   address: z.string().optional(),
   notes: z.string().optional()
 });

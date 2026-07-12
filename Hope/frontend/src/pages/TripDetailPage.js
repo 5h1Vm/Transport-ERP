@@ -4,7 +4,7 @@
 import { createPageHeader } from '../components/Layout.js';
 import {
   createRecordCard, createEmptyState, createHeroStat,
-  createPaymentForm, createPaymentHistory, createTripExpenses,
+  createPaymentForm, createPaymentHistory, createTripExpenses, createExpenseForm,
   createStatusActions, createPodForm, createPodMeta
 } from '../components/CardComponents.js';
 import { currency, formatDate, formatStatus, getStatusChipClass } from '../utils/helpers.js';
@@ -24,11 +24,17 @@ export async function renderTripDetail(id) {
   const outstanding = summary.outstanding || 0;
   const isTerminal = trip.status === 'CANCELLED' || trip.status === 'SETTLED';
 
+  // Outstanding is computed from (freight - transporter's commission), never
+  // from gross freight directly — surface the commission explicitly so the
+  // gap between "Freight" and "Outstanding" is never a mystery.
+  const commission = (trip.ledgerEntries || [])[0]?.commissionDeducted || 0;
+
   const heroStats = `
     <div class="hero-stats">
-      ${createHeroStat({ label: 'Freight', value: currency(trip.freightAmount || 0), helper: 'Total freight' })}
+      ${createHeroStat({ label: 'Freight', value: currency(trip.freightAmount || 0), helper: 'Gross freight' })}
+      ${commission > 0 ? createHeroStat({ label: 'Commission', value: currency(commission), helper: `${trip.transporter?.firmName || 'Transporter'}'s cut` }) : ''}
       ${createHeroStat({ label: 'Paid', value: currency(totalPaid), helper: 'Received', className: 'success' })}
-      ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: 'Due from transporter', className: outstanding > 0 ? 'warning' : 'success' })}
+      ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: commission > 0 ? `Freight − ₹${commission} commission − paid` : 'Due from transporter', className: outstanding > 0 ? 'warning' : 'success' })}
       ${createHeroStat({ label: 'Expenses', value: currency(summary.tripExpenseTotal || 0), helper: 'Trip expenses' })}
     </div>
   `;
@@ -49,10 +55,10 @@ export async function renderTripDetail(id) {
         <div class="stack">
           ${createRecordCard({ title: 'Internal Ref', subtitle: trip.internalRef || '—', meta: [formatDate(trip.departureDate || trip.loadingDate || trip.createdAt)] })}
           ${createRecordCard({ title: 'Transporter', subtitle: trip.transporter?.firmName || '—', meta: [trip.transporter?.contactPerson ? `${trip.transporter.contactPerson} • ${trip.transporter.phone || ''}` : ''] })}
-          ${createRecordCard({ title: 'Vehicle', subtitle: trip.vehicle?.vehicleNumber || '—', meta: [trip.vehicle?.make || ''] })}
+          ${createRecordCard({ title: 'Vehicle', subtitle: trip.vehicle?.vehicleNumber || '—', meta: [[trip.vehicle?.make, trip.vehicle?.model].filter(Boolean).join(' ')].filter(Boolean) })}
           ${createRecordCard({ title: 'Route', subtitle: trip.route ? `${trip.route.origin} → ${trip.route.destination}` : '—', meta: [trip.route?.distanceKm ? `${trip.route.distanceKm} km` : ''] })}
           ${createRecordCard({ title: 'LR Number', subtitle: trip.lrNumber || '—', meta: [] })}
-          ${createRecordCard({ title: 'Status', subtitle: formatStatus(trip.status), meta: [], chip: formatStatus(trip.status), chipClass: getStatusChipClass(trip.status) })}
+          ${createRecordCard({ title: 'Status', chip: formatStatus(trip.status), chipClass: getStatusChipClass(trip.status) })}
         </div>
         ${createPodMeta(trip)}
         ${!isTerminal ? createStatusActions(trip.id, trip.status) : ''}
@@ -64,7 +70,7 @@ export async function renderTripDetail(id) {
     </section>
   `;
 
-  const expensesHtml = createTripExpenses(trip.expenses || []);
+  const expensesHtml = createTripExpenses(trip.expenses || []) || createEmptyState('No expenses recorded yet.');
 
   const content = `
     ${createPageHeader({
@@ -84,7 +90,16 @@ export async function renderTripDetail(id) {
         ${createPaymentHistory(trip.payments || []) || createEmptyState('No payments recorded yet.')}
       </article>
     </section>
-    ${expensesHtml ? `<section class="panel-grid white"><article class="panel white full-width">${expensesHtml}</article></section>` : ''}
+    <section class="panel-grid white two-col">
+      <article class="panel white">
+        <h3>Record expense</h3>
+        ${createExpenseForm(trip.id, trip.drivers || [])}
+      </article>
+      <article class="panel white">
+        <h3>Expenses (${(trip.expenses || []).length})</h3>
+        ${expensesHtml}
+      </article>
+    </section>
     ${createPodForm(trip.id, trip.status, trip.podReceivedDate) ? `
     <section class="panel-grid white">
       <article class="panel white full-width">

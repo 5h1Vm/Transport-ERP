@@ -20,7 +20,7 @@ export function renderDriversPage() {
   const formHtml = `
     <form data-form="driver" class="form-grid two-col">
       ${formField({ label: 'Name', type: 'text', id: 'name', name: 'name', placeholder: 'Driver name', required: true, maxlength: 60 })}
-      ${formField({ label: 'Phone', type: 'tel', id: 'phone', name: 'phone', placeholder: '+91 98765 43210', maxlength: 20 })}
+      ${formField({ label: 'Phone', type: 'tel', id: 'phone', name: 'phone', placeholder: '+91 98765 43210', maxlength: 20, pattern: '[+0-9 -]{10,20}', title: 'At least 10 digits' })}
       ${formField({ label: 'License Number', type: 'text', id: 'licenseNumber', name: 'licenseNumber', placeholder: 'DL-XXXXXXXXX', maxlength: 30 })}
       ${formField({ label: 'License Expiry', type: 'date', id: 'licenseExpiry', name: 'licenseExpiry' })}
       ${formField({ label: 'Monthly Salary (₹)', type: 'number', id: 'monthlySalary', name: 'monthlySalary', placeholder: '0', min: 0, step: 1 })}

@@ -55,7 +55,7 @@ export function renderVehiclesPage() {
         subtitle: `${item.transporter?.firmName || 'No transporter'} • ${[item.make, item.model].filter(Boolean).join(' ') || 'No make/model'}`,
         chip: item.transporterId ? 'Assigned' : 'Unassigned',
         chipClass: item.transporterId ? 'success' : 'muted',
-        actions: `${editButton('vehicle', item.id)}${deleteButton('vehicle', item.id)}`
+        actions: `${editButton('vehicle', item.id)}${deleteButton('vehicle', item.id)} <a href="#vehicle/${item.id}" class="text-link">Details</a>`
       })).join('')
     : createEmptyState('No vehicle records yet.');
 

@@ -28,16 +28,16 @@ export function renderTransportersPage() {
 
   const formHtml = `
     <form data-form="transporter" class="form-grid white">
-      <input name="firmName" placeholder="Transporter firm name" required />
-      <input name="contactPerson" placeholder="Contact person" />
-      <input name="phone" placeholder="Phone" />
-      <input name="email" placeholder="Email" />
+      <input name="firmName" placeholder="Transporter firm name" required maxlength="100" />
+      <input name="contactPerson" placeholder="Contact person" maxlength="60" />
+      <input name="phone" type="tel" placeholder="Phone" maxlength="20" pattern="[+0-9 -]{10,20}" title="At least 10 digits" />
+      <input name="email" type="email" placeholder="Email" maxlength="100" />
       <select name="commissionType">
         <option value="PERCENTAGE">Commission: Percentage</option>
         <option value="FIXED_PER_TRIP">Commission: Fixed per trip</option>
         <option value="FIXED_PER_TON">Commission: Fixed per ton</option>
       </select>
-      <input name="commissionValue" type="number" step="0.01" placeholder="Commission value" value="5" />
+      <input name="commissionValue" type="number" step="0.01" min="0" placeholder="Commission value" value="5" />
       <button type="submit">Save transporter</button>
     </form>
   `;

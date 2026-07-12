@@ -57,7 +57,14 @@ async function renderTransporterDetail(id) {
       })).join('')
     : createEmptyState('No payments recorded.');
 
-  // Posts to /payments (see createEntity 'transporter-payment' in main.js).
+  // Posts to /payments (see createEntity 'transporter-payment' in main.js) —
+  // the exact same Payment record type as the trip-detail payment form, just
+  // not pre-scoped to one trip. Recording here leaves tripId empty (a general
+  // advance/payment); record from a specific trip's detail page to link it.
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const nowLocal = now.toISOString().slice(0, 16);
+
   const paymentForm = `
     <form data-form="transporter-payment" class="form-grid white" style="margin-top: 16px;">
       <input name="transporterId" type="hidden" value="${id}" />
@@ -77,10 +84,11 @@ async function renderTransporterDetail(id) {
         <option value="UPI">UPI</option>
         <option value="CHEQUE">Cheque</option>
       </select>
-      <input name="paymentDate" type="datetime-local" />
+      <input name="paymentDate" type="datetime-local" value="${nowLocal}" required />
       <input name="referenceNumber" placeholder="Reference / UTR" maxlength="60" />
       <input name="notes" placeholder="Notes" maxlength="200" />
       <button type="submit">Record payment</button>
+      <p class="page-copy" style="grid-column: 1 / -1; margin: 0;">Not linked to a specific trip. To record a payment against one trip, use "Record payment" on that trip's detail page instead.</p>
     </form>
   `;
 
@@ -92,7 +100,7 @@ async function renderTransporterDetail(id) {
     })}
     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
       <span class="chip warning">Outstanding: ${currency(outstanding)}</span>
-      <span class="chip primary">Freight: ${currency(totalFreight)}</span>
+      <span class="chip primary">Net freight (after commission): ${currency(totalFreight)}</span>
       <span class="chip success">Paid: ${currency(totalPaid)}</span>
     </div>
 

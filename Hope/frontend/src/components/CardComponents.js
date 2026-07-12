@@ -148,7 +148,6 @@ export function createTripExpenses(expenses = [], showDriver = true) {
 
   return `
     <div class="trip-expenses">
-      <h5>Expenses</h5>
       ${expenses.map(e => `
         <div class="expense-entry">
           <span class="expense-category">${e.category.toLowerCase().replace(/_/g, ' ')}</span>
@@ -158,6 +157,34 @@ export function createTripExpenses(expenses = [], showDriver = true) {
         </div>
       `).join('')}
     </div>
+  `;
+}
+
+/**
+ * Create trip expense entry form (FUEL/TOLL/FOOD/etc — DAILY_EXPENSE is
+ * server-generated only, on marking a trip DELIVERED, so it's excluded here).
+ */
+export function createExpenseForm(tripId, drivers = []) {
+  const driverOptions = drivers.map((td) => `<option value="${td.driver?.id}">${td.driver?.name}</option>`).join('');
+
+  return `
+    <form data-form="trip-expense" class="form-grid white" style="margin-top: 12px;">
+      <input name="tripId" value="${tripId}" type="hidden" />
+      <select name="category" required>
+        <option value="">Select category</option>
+        <option value="FUEL">Fuel</option>
+        <option value="TOLL">Toll</option>
+        <option value="FOOD">Food</option>
+        <option value="LOADING_UNLOADING">Loading / Unloading</option>
+        <option value="REPAIR_EN_ROUTE">Repair (en route)</option>
+        <option value="EMERGENCY">Emergency</option>
+        <option value="OTHER">Other</option>
+      </select>
+      <input name="amount" type="number" step="1" min="1" placeholder="Amount (₹)" required />
+      <input name="description" placeholder="Notes" maxlength="200" />
+      ${driverOptions ? `<select name="paidToDriverId"><option value="">Not paid to a driver</option>${driverOptions}</select>` : ''}
+      <button type="submit">Add expense</button>
+    </form>
   `;
 }
 
@@ -233,6 +260,13 @@ export function createPodMeta(trip) {
 export function createPaymentForm(tripId, transporterId, isCancelledOrSettled = false) {
   if (isCancelledOrSettled) return '';
 
+  // Prefill "now" so the field is never left blank by omission — the server
+  // already defaults to now() if empty, but making that explicit in the UI
+  // avoids the field looking optional when it isn't really meant to be.
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const nowLocal = now.toISOString().slice(0, 16);
+
   return `
     <form data-form="trip-payment" class="form-grid white" style="margin-top: 12px;">
       <select name="paymentType" required>
@@ -250,10 +284,10 @@ export function createPaymentForm(tripId, transporterId, isCancelledOrSettled = 
         <option value="UPI">UPI</option>
         <option value="CHEQUE">Cheque</option>
       </select>
-      <input name="amount" type="number" step="0.01" placeholder="Amount (₹)" required />
-      <input name="paymentDate" type="datetime-local" />
-      <input name="referenceNumber" placeholder="Reference (UTR/Cheque #)" />
-      <input name="notes" placeholder="Notes" />
+      <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount (₹)" required />
+      <input name="paymentDate" type="datetime-local" value="${nowLocal}" required />
+      <input name="referenceNumber" placeholder="Reference (UTR/Cheque #)" maxlength="60" />
+      <input name="notes" placeholder="Notes" maxlength="200" />
       <input name="tripId" value="${tripId}" type="hidden" />
       <input name="transporterId" value="${transporterId}" type="hidden" />
       <button type="submit">Record Payment</button>

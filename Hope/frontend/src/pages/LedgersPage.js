@@ -20,7 +20,7 @@ function renderLedgersPage() {
         subtitle: `${t.contactPerson || 'No contact'} • ${t.phone || 'No phone'}`,
         meta: [
           `Trips: ${t.tripCount ?? 0}`,
-          `Freight: ${currency(t.freightTotal || 0)}`,
+          `Net freight (after commission): ${currency(t.freightTotal || 0)}`,
           `Paid: ${currency(t.paidTotal || 0)}`
         ],
         chip: currency(t.outstanding || 0),

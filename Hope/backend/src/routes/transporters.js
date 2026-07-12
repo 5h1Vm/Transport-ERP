@@ -7,10 +7,13 @@ const {
   calculateTransporterTotalsBulk
 } = require('../services/calculations');
 
+// At least 10 digits, digits/spaces/+/- only — matches the client-side pattern.
+const phoneSchema = z.string().regex(/^[+0-9 -]{10,20}$/, 'Enter a valid phone number (at least 10 digits)').optional().or(z.literal(''));
+
 const transporterSchema = z.object({
-  firmName: z.string().min(2),
-  contactPerson: z.string().optional(),
-  phone: z.string().optional(),
+  firmName: z.string().min(2).max(100),
+  contactPerson: z.string().max(60).optional(),
+  phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
   gstin: z.string().optional(),
   pan: z.string().optional(),
