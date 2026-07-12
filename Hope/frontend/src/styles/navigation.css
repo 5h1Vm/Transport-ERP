@@ -78,11 +78,12 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-lg);
   font-size: 0.8rem;
   font-weight: 500;
-  min-height: 36px;
+  min-height: 40px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -90,6 +91,22 @@
   background: transparent;
   color: var(--color-text);
   transition: all var(--transition-fast);
+}
+
+.nav-item-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+
+.nav-item:hover .nav-item-icon {
+  color: var(--color-primary);
+}
+
+.nav-item.active .nav-item-icon {
+  color: white;
 }
 
 .nav-item:hover {
@@ -251,15 +268,19 @@
     text-overflow: ellipsis;
   }
 
-  /* Sidebar becomes off-canvas drawer on mobile */
+  /* Sidebar becomes off-canvas drawer on mobile. The floating mobile-header
+     sits inset by --space-3 on all sides (rounded corners, gap from the
+     edges) — the drawer must start below its full outer edge (height +
+     top offset + bottom margin), not just pad its own content down, or its
+     background peeks out from behind the header through that margin gap. */
   .sidebar {
     position: fixed;
-    top: 0;
+    top: calc(var(--header-height) + var(--space-3) * 2);
     left: 0;
-    height: 100vh;
+    height: calc(100vh - var(--header-height) - var(--space-3) * 2);
     width: var(--sidebar-width);
     max-width: 280px;
-    padding: calc(var(--header-height) + var(--space-3)) var(--space-4) var(--space-4);
+    padding: var(--space-4);
     border-radius: 0;
     border-right: 1px solid var(--color-border);
     transform: translateX(-100%);
@@ -273,6 +294,12 @@
 
   .sidebar .eyebrow,
   .sidebar .sidebar-card {
+    display: none;
+  }
+
+  /* Dashboard/Drivers/Trips/Ledgers already have direct bottom-nav buttons —
+     don't list them again in the "More" drawer. */
+  .nav-item-bottom-dup {
     display: none;
   }
 

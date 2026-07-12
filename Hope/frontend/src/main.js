@@ -33,7 +33,7 @@ import { showStateMessages } from './components/Toast.js';
 import { confirmDialog } from './components/Dialog.js';
 
 // Utils
-import { bindForms, bindDeleteButtons, bindEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindVehicleFilterByTransporter, bindFreightCalculator, applyValidationErrors, populateForm, populateDriverMultiSelect } from './utils/binding.js';
+import { bindForms, bindDeleteButtons, bindEditButtons, bindCancelEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindVehicleFilterByTransporter, bindFreightCalculator, applyValidationErrors, populateForm, populateDriverMultiSelect } from './utils/binding.js';
 import { debounce } from './utils/helpers.js';
 
 // App container
@@ -219,6 +219,7 @@ function bindEventHandlers() {
   bindForms(handleFormSubmit);
   bindDeleteButtons(handleDelete);
   bindEditButtons(handleEdit);
+  bindCancelEditButtons(handleCancelEdit);
   bindTripStatusButtons(handleTripStatusChange);
 
   bindNavigation(
@@ -250,6 +251,20 @@ function bindEventHandlers() {
       render();
     });
   }
+
+  // "Clear filters" — appears in the trip list header and in the empty state
+  // when active filters return nothing.
+  document.querySelectorAll('[data-clear-trip-filters]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      actions.setFilter('trips', { transporter: '', status: '', dateFrom: '', dateTo: '', internalRef: '' });
+      try {
+        await fetchTrips();
+      } catch (error) {
+        actions.setError(error.message);
+      }
+      render();
+    });
+  });
 
   bindDriverMultiSelect(state);
   bindVehicleFilterByTransporter(() => state.refs.vehicles || []);
@@ -343,6 +358,7 @@ async function handleDelete(entity, id) {
 async function handleEdit(entity, id) {
   actions.setEditing(entity, id);
   actions.clearError();
+  render();
 
   try {
     const data = await api.request(`/${entity}s/${id}`);
@@ -359,6 +375,15 @@ async function handleEdit(entity, id) {
     actions.setError(`Failed to load ${entity} for editing: ${error.message}`);
     render();
   }
+}
+
+function handleCancelEdit(entity) {
+  actions.clearEditing();
+  actions.clearValidationErrors();
+  actions.clearFailedFormData();
+  const form = document.querySelector(`form[data-form="${entity}"]`);
+  if (form) form.reset();
+  render();
 }
 
 async function handleTripStatusChange(tripId, status) {

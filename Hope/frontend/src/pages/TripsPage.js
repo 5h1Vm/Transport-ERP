@@ -22,6 +22,7 @@ export function renderTripsPage() {
   const routes = state.refs.routes || [];
 
   const filters = state.filters.trips || {};
+  const hasActiveFilters = Boolean(filters.transporter || filters.status || filters.internalRef || filters.dateFrom || filters.dateTo);
 
   const filterHtml = createFilterRow([
     { id: 'trip-transporter-filter', label: 'Transporter', type: 'select', options: [{ value: '', label: 'All transporters' }, ...transporters.map((t) => ({ value: t.id, label: t.firmName, selected: filters.transporter === t.id }))] },
@@ -34,6 +35,8 @@ export function renderTripsPage() {
   const transporterOptions = [{ value: '', label: 'Select transporter' }, ...transporters.map((t) => ({ value: t.id, label: t.firmName }))];
   const vehicleOptions = [{ value: '', label: 'Select vehicle' }, ...vehicles.map((v) => ({ value: v.id, label: v.vehicleNumber }))];
   const routeOptions = [{ value: '', label: 'Select route (optional)' }, ...routes.map((r) => ({ value: r.id, label: routeLabel(r) }))];
+
+  const isEditing = state.editing && state.editing.entity === 'trip';
 
   const formHtml = `
     <form data-form="trip" class="form-grid two-col" data-entity-id="">
@@ -53,7 +56,10 @@ export function renderTripsPage() {
         ${createDriverMultiSelect('driver-multi-select-container')}
       </div>
       ${formField({ label: 'Notes', type: 'text', id: 'notes', name: 'notes', placeholder: 'Notes', maxlength: 200 })}
-      <div class="form-field full-width">${formSubmit('trip')}</div>
+      <div class="form-field full-width form-actions-row">
+        ${formSubmit('trip', isEditing ? 'editing' : 'active')}
+        ${isEditing ? '<button type="button" class="btn btn-ghost" data-cancel-edit="trip">Cancel</button>' : ''}
+      </div>
     </form>
   `;
 
@@ -67,8 +73,8 @@ export function renderTripsPage() {
     const outstanding = summary.outstanding || 0;
     const paymentCount = trip.paymentCount || 0;
     const paymentInfo = paymentCount > 0
-      ? `${paymentCount} payment(s) • Paid ${currency(totalPaid)} • Due ${currency(outstanding)}`
-      : 'No payments';
+      ? `<span class="chip chip-sm ${outstanding > 0 ? 'chip-warning' : 'chip-success'}">Due ${currency(outstanding)}</span>`
+      : `<span class="chip chip-sm chip-muted">No payments</span>`;
 
     const tripDate = trip.departureDate || trip.loadingDate || trip.createdAt;
 
@@ -80,17 +86,24 @@ export function renderTripsPage() {
         `Drivers: ${driverNames}`,
         `Status: ${formatStatus(trip.status)}`,
         formatDate(tripDate),
-        `<span class="meta-item" style="color: ${outstanding > 0 ? 'var(--color-warning, #b45309)' : 'var(--color-success, #166534)'}">${paymentInfo}</span>`
+        paymentInfo
       ],
       chip: currency(trip.freightAmount || 0),
       chipClass: getStatusChipClass(trip.status) || 'primary',
       actions: `${editButton('trip', trip.id)}${deleteButton('trip', trip.id)} <a href="#trip/${trip.id}" class="text-link">Detail</a>`
     });
-  }).join('') : createEmptyState('No trips created yet.');
+  }).join('') : createEmptyState(
+      hasActiveFilters ? 'No trips match these filters.' : 'No trips created yet.',
+      hasActiveFilters ? '<button type="button" class="btn btn-ghost btn-sm" data-clear-trip-filters>Clear filters →</button>' : ''
+    );
 
   const loadMoreHtml = state.tripsHasMore
     ? `<button type="button" id="trips-load-more" class="btn btn-ghost" style="width: 100%; margin-top: 12px;">Load more trips</button>`
     : '';
+
+  const resultCountLabel = state.tripsHasMore
+    ? `Showing ${trips.length}+ trips`
+    : `Showing ${trips.length} trip${trips.length === 1 ? '' : 's'}`;
 
   const content = `
     ${createPageHeader({
@@ -99,9 +112,18 @@ export function renderTripsPage() {
       copy: 'Create and manage trips with driver assignment, freight, payments, and POD tracking.'
     })}
     <section class="panel-grid white two-col">
-      <article class="panel white form-panel"><h3>Create trip</h3>${formHtml}</article>
+      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}">
+        <h3>${isEditing ? `Edit trip — ${trips.find(t => t.id === state.editing.id)?.internalRef || ''}` : 'Create trip'}</h3>
+        ${formHtml}
+      </article>
       <article class="panel white">
-        <h3>Trip list</h3>
+        <div class="panel-head">
+          <h3>Trip list</h3>
+          <div class="trip-filter-status">
+            <span class="text-muted">${resultCountLabel}</span>
+            ${hasActiveFilters ? '<button type="button" class="btn btn-ghost btn-sm" data-clear-trip-filters>Clear filters</button>' : ''}
+          </div>
+        </div>
         ${filterHtml}
         <div class="stack">${listHtml}</div>
         ${loadMoreHtml}

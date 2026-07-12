@@ -7,6 +7,7 @@ import { state } from '../store/index.js';
 
 export function renderTransportersPage() {
   const items = state.data.transporters || [];
+  const isEditing = state.editing && state.editing.entity === 'transporter';
   const filter = state.filters.transporters?.toLowerCase() || '';
   const filteredItems = filter
     ? items.filter(item =>
@@ -38,7 +39,10 @@ export function renderTransportersPage() {
         <option value="FIXED_PER_TON">Commission: Fixed per ton</option>
       </select>
       <input name="commissionValue" type="number" step="0.01" min="0" placeholder="Commission value" value="5" />
-      <button type="submit">Save transporter</button>
+      <div class="form-actions-row">
+        <button type="submit">${isEditing ? 'Update' : 'Save'} transporter</button>
+        ${isEditing ? '<button type="button" class="btn btn-ghost" data-cancel-edit="transporter">Cancel</button>' : ''}
+      </div>
     </form>
   `;
 
@@ -64,7 +68,7 @@ export function renderTransportersPage() {
       </div>
     </section>
     <section class="panel-grid white two-col">
-      <article class="panel white form-panel"><h3>Add transporter</h3>${formHtml}</article>
+      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}"><h3>${isEditing ? 'Edit transporter' : 'Add transporter'}</h3>${formHtml}</article>
       <article class="panel white"><h3>Transporter list</h3>${filterHtml}<div class="stack">${listHtml}</div></article>
     </section>
   `;

@@ -3,7 +3,7 @@
  */
 
 import { editButton, deleteButton } from '../utils/helpers.js';
-import { currency, formatDate } from '../utils/helpers.js';
+import { currency, formatDate, formatStatus } from '../utils/helpers.js';
 
 /**
  * Create a hero stat card
@@ -16,6 +16,24 @@ export function createHeroStat({ label, value, helper = '', className = '' }) {
       <strong>${value}</strong>
       ${helper ? `<div class="hero-stat-helper">${helper}</div>` : ''}
     </div>
+  `;
+}
+
+/**
+ * Create a compact key-value table for metadata that doesn't need a full
+ * card each (e.g. trip Internal Ref / Transporter / Vehicle / Route / Status)
+ * @param {Array<{label: string, value: string}>} rows
+ */
+export function createKeyValueTable(rows) {
+  return `
+    <dl class="kv-table">
+      ${rows.filter(r => r.value !== undefined && r.value !== null && r.value !== '').map(r => `
+        <div class="kv-row">
+          <dt>${r.label}</dt>
+          <dd>${r.value}</dd>
+        </div>
+      `).join('')}
+    </dl>
   `;
 }
 
@@ -47,9 +65,13 @@ export function createBlankCard({ title, message, action = '' }) {
 
 /**
  * Create an empty state
+ * @param {string} message
+ * @param {string} action - optional HTML for a CTA (e.g. a link/button telling
+ *   the user what to do next — the happy path on most pages IS adding data,
+ *   so a bare "nothing here" message wastes the moment).
  */
-export function createEmptyState(message) {
-  return `<div class="empty-state">${message}</div>`;
+export function createEmptyState(message, action = '') {
+  return `<div class="empty-state">${message}${action ? `<div class="empty-state-action">${action}</div>` : ''}</div>`;
 }
 
 /**
@@ -90,7 +112,7 @@ export function createRecordCard({ title, subtitle = '', chip = '', chipClass = 
           <h4>${title}</h4>
           ${subtitle ? `<p>${subtitle}</p>` : ''}
         </div>
-        ${chip !== '' ? `<span class="chip ${chipClass}">${chip}</span>` : ''}
+        ${chip !== '' ? `<span class="chip ${chipClass ? `chip-${chipClass}` : ''}">${chip}</span>` : ''}
       </div>
       ${metaHtml ? `<div class="record-meta">${metaHtml}</div>` : ''}
       ${actions ? `<div class="record-actions">${actions}</div>` : ''}
@@ -113,7 +135,7 @@ export function createPaymentSummary({ totalPaid, totalAmount, status }) {
       <div class="payment-summary">
         <span>Paid: </span><strong>${currency(totalPaid)}</strong>
         <span> / Due: </span><strong>${currency(totalAmount)}</strong>
-        <span class="chip ${statusClass}">${statusText}</span>
+        <span class="chip chip-${statusClass}">${statusText}</span>
       </div>
     </div>
   `;
@@ -127,7 +149,6 @@ export function createPaymentHistory(payments = []) {
 
   return `
     <div class="payment-history">
-      <h5>Payment History</h5>
       ${payments.map(p => `
         <div class="payment-entry">
           <span>${formatDate(p.paymentDate)}</span>
@@ -188,10 +209,40 @@ export function createExpenseForm(tripId, drivers = []) {
   `;
 }
 
+// The full trip lifecycle, in order. CANCELLED is a terminal branch from any
+// non-final state, not a step in this line — handled separately.
+const TRIP_LIFECYCLE = ['DRAFT', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'POD_RECEIVED', 'BILLED', 'SETTLED'];
+
 /**
- * Create status action buttons
+ * Create a visual step indicator for the trip lifecycle — done / current /
+ * upcoming states, so where a trip stands is obvious without reading raw
+ * status text.
  */
-export function createStatusActions(tripId, status, cancelledAllowed = false) {
+export function createStatusStepper(status) {
+  if (status === 'CANCELLED') {
+    return `<div class="status-stepper"><span class="chip danger chip-lg">Cancelled</span></div>`;
+  }
+
+  const currentIndex = TRIP_LIFECYCLE.indexOf(status);
+  const steps = TRIP_LIFECYCLE.map((step, i) => {
+    const stepState = i < currentIndex ? 'done' : i === currentIndex ? 'current' : 'upcoming';
+    return `
+      <div class="status-step status-step--${stepState}">
+        <span class="status-step-dot">${stepState === 'done' ? '✓' : ''}</span>
+        <span class="status-step-label">${formatStatus(step)}</span>
+      </div>
+      ${i < TRIP_LIFECYCLE.length - 1 ? `<span class="status-step-connector status-step-connector--${i < currentIndex ? 'done' : 'upcoming'}"></span>` : ''}
+    `;
+  }).join('');
+
+  return `<div class="status-stepper">${steps}</div>`;
+}
+
+/**
+ * Create status action buttons — the actual controls to advance a trip,
+ * shown below the (passive) stepper.
+ */
+export function createStatusActions(tripId, status) {
   const nextStatusMap = {
     DRAFT: ['LOADING'],
     LOADING: ['IN_TRANSIT'],
@@ -204,18 +255,20 @@ export function createStatusActions(tripId, status, cancelledAllowed = false) {
   };
 
   const allowed = nextStatusMap[status] || [];
-  let html = '<div class="status-actions">';
+  const transitionsAllowingCancel = ['DRAFT', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'POD_RECEIVED', 'BILLED'];
+  if (!allowed.length && !transitionsAllowingCancel.includes(status)) return '';
+
+  let html = '<div class="status-actions-wrap"><span class="status-actions-label">Advance to:</span><div class="status-actions">';
 
   allowed.forEach(s => {
-    html += `<button type="button" class="ghost-btn" data-trip-status="${s}" data-trip-id="${tripId}">${s}</button>`;
+    html += `<button type="button" class="btn btn-primary btn-sm" data-trip-status="${s}" data-trip-id="${tripId}">${formatStatus(s)}</button>`;
   });
 
-  const transitionsAllowingCancel = ['DRAFT', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'POD_RECEIVED', 'BILLED'];
   if (transitionsAllowingCancel.includes(status)) {
-    html += `<button type="button" class="ghost-btn danger-btn" data-trip-status="CANCELLED" data-trip-id="${tripId}">CANCELLED</button>`;
+    html += `<button type="button" class="btn btn-ghost btn-danger btn-sm" data-trip-status="CANCELLED" data-trip-id="${tripId}">Cancel trip</button>`;
   }
 
-  html += '</div>';
+  html += '</div></div>';
   return html;
 }
 

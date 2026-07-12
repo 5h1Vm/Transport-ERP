@@ -86,33 +86,10 @@
   justify-content: center;
 }
 
-/* Hero stats */
-.hero-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-}
-
-.hero-stats > div {
-  padding: var(--space-3) var(--space-4);
-  border-radius: 14px;
-  background: white;
-  border: 1px solid var(--color-border);
-}
-
-.hero-stats span {
-  display: block;
-  color: var(--color-muted);
-  font-size: 0.78rem;
-  font-weight: var(--font-weight-medium);
-}
-
-.hero-stats strong {
-  display: block;
-  margin-top: var(--space-1);
-  font-size: 1.1rem;
-  font-weight: var(--font-weight-bold);
-}
+/* Hero stats: single source of truth is cards.css (responsive 2/3/5-col grid,
+   proper --color-* tokens). This file used to duplicate the rule with a fixed
+   2-column layout and nonexistent tokens (--color-muted, --font-weight-*),
+   which is exactly why the trip-detail summary row read as cramped/uneven. */
 
 /* Tablet */
 @media (min-width: 640px) {
@@ -121,10 +98,6 @@
   }
 
   .metrics-grid.white {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .form-grid.white {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -163,18 +136,15 @@
   .panel-grid.white.one-col {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .hero-stats {
-    max-width: 480px;
-  }
 }
 
-/* Wide desktop */
-@media (min-width: 1200px) {
-  .form-grid.white {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
+/* form-grid.white used to force a 2/3-column layout onto every form carrying
+   the "white" class regardless of field count — fine for the trip-creation
+   form (which opts into multi-column explicitly via .two-col), but it
+   squeezed small action forms (record payment, log expense, POD, settlement)
+   into ~140px-wide columns at desktop widths, truncating native select/date
+   input text ("Select Payment Ty…"). Forms that want multiple columns opt in
+   explicitly via .two-col / .three-col; .white no longer implies a column count. */
 
 /* Print */
 @media print {

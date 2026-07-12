@@ -3,9 +3,9 @@
  */
 import { createPageHeader } from '../components/Layout.js';
 import {
-  createRecordCard, createEmptyState, createHeroStat,
+  createRecordCard, createEmptyState, createHeroStat, createKeyValueTable,
   createPaymentForm, createPaymentHistory, createTripExpenses, createExpenseForm,
-  createStatusActions, createPodForm, createPodMeta
+  createStatusActions, createStatusStepper, createPodForm, createPodMeta
 } from '../components/CardComponents.js';
 import { currency, formatDate, formatStatus, getStatusChipClass } from '../utils/helpers.js';
 import * as api from '../services/api.js';
@@ -34,7 +34,7 @@ export async function renderTripDetail(id) {
       ${createHeroStat({ label: 'Freight', value: currency(trip.freightAmount || 0), helper: 'Gross freight' })}
       ${commission > 0 ? createHeroStat({ label: 'Commission', value: currency(commission), helper: `${trip.transporter?.firmName || 'Transporter'}'s cut` }) : ''}
       ${createHeroStat({ label: 'Paid', value: currency(totalPaid), helper: 'Received', className: 'success' })}
-      ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: commission > 0 ? `Freight − ₹${commission} commission − paid` : 'Due from transporter', className: outstanding > 0 ? 'warning' : 'success' })}
+      ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: 'Due from transporter', className: `hero-stat-dominant ${outstanding > 0 ? 'warning' : 'success'}` })}
       ${createHeroStat({ label: 'Expenses', value: currency(summary.tripExpenseTotal || 0), helper: 'Trip expenses' })}
     </div>
   `;
@@ -48,18 +48,25 @@ export async function renderTripDetail(id) {
       })).join('')
     : createEmptyState('No drivers assigned.');
 
+  const vehicleLabel = [trip.vehicle?.make, trip.vehicle?.model].filter(Boolean).join(' ');
+  const metadataTable = createKeyValueTable([
+    { label: 'Internal Ref', value: trip.internalRef || '—' },
+    { label: 'Date', value: formatDate(trip.departureDate || trip.loadingDate || trip.createdAt) },
+    { label: 'Transporter', value: `${trip.transporter?.firmName || '—'}${trip.transporter?.phone ? ` • ${trip.transporter.phone}` : ''}` },
+    { label: 'Vehicle', value: `${trip.vehicle?.vehicleNumber || '—'}${vehicleLabel ? ` • ${vehicleLabel}` : ''}` },
+    { label: 'Route', value: trip.route ? `${trip.route.origin} → ${trip.route.destination}${trip.route.distanceKm ? ` (${trip.route.distanceKm} km)` : ''}` : '—' },
+    { label: 'LR Number', value: trip.lrNumber || '—' }
+  ]);
+
   const tripInfo = `
     <section class="panel-grid white two-col">
       <article class="panel white">
-        <h3>Trip details</h3>
-        <div class="stack">
-          ${createRecordCard({ title: 'Internal Ref', subtitle: trip.internalRef || '—', meta: [formatDate(trip.departureDate || trip.loadingDate || trip.createdAt)] })}
-          ${createRecordCard({ title: 'Transporter', subtitle: trip.transporter?.firmName || '—', meta: [trip.transporter?.contactPerson ? `${trip.transporter.contactPerson} • ${trip.transporter.phone || ''}` : ''] })}
-          ${createRecordCard({ title: 'Vehicle', subtitle: trip.vehicle?.vehicleNumber || '—', meta: [[trip.vehicle?.make, trip.vehicle?.model].filter(Boolean).join(' ')].filter(Boolean) })}
-          ${createRecordCard({ title: 'Route', subtitle: trip.route ? `${trip.route.origin} → ${trip.route.destination}` : '—', meta: [trip.route?.distanceKm ? `${trip.route.distanceKm} km` : ''] })}
-          ${createRecordCard({ title: 'LR Number', subtitle: trip.lrNumber || '—', meta: [] })}
-          ${createRecordCard({ title: 'Status', chip: formatStatus(trip.status), chipClass: getStatusChipClass(trip.status) })}
+        <div class="panel-head">
+          <h3>Trip details</h3>
+          <span class="chip ${getStatusChipClass(trip.status) ? `chip-${getStatusChipClass(trip.status)}` : ''}">${formatStatus(trip.status)}</span>
         </div>
+        ${metadataTable}
+        ${createStatusStepper(trip.status)}
         ${createPodMeta(trip)}
         ${!isTerminal ? createStatusActions(trip.id, trip.status) : ''}
       </article>
@@ -70,7 +77,7 @@ export async function renderTripDetail(id) {
     </section>
   `;
 
-  const expensesHtml = createTripExpenses(trip.expenses || []) || createEmptyState('No expenses recorded yet.');
+  const expensesHtml = createTripExpenses(trip.expenses || []) || createEmptyState('No expenses recorded yet.', '<span class="text-muted">Use the form to log fuel, toll, or other trip costs.</span>');
 
   const content = `
     ${createPageHeader({
@@ -87,7 +94,7 @@ export async function renderTripDetail(id) {
       </article>
       <article class="panel white">
         <h3>Payment history (${(trip.payments || []).length})</h3>
-        ${createPaymentHistory(trip.payments || []) || createEmptyState('No payments recorded yet.')}
+        ${createPaymentHistory(trip.payments || []) || createEmptyState('No payments recorded yet.', '<span class="text-muted">Use the form to record an advance or part payment.</span>')}
       </article>
     </section>
     <section class="panel-grid white two-col">

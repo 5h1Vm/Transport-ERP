@@ -24,12 +24,19 @@ export function renderDashboardPage() {
   `;
 
   // Metrics grid
+  const metricHelpers = {
+    'Transporters': 'Registered firms',
+    'Vehicles': 'Fleet size',
+    'Drivers': 'Registered drivers',
+    'Trips': 'All time',
+    'Open Trips': 'Not yet settled'
+  };
   const metricsHtml = metrics.length
-    ? metrics.map(m => createMetricCard({ label: m.label, value: m.value, helper: 'Operational summary' })).join('')
+    ? metrics.map(m => createMetricCard({ label: m.label, value: m.value, helper: metricHelpers[m.label] || '' })).join('')
     : `
       <div class="blank-card">
         <h3>No records yet</h3>
-        <p>Create masters and trips from the dedicated pages on the left.</p>
+        <p>Start by adding a <a href="#transporters" class="text-link">transporter</a>, a <a href="#vehicles" class="text-link">vehicle</a>, and a <a href="#drivers" class="text-link">driver</a> — then create your first trip.</p>
       </div>
     `;
 
@@ -47,7 +54,7 @@ export function renderDashboardPage() {
         ],
         actions: `<a href="#trip/${trip.id}" class="text-link">View</a>`
       })).join('')
-    : createEmptyState('No trips created yet.');
+    : createEmptyState('No trips created yet.', '<a href="#trips" class="text-link">Create your first trip →</a>');
 
   // Transporter balances panel
   const transporterBalancesHtml = transporterBalances.length
@@ -58,7 +65,7 @@ export function renderDashboardPage() {
         chipClass: 'warning',
         meta: [`<a href="#transporter/${item.id}" class="text-link">View Details</a>`]
       })).join('')
-    : createEmptyState('No transporter balances yet.');
+    : createEmptyState('No transporter balances yet.', '<a href="#transporters" class="text-link">Add a transporter →</a>');
 
   // Pending POD panel
   const pendingPodHtml = pendingPodTrips.length
@@ -77,7 +84,7 @@ export function renderDashboardPage() {
       <div>
         <p class="eyebrow dark">Dashboard</p>
         <h2>Operations at a glance</h2>
-        <p class="page-copy">An operations dashboard for Indian transport businesses, organized for clarity and speed.</p>
+        <p class="page-copy">Trip activity, payments, and outstanding balances at a glance.</p>
       </div>
       ${heroStats}
     </section>
@@ -102,7 +109,7 @@ export function renderDashboardPage() {
       <article class="panel white full-width">
         <div class="panel-head">
           <div><p class="eyebrow dark">POD</p><h3>Waiting for proof of delivery</h3></div>
-          <span class="chip danger">${pendingPodTrips.length} pending</span>
+          <span class="chip chip-danger">${pendingPodTrips.length} pending</span>
         </div>
         <p class="page-copy">Only trips already marked delivered appear here. Draft and in-transit trips are shown in the trip workspace, not in the POD queue.</p>
         <div class="stack">${pendingPodHtml}</div>

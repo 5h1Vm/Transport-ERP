@@ -20,6 +20,7 @@ export function renderVehiclesPage() {
     : items;
 
   const transporterOptions = transporters.map(t => `<option value="${t.id}">${t.firmName}</option>`).join('');
+  const isEditing = state.editing && state.editing.entity === 'vehicle';
 
   const filterHtml = `
     <div class="filter-row" style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
@@ -45,7 +46,10 @@ export function renderVehiclesPage() {
         <option value="ATTACHED">Attached</option>
         <option value="LEASED">Leased</option>
       </select>
-      <button type="submit">Save vehicle</button>
+      <div class="form-actions-row">
+        <button type="submit">${isEditing ? 'Update' : 'Save'} vehicle</button>
+        ${isEditing ? '<button type="button" class="btn btn-ghost" data-cancel-edit="vehicle">Cancel</button>' : ''}
+      </div>
     </form>
   `;
 
@@ -68,7 +72,7 @@ export function renderVehiclesPage() {
       </div>
     </section>
     <section class="panel-grid white two-col">
-      <article class="panel white form-panel"><h3>Add vehicle</h3>${formHtml}</article>
+      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}"><h3>${isEditing ? 'Edit vehicle' : 'Add vehicle'}</h3>${formHtml}</article>
       <article class="panel white"><h3>Vehicle list</h3>${filterHtml}<div class="stack">${listHtml}</div></article>
     </section>
   `;

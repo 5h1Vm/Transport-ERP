@@ -8,6 +8,7 @@ import { state } from '../store/index.js';
 
 export function renderDriversPage() {
   const drivers = state.data.drivers || [];
+  const isEditing = state.editing && state.editing.entity === 'driver';
   const filter = state.filters.drivers?.toLowerCase() || '';
   const filteredDrivers = filter
     ? drivers.filter(d =>
@@ -25,7 +26,10 @@ export function renderDriversPage() {
       ${formField({ label: 'License Expiry', type: 'date', id: 'licenseExpiry', name: 'licenseExpiry' })}
       ${formField({ label: 'Monthly Salary (₹)', type: 'number', id: 'monthlySalary', name: 'monthlySalary', placeholder: '0', min: 0, step: 1 })}
       ${formField({ label: 'Daily Expense Rate (₹)', type: 'number', id: 'dailyExpenseRate', name: 'dailyExpenseRate', placeholder: 'e.g., 500 (bhatta per day on trip)', min: 0, step: 1 })}
-      <div class="form-field full-width">${formSubmit('driver')}</div>
+      <div class="form-field full-width form-actions-row">
+        ${formSubmit('driver', isEditing ? 'editing' : 'active')}
+        ${isEditing ? '<button type="button" class="btn btn-ghost" data-cancel-edit="driver">Cancel</button>' : ''}
+      </div>
     </form>
   `;
 
@@ -53,7 +57,7 @@ export function renderDriversPage() {
       copy: 'Drivers with daily bhatta rate, salary, and outstanding balance.'
     })}
     <section class="panel-grid white two-col">
-      <article class="panel white form-panel"><h3>Add driver</h3>${formHtml}</article>
+      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}"><h3>${isEditing ? 'Edit driver' : 'Add driver'}</h3>${formHtml}</article>
       <article class="panel white"><h3>Driver list</h3>${filterHtml}<div class="stack">${listHtml}</div></article>
     </section>
   `;

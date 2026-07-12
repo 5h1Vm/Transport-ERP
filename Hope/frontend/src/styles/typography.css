@@ -24,7 +24,9 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Headings */
+/* Headings — weight varies with level too, not just size, so a page title
+   and a card title read as genuinely different tiers rather than "the same
+   style, scaled down". */
 h1, h2, h3, h4, h5, h6 {
   margin: 0;
   line-height: 1.2;
@@ -32,12 +34,12 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--color-text);
 }
 
-h1 { font-size: var(--font-size-2xl); }
-h2 { font-size: var(--font-size-xl); }
-h3 { font-size: var(--font-size-lg); }
-h4 { font-size: var(--font-size-base); }
-h5 { font-size: var(--font-size-sm); }
-h6 { font-size: var(--font-size-xs); }
+h1 { font-size: var(--font-size-3xl); font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: var(--font-size-2xl); font-weight: 700; letter-spacing: -0.01em; }
+h3 { font-size: var(--font-size-lg); font-weight: 600; }
+h4 { font-size: var(--font-size-base); font-weight: 500; color: var(--color-text-secondary); }
+h5 { font-size: var(--font-size-sm); font-weight: 600; }
+h6 { font-size: var(--font-size-xs); font-weight: 600; }
 
 /* Text utilities */
 .eyebrow {

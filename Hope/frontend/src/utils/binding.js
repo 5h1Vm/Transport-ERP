@@ -65,6 +65,23 @@ export function bindEditButtons(onEdit) {
 }
 
 /**
+ * Bind "cancel edit" buttons — visible only while a form is in edit mode.
+ * @param {Function} onCancel - Cancel handler, called with the entity name
+ */
+export function bindCancelEditButtons(onCancel) {
+  document.querySelectorAll('[data-cancel-edit]').forEach(button => {
+    button.removeEventListener('click', button._clickHandler);
+
+    const handler = () => {
+      onCancel(button.getAttribute('data-cancel-edit'));
+    };
+
+    button._clickHandler = handler;
+    button.addEventListener('click', handler);
+  });
+}
+
+/**
  * Bind trip status buttons
  * @param {Function} onStatusChange - Status change handler
  */

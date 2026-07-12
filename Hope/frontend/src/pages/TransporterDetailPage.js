@@ -99,9 +99,9 @@ async function renderTransporterDetail(id) {
       copy: `${transporter.contactPerson || 'No contact'} • ${transporter.phone || 'No phone'} • ${transporter.email || 'No email'}`
     })}
     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
-      <span class="chip warning">Outstanding: ${currency(outstanding)}</span>
-      <span class="chip primary">Net freight (after commission): ${currency(totalFreight)}</span>
-      <span class="chip success">Paid: ${currency(totalPaid)}</span>
+      <span class="chip chip-warning">Outstanding: ${currency(outstanding)}</span>
+      <span class="chip chip-primary">Net freight (after commission): ${currency(totalFreight)}</span>
+      <span class="chip chip-success">Paid: ${currency(totalPaid)}</span>
     </div>
 
     <section class="panel-grid white two-col">

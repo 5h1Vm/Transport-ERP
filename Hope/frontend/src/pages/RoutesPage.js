@@ -7,6 +7,7 @@ import { state } from '../store/index.js';
 
 export function renderRoutesPage() {
   const items = state.data.routes || [];
+  const isEditing = state.editing && state.editing.entity === 'route';
   const filter = state.filters.routes?.toLowerCase() || '';
   const filteredItems = filter
     ? items.filter(item =>
@@ -30,7 +31,10 @@ export function renderRoutesPage() {
       <input name="origin" placeholder="Origin city" required maxlength="60" />
       <input name="destination" placeholder="Destination city" required maxlength="60" />
       <input name="distanceKm" type="number" step="1" min="0" placeholder="Distance (km)" />
-      <button type="submit">Save route</button>
+      <div class="form-actions-row">
+        <button type="submit">${isEditing ? 'Update' : 'Save'} route</button>
+        ${isEditing ? '<button type="button" class="btn btn-ghost" data-cancel-edit="route">Cancel</button>' : ''}
+      </div>
     </form>
   `;
 
@@ -53,7 +57,7 @@ export function renderRoutesPage() {
       </div>
     </section>
     <section class="panel-grid white two-col">
-      <article class="panel white form-panel"><h3>Add route</h3>${formHtml}</article>
+      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}"><h3>${isEditing ? 'Edit route' : 'Add route'}</h3>${formHtml}</article>
       <article class="panel white"><h3>Route list</h3>${filterHtml}<div class="stack">${listHtml}</div></article>
     </section>
   `;

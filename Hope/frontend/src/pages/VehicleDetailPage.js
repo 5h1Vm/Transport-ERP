@@ -47,9 +47,9 @@ export async function renderVehicleDetail(id) {
       copy: `${[vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ') || 'No make/model'} • ${formatStatus(vehicle.ownershipStatus)}`
     })}
     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
-      <span class="chip primary">Trips: ${trips.length}</span>
-      <span class="chip success">Total freight: ${currency(totalFreight)}</span>
-      <span class="chip ${vehicle.transporterId ? 'success' : 'muted'}">${vehicle.transporterId ? 'Assigned' : 'Unassigned'}</span>
+      <span class="chip chip-primary">Trips: ${trips.length}</span>
+      <span class="chip chip-success">Total freight: ${currency(totalFreight)}</span>
+      <span class="chip ${vehicle.transporterId ? 'chip-success' : 'chip-muted'}">${vehicle.transporterId ? 'Assigned' : 'Unassigned'}</span>
     </div>
 
     <section class="panel-grid white two-col">
