@@ -2,6 +2,8 @@ const express = require('express');
 const { z } = require('zod');
 const asyncHandler = require('../middleware/asyncHandler');
 const { parseLimit, parseOffset } = require('../utils/pagination');
+const { Prisma } = require('@prisma/client');
+const { money, add, sub, mul, toRupees } = require('../utils/money');
 const {
   calculateCommission,
   calculateFreightAmount,
@@ -32,6 +34,8 @@ const tripCreateSchema = z.object({
   weightTons: z.coerce.number().default(0),
   freightAmount: z.coerce.number().optional(),
   freightPerTon: z.coerce.number().optional(),
+  commissionType: z.nativeEnum(Prisma.CommissionType).optional(),
+  commissionValue: z.coerce.number().optional(),
   loadingDate: z.string().datetime().optional(),
   departureDate: z.string().datetime().optional(),
   deliveryDate: z.string().datetime().optional(),
@@ -50,6 +54,8 @@ const tripUpdateSchema = z.object({
   weightTons: z.coerce.number().default(0),
   freightAmount: z.coerce.number().optional(),
   freightPerTon: z.coerce.number().optional(),
+  commissionType: z.nativeEnum(Prisma.CommissionType).optional(),
+  commissionValue: z.coerce.number().optional(),
   loadingDate: z.string().datetime().optional(),
   departureDate: z.string().datetime().optional(),
   internalRef: z.string().optional(),
@@ -101,7 +107,7 @@ async function createDailyExpensesForTrip(prisma, tripId) {
     const driver = td.driver;
     if (!driver || !driver.dailyExpenseRate || driver.dailyExpenseRate <= 0) continue;
 
-    const amount = driver.dailyExpenseRate * days;
+    const amount = money(driver.dailyExpenseRate).times(new Prisma.Decimal(days));
     const description = 'Daily expense: ' + days + ' days x ' + driver.dailyExpenseRate + '/day';
 
     await prisma.tripExpense.create({
@@ -282,6 +288,19 @@ module.exports = function tripRoutes(ctx) {
       return res.status(400).json({ message: `Invalid status transition from ${currentStatus} to ${status}` });
     }
 
+    // A trip can only be marked Settled once it is actually fully paid — this
+    // is also enforced automatically by the payment route, but the manual
+    // status-advance path (the stepper buttons) had no such check, allowing a
+    // trip to show "Settled" while still carrying an outstanding balance.
+    if (status === 'SETTLED') {
+      const summary = await calculateTripPaymentSummary(prisma, tripId);
+      if (summary && summary.outstanding > 0) {
+        return res.status(400).json({
+          message: `Cannot mark as Settled — ₹${summary.outstanding} is still outstanding. Record the remaining payment first.`
+        });
+      }
+    }
+
     const updatedTrip = await prisma.trip.update({
       where: { id: tripId },
       data: { status }
@@ -324,7 +343,7 @@ module.exports = function tripRoutes(ctx) {
     }
 
     const freightAmount = calculateFreightAmount(payload);
-    const transportCommission = calculateCommission(transporter, freightAmount, payload.weightTons);
+    const transportCommission = calculateCommission(transporter, freightAmount, payload.weightTons, payload);
     const freightNet = freightAmount - transportCommission;
     const latestOutstanding = await calculateTransporterOutstanding(prisma, transporter.id);
     const systemUser = await getSystemUser(organization.id);

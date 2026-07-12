@@ -12,6 +12,7 @@ const routeMasterRoutes = require('./routeMaster');
 const tripRoutes = require('./trips');
 const paymentRoutes = require('./payments');
 const ledgerRoutes = require('./ledger');
+const ledgerAccountRoutes = require('./ledger-accounts');
 
 /**
  * Assemble the full API router. Each domain module owns its own routes and
@@ -32,6 +33,7 @@ function createRoutes(prisma) {
   router.use(tripRoutes(ctx));
   router.use(paymentRoutes(ctx));
   router.use(ledgerRoutes(ctx));
+  router.use(ledgerAccountRoutes(ctx));
 
   router.use(errorHandler);
 

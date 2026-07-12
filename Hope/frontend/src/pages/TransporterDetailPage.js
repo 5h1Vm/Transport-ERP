@@ -3,7 +3,7 @@
  */
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
 import { createPageHeader } from '../components/Layout.js';
-import { currency, formatDate, formatStatus, getStatusChipClass } from '../utils/helpers.js';
+import { currency, formatDate, formatStatus, getStatusChipClass, escapeHtml } from '../utils/helpers.js';
 import * as api from '../services/api.js';
 
 async function renderTransporterDetail(id) {
@@ -18,7 +18,7 @@ async function renderTransporterDetail(id) {
       api.ledger.getPayments({ transporterId: id, limit: 200 })
     ]);
   } catch (error) {
-    return `<div class="error-card">Failed to load transporter: ${error.message}</div>`;
+    return `<div class="error-card">Failed to load transporter: ${escapeHtml(error.message)}</div>`;
   }
 
   if (!transporter) {
@@ -32,18 +32,18 @@ async function renderTransporterDetail(id) {
 
   const tripsHtml = trips.length
     ? trips.map(trip => {
-        const driverNames = (trip.drivers || []).map(td => td.driver?.name).filter(Boolean).join(', ');
+        const driverNames = (trip.drivers || []).map(td => escapeHtml(td.driver?.name)).filter(Boolean).join(', ');
         return createRecordCard({
-          title: trip.internalRef || trip.id.slice(0, 8),
-          subtitle: `${trip.vehicle?.vehicleNumber || 'No vehicle'} • ${driverNames || 'No driver'}`,
-          chip: formatStatus(trip.status),
+          title: escapeHtml(trip.internalRef || trip.id.slice(0, 8)),
+          subtitle: `${escapeHtml(trip.vehicle?.vehicleNumber || 'No vehicle')} • ${driverNames || 'No driver'}`,
+          chip: escapeHtml(formatStatus(trip.status)),
           chipClass: getStatusChipClass(trip.status),
           meta: [
-            trip.route ? `${trip.route.origin} → ${trip.route.destination}` : 'No route',
+            trip.route ? `${escapeHtml(trip.route.origin)} → ${escapeHtml(trip.route.destination)}` : 'No route',
             currency(trip.freightAmount || 0),
-            formatDate(trip.departureDate || trip.loadingDate || trip.createdAt)
+            escapeHtml(formatDate(trip.departureDate || trip.loadingDate || trip.createdAt))
           ],
-          actions: `<a href="#trip/${trip.id}" class="text-link">View</a>`
+          actions: `<a href="#trip/${escapeHtml(trip.id)}" class="text-link">View</a>`
         });
       }).join('')
     : createEmptyState('No trips for this transporter.');
@@ -51,8 +51,8 @@ async function renderTransporterDetail(id) {
   const paymentsHtml = payments.length
     ? payments.map(p => createRecordCard({
         title: currency(p.amount),
-        subtitle: formatDate(p.paymentDate),
-        meta: [p.mode || 'Cash', p.paymentType || '', p.referenceNumber || '', p.notes || ''].filter(Boolean),
+        subtitle: escapeHtml(formatDate(p.paymentDate)),
+        meta: [escapeHtml(p.mode || 'Cash'), escapeHtml(p.paymentType || ''), escapeHtml(p.referenceNumber || ''), escapeHtml(p.notes || '')].filter(Boolean),
         actions: ''
       })).join('')
     : createEmptyState('No payments recorded.');
@@ -67,7 +67,7 @@ async function renderTransporterDetail(id) {
 
   const paymentForm = `
     <form data-form="transporter-payment" class="form-grid white" style="margin-top: 16px;">
-      <input name="transporterId" type="hidden" value="${id}" />
+      <input name="transporterId" type="hidden" value="${escapeHtml(id)}" />
       <input name="amount" type="number" step="1" min="1" placeholder="Amount (₹)" required />
       <select name="paymentType" required>
         <option value="">Payment type…</option>
@@ -95,8 +95,8 @@ async function renderTransporterDetail(id) {
   const content = `
     ${createPageHeader({
       eyebrow: 'Transporter',
-      title: transporter.firmName,
-      copy: `${transporter.contactPerson || 'No contact'} • ${transporter.phone || 'No phone'} • ${transporter.email || 'No email'}`
+      title: escapeHtml(transporter.firmName),
+      copy: `${escapeHtml(transporter.contactPerson || 'No contact')} • ${escapeHtml(transporter.phone || 'No phone')} • ${escapeHtml(transporter.email || 'No email')}`
     })}
     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
       <span class="chip chip-warning">Outstanding: ${currency(outstanding)}</span>

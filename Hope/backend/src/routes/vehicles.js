@@ -8,10 +8,10 @@ const vehicleSchema = z.object({
   make: z.string().optional(),
   model: z.string().optional(),
   year: z.coerce.number().int().optional(),
-  ownershipStatus: z.enum(['OWNED', 'ATTACHED', 'LEASED']).default('OWNED'),
+  ownershipStatus: z.enum(['OWNED', 'ATTACHED', 'RENTED', 'LEASED', 'PARTNERSHIP']).default('OWNED'),
   chassisNumber: z.string().optional(),
   engineNumber: z.string().optional(),
-  transporterId: z.string().cuid().optional(),
+  vehicleSourceId: z.string().cuid().optional(),
   notes: z.string().optional()
 });
 
@@ -24,7 +24,7 @@ module.exports = function vehicleRoutes(ctx) {
       orderBy: { createdAt: 'desc' },
       take: parseLimit(req.query.limit, 100, 500),
       skip: parseOffset(req.query.offset),
-      include: { transporter: { select: { id: true, firmName: true } } }
+      include: { vehicleSource: { select: { id: true, name: true } } }
     });
     res.json(vehicles);
   }));

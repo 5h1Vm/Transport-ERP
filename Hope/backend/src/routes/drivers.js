@@ -94,10 +94,12 @@ module.exports = function driverRoutes(ctx) {
 
     res.json({
       ...driver,
+      outstandingBalance: outstanding,
       settlementTotal: details.settlementTotal,
       tripExpensesPaid: details.tripExpensesPaid,
       dailyExpenses: details.dailyExpenses,
-      outstandingBalance: outstanding,
+      positiveSettlements: details.positiveSettlements,
+      negativeSettlements: details.negativeSettlements,
       tripExpenseDetails: tripExpenses
     });
   }));

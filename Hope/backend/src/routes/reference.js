@@ -21,7 +21,7 @@ module.exports = function referenceRoutes(ctx) {
       prisma.vehicle.findMany({
         where: { organizationId: organization.id },
         orderBy: { createdAt: 'asc' },
-        include: { transporter: { select: { id: true, firmName: true } } }
+        include: { vehicleSource: { select: { id: true, name: true } } }
       }),
       prisma.driver.findMany({ where: { organizationId: organization.id }, orderBy: { createdAt: 'asc' } }),
       prisma.route.findMany({ where: { organizationId: organization.id }, orderBy: { createdAt: 'asc' } })

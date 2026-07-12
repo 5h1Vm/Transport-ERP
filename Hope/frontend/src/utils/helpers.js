@@ -286,7 +286,7 @@ export function debounce(fn, delay) {
   let timeoutId;
   return (...args) => {
     clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
+    timeoutId = setTimeout(() => fn(args), delay);
   };
 }
 
@@ -297,4 +297,19 @@ export function debounce(fn, delay) {
  */
 export function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
+}
+
+/**
+ * Escape HTML special characters to prevent XSS
+ * @param {string} text - Text to escape
+ * @returns {string} - Escaped HTML string
+ */
+export function escapeHtml(text) {
+  if (text == null) return '';
+  return String(text)
+    .replace(/&/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/"/g, '"')
+    .replace(/'/g, '&#039;');
 }

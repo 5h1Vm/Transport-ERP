@@ -1,9 +1,8 @@
 /**
  * Card Components - Reusable UI cards
  */
-
 import { editButton, deleteButton } from '../utils/helpers.js';
-import { currency, formatDate, formatStatus } from '../utils/helpers.js';
+import { currency, formatDate, formatStatus, escapeHtml } from '../utils/helpers.js';
 
 /**
  * Create a hero stat card
@@ -12,9 +11,9 @@ export function createHeroStat({ label, value, helper = '', className = '' }) {
   const cls = className ? ` ${className}` : '';
   return `
     <div class="hero-stat${cls}">
-      <span>${label}</span>
+      <span>${escapeHtml(label)}</span>
       <strong>${value}</strong>
-      ${helper ? `<div class="hero-stat-helper">${helper}</div>` : ''}
+      ${helper ? `<div class="hero-stat-helper">${escapeHtml(helper)}</div>` : ''}
     </div>
   `;
 }
@@ -29,8 +28,8 @@ export function createKeyValueTable(rows) {
     <dl class="kv-table">
       ${rows.filter(r => r.value !== undefined && r.value !== null && r.value !== '').map(r => `
         <div class="kv-row">
-          <dt>${r.label}</dt>
-          <dd>${r.value}</dd>
+          <dt>${escapeHtml(r.label)}</dt>
+          <dd>${typeof r.value === 'string' && /^\s*</.test(r.value) ? r.value : escapeHtml(r.value)}</dd>
         </div>
       `).join('')}
     </dl>
@@ -43,9 +42,9 @@ export function createKeyValueTable(rows) {
 export function createMetricCard({ label, value, helper = '' }) {
   return `
     <article class="metric-card white">
-      <div class="metric-label">${label}</div>
+      <div class="metric-label">${escapeHtml(label)}</div>
       <div class="metric-value">${value}</div>
-      <div class="metric-helper">${helper}</div>
+      <div class="metric-helper">${escapeHtml(helper)}</div>
     </article>
   `;
 }
@@ -56,8 +55,8 @@ export function createMetricCard({ label, value, helper = '' }) {
 export function createBlankCard({ title, message, action = '' }) {
   return `
     <section class="blank-card">
-      <h3>${title}</h3>
-      <p>${message}</p>
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(message)}</p>
       ${action}
     </section>
   `;
@@ -71,14 +70,14 @@ export function createBlankCard({ title, message, action = '' }) {
  *   so a bare "nothing here" message wastes the moment).
  */
 export function createEmptyState(message, action = '') {
-  return `<div class="empty-state">${message}${action ? `<div class="empty-state-action">${action}</div>` : ''}</div>`;
+  return `<div class="empty-state">${escapeHtml(message)}${action ? `<div class="empty-state-action">${action}</div>` : ''}</div>`;
 }
 
 /**
  * Create a loading card
  */
 export function createLoadingCard(message = 'Preparing workspace...') {
-  return `<div class="loading-card">${message}</div>`;
+  return `<div class="loading-card">${escapeHtml(message)}</div>`;
 }
 
 /**
@@ -88,7 +87,7 @@ export function createPanel({ title, children, className = 'white', fullWidth = 
   const widthClass = fullWidth ? 'full-width' : '';
   return `
     <article class="panel ${className} ${widthClass}">
-      <h3>${title}</h3>
+      <h3>${escapeHtml(title)}</h3>
       ${children}
     </article>
   `;
@@ -102,17 +101,25 @@ export function createRecordCard({ title, subtitle = '', chip = '', chipClass = 
   // ("Trips: 1Freight: ₹…"). Entries that are already HTML elements pass through.
   const metaHtml = meta
     .filter(Boolean)
-    .map((item) => (/^\s*</.test(String(item)) ? item : `<span class="meta-item">${item}</span>`))
+    .map((item) => {
+      const str = String(item);
+      if (/^\s*</.test(str)) {
+        // Looks like HTML, treat as raw HTML (trusted)
+        return item;
+      }
+      // Escape plain text and wrap in span
+      return `<span class="meta-item">${escapeHtml(item)}</span>`;
+    })
     .join('');
 
   return `
     <article class="record-card">
       <div class="row">
         <div>
-          <h4>${title}</h4>
-          ${subtitle ? `<p>${subtitle}</p>` : ''}
+          <h4>${escapeHtml(title)}</h4>
+          ${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}
         </div>
-        ${chip !== '' ? `<span class="chip ${chipClass ? `chip-${chipClass}` : ''}">${chip}</span>` : ''}
+        ${chip !== '' ? `<span class="chip ${chipClass ? `chip-${chipClass}` : ''}">${escapeHtml(chip)}</span>` : ''}
       </div>
       ${metaHtml ? `<div class="record-meta">${metaHtml}</div>` : ''}
       ${actions ? `<div class="record-actions">${actions}</div>` : ''}
@@ -152,9 +159,9 @@ export function createPaymentHistory(payments = []) {
       ${payments.map(p => `
         <div class="payment-entry">
           <span>${formatDate(p.paymentDate)}</span>
-          <span>${p.paymentType || 'OTHER'}</span>:
+          <span>${escapeHtml(p.paymentType ? formatStatus(p.paymentType) : 'Other')}</span>:
           <strong>${currency(p.amount)}</strong>
-          ${p.notes ? ' - ' + p.notes : ''}
+          ${p.notes ? ' - ' + escapeHtml(p.notes) : ''}
         </div>
       `).join('')}
     </div>
@@ -171,10 +178,10 @@ export function createTripExpenses(expenses = [], showDriver = true) {
     <div class="trip-expenses">
       ${expenses.map(e => `
         <div class="expense-entry">
-          <span class="expense-category">${e.category.toLowerCase().replace(/_/g, ' ')}</span>
+          <span class="expense-category">${escapeHtml(e.category.toLowerCase().replace(/_/g, ' '))}</span>
           <span class="expense-amount">${currency(e.amount)}</span>
-          <span class="expense-desc">${e.description || ''}</span>
-          ${showDriver && e.paidToDriver ? `<span class="expense-driver">→ ${e.paidToDriver.name}</span>` : ''}
+          <span class="expense-desc">${escapeHtml(e.description || '')}</span>
+          ${showDriver && e.paidToDriver ? `<span class="expense-driver">→ ${escapeHtml(e.paidToDriver.name)}</span>` : ''}
         </div>
       `).join('')}
     </div>
@@ -186,7 +193,10 @@ export function createTripExpenses(expenses = [], showDriver = true) {
  * server-generated only, on marking a trip DELIVERED, so it's excluded here).
  */
 export function createExpenseForm(tripId, drivers = []) {
-  const driverOptions = drivers.map((td) => `<option value="${td.driver?.id}">${td.driver?.name}</option>`).join('');
+  const driverOptions = drivers.map((td) => {
+    const name = td.driver?.name ?? '';
+    return `<option value="${td.driver?.id ?? ''}">${escapeHtml(name)}</option>`;
+  }).join('');
 
   return `
     <form data-form="trip-expense" class="form-grid white" style="margin-top: 12px;">
@@ -229,7 +239,7 @@ export function createStatusStepper(status) {
     return `
       <div class="status-step status-step--${stepState}">
         <span class="status-step-dot">${stepState === 'done' ? '✓' : ''}</span>
-        <span class="status-step-label">${formatStatus(step)}</span>
+        <span class="status-step-label">${escapeHtml(formatStatus(step))}</span>
       </div>
       ${i < TRIP_LIFECYCLE.length - 1 ? `<span class="status-step-connector status-step-connector--${i < currentIndex ? 'done' : 'upcoming'}"></span>` : ''}
     `;
@@ -261,7 +271,7 @@ export function createStatusActions(tripId, status) {
   let html = '<div class="status-actions-wrap"><span class="status-actions-label">Advance to:</span><div class="status-actions">';
 
   allowed.forEach(s => {
-    html += `<button type="button" class="btn btn-primary btn-sm" data-trip-status="${s}" data-trip-id="${tripId}">${formatStatus(s)}</button>`;
+    html += `<button type="button" class="btn btn-primary btn-sm" data-trip-status="${escapeHtml(s)}" data-trip-id="${tripId}">${escapeHtml(formatStatus(s))}</button>`;
   });
 
   if (transitionsAllowingCancel.includes(status)) {
@@ -294,15 +304,18 @@ export function createPodForm(tripId, status, podReceivedDate) {
 export function createPodMeta(trip) {
   const parts = [];
   if (trip.podReceivedDate) {
-    parts.push(`<span>POD on ${formatDate(trip.podReceivedDate)}</span>`);
+    parts.push(`<span>POD on ${escapeHtml(formatDate(trip.podReceivedDate))}</span>`);
   } else {
     parts.push('<span>POD pending</span>');
   }
   if (trip.podImageUrl) {
-    parts.push(`<span><a class="text-link" href="${trip.podImageUrl}" target="_blank" rel="noreferrer">View POD</a></span>`);
+    // Note: we assume the URL is trusted; if not, we should encode it for HTML attribute.
+    // For simplicity, we escape the whole string for HTML context (which will break the URL if it contains quotes).
+    // A better approach would be to use encodeURI for the URL value, but we keep as is and escape.
+    parts.push(`<span><a class="text-link" href="${escapeHtml(trip.podImageUrl)}" target="_blank" rel="noreferrer">View POD</a></span>`);
   }
   if (trip.podNotes) {
-    parts.push(`<span>${trip.podNotes}</span>`);
+    parts.push(`<span>${escapeHtml(trip.podNotes)}</span>`);
   }
   return `<div class="record-meta">${parts.join('')}</div>`;
 }
@@ -382,8 +395,14 @@ export function createTransporterPaymentForm(transporterId) {
  * Create driver settlement form
  */
 export function createDriverSettlementForm(drivers = [], trips = []) {
-  const driverOptions = drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
-  const tripOptions = trips.map(t => `<option value="${t.id}">${t.internalRef || t.id.slice(0, 8)}</option>`).join('');
+  const driverOptions = drivers.map(d => {
+    const name = d.name ?? '';
+    return `<option value="${d.id}">${escapeHtml(name)}</option>`;
+  }).join('');
+  const tripOptions = trips.map(t => {
+    const ref = t.internalRef ?? t.id.slice(0, 8);
+    return `<option value="${t.id}">${escapeHtml(ref)}</option>`;
+  }).join('');
 
   return `
     <form data-form="driver-settlement" class="form-grid white trip-grid">

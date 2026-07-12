@@ -18,6 +18,20 @@
   box-shadow: var(--shadow-md);
 }
 
+/* Record payment vs. record expense on the trip detail page used to be
+   identical white panels stacked one after another — easy to misfill one
+   for the other. A colored left edge (green = money in, amber = money out)
+   makes the distinction obvious without reading the heading. */
+.panel-accent-payment {
+  border-left: 4px solid var(--color-success);
+  background: var(--color-success-bg);
+}
+
+.panel-accent-expense {
+  border-left: 4px solid var(--color-warning);
+  background: var(--color-warning-bg);
+}
+
 /* Text elements */
 .metric-label, .metric-helper,
 .record-card p, .empty-state, .blank-card p {
@@ -395,6 +409,60 @@
 
 .empty-state-action {
   margin-top: var(--space-3);
+}
+
+/* Payment history / trip expenses — these entry lists had no CSS at all,
+   so rows stacked with zero gap and read as a run-together wall of text. */
+.payment-history,
+.trip-expenses {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.payment-entry,
+.expense-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.payment-entry:last-child,
+.expense-entry:last-child {
+  border-bottom: none;
+}
+
+.payment-entry strong,
+.expense-amount {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.expense-category {
+  font-weight: 600;
+  color: var(--color-text);
+  text-transform: capitalize;
+}
+
+.expense-driver {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.trip-payments h4 {
+  margin-bottom: var(--space-2);
+}
+
+.payment-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .trip-filter-status {

@@ -5,7 +5,8 @@ node_modules/
 # Build outputs
 dist/
 */dist/
-
+sprints/
+memory/
 # Environment files
 .env
 .env.local
@@ -40,6 +41,17 @@ backend/prisma/*.sqlite
 
 # Docker
 .docker/
+docker-compose.yml
+docker-compose.*.yml
+Dockerfile
+.dockerignore
+
+# Postgres
+/postgres/
+/postgresql/
+pgdata/
+*.pid
+*.log
 
 # Cache
 *.tsbuildinfo

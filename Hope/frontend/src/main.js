@@ -33,8 +33,8 @@ import { showStateMessages } from './components/Toast.js';
 import { confirmDialog } from './components/Dialog.js';
 
 // Utils
-import { bindForms, bindDeleteButtons, bindEditButtons, bindCancelEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindVehicleFilterByTransporter, bindFreightCalculator, applyValidationErrors, populateForm, populateDriverMultiSelect } from './utils/binding.js';
-import { debounce } from './utils/helpers.js';
+import { bindForms, bindDeleteButtons, bindEditButtons, bindCancelEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindFreightCalculator, applyValidationErrors, populateForm, populateDriverMultiSelect } from './utils/binding.js';
+import { debounce, formatStatus, currency } from './utils/helpers.js';
 
 // App container
 const app = document.querySelector('#app');
@@ -45,10 +45,13 @@ initHashChangeListener();
 // On navigation: paint instantly from cache, then fetch anything missing/stale
 // for the new page and repaint. No full-app reload.
 window.addEventListener('hashchange', () => {
+  actions.setLoading(true);
   render();
   loadPageData(currentPage.value)
-    .then((fetched) => { if (fetched) render(); })
-    .catch((error) => { actions.setError(error.message); render(); });
+    .finally(() => {
+      actions.setLoading(false);
+      render();
+    });
 });
 
 /* ------------------------------------------------------------------ */
@@ -97,7 +100,6 @@ async function loadPageData(page, { force = false } = {}) {
 function tripQueryParams() {
   const f = state.filters.trips || {};
   return {
-    transporterId: f.transporter || undefined,
     status: f.status || undefined,
     search: f.internalRef || undefined,
     fromDate: f.dateFrom ? new Date(f.dateFrom).toISOString() : undefined,
@@ -177,7 +179,7 @@ async function render() {
         renderDashboardPage();
     }
   } catch (error) {
-    contentHtml = `<div class="error-card">Failed to load page: ${error.message}</div>`;
+    contentHtml = `<div class="error-card">Failed to load page: ${escapeHtml(error.message)}</div>`;
   }
 
   if (token !== renderSeq) return; // superseded by a newer render
@@ -256,7 +258,7 @@ function bindEventHandlers() {
   // when active filters return nothing.
   document.querySelectorAll('[data-clear-trip-filters]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      actions.setFilter('trips', { transporter: '', status: '', dateFrom: '', dateTo: '', internalRef: '' });
+      actions.setFilter('trips', { status: '', dateFrom: '', dateTo: '', internalRef: '' });
       try {
         await fetchTrips();
       } catch (error) {
@@ -267,7 +269,6 @@ function bindEventHandlers() {
   });
 
   bindDriverMultiSelect(state);
-  bindVehicleFilterByTransporter(() => state.refs.vehicles || []);
   bindFreightCalculator();
   applyValidationErrors(state.validationErrors);
 }
@@ -314,7 +315,26 @@ async function handleFormSubmit(type, rawBody, form) {
       submitBtn.disabled = false;
       submitBtn.textContent = originalLabel;
     }
-    actions.setError(error.message);
+    // Set more detailed error message with field-specific information
+    if (error.issues && Array.isArray(error.issues)) {
+      const fieldErrors = error.issues.map(issue => {
+        const fieldName = issue.path.length > 0 ? issue.path[0] : 'unknown';
+        const fieldLabels = {
+          'transporterId': 'Transporter',
+          'vehicleId': 'Vehicle',
+          'routeId': 'Route',
+          'driverIds': 'Drivers',
+          'freightAmount': 'Freight Amount',
+          'internalRef': 'Internal Reference',
+          'lrNumber': 'LR Number'
+        };
+        const label = fieldLabels[fieldName] || fieldName;
+        return `${label}: ${issue.message}`;
+      });
+      actions.setError(`Validation failed: ${fieldErrors.join('; ')}`);
+    } else {
+      actions.setError(error.message);
+    }
     actions.setFailedFormData(type, body);
 
     if (error.issues && Array.isArray(error.issues)) {
@@ -330,13 +350,72 @@ async function handleFormSubmit(type, rawBody, form) {
       actions.clearValidationErrors();
     }
     render();
+
+    // Populate form with failed data to retain user input
+    if (state.failedFormData && state.failedFormData.type === type) {
+      const form = document.querySelector(`form[data-form="${type}"]`);
+      if (form) {
+        populateForm(form, state.failedFormData.body);
+
+        // Special handling for trip driver multi-select
+        if (type === 'trip') {
+          let driverIds = [];
+          if (Array.isArray(state.failedFormData.body.driverIds)) {
+            driverIds = state.failedFormData.body.driverIds;
+          } else if (typeof state.failedFormData.body.driverIds === 'string') {
+            try {
+              driverIds = JSON.parse(state.failedFormData.body.driverIds);
+            } catch (e) {
+              driverIds = [];
+            }
+          }
+          populateDriverMultiSelect(driverIds);
+        }
+      }
+      // Clear failed form data after use to prevent staleness
+      actions.clearFailedFormData();
+    }
   }
 }
 
+// Build a human-readable "here's what's attached" line for the delete
+// confirmation, from data already on hand where possible (list pages already
+// carry tripCount/paidTotal etc.) so most deletes need no extra request.
+async function getDeleteDependencySummary(entity, id) {
+  if (entity === 'transporter') {
+    const t = (state.data.transporters || []).find((x) => x.id === id);
+    if (t) {
+      const parts = [];
+      if (t.tripCount) parts.push(`${t.tripCount} trip${t.tripCount === 1 ? '' : 's'}`);
+      if (t.paidTotal > 0) parts.push(`${currency(t.paidTotal)} in payment history`);
+      if (parts.length) return `This transporter has ${parts.join(' and ')}.`;
+    }
+  } else if (entity === 'driver') {
+    const d = (state.data.drivers || []).find((x) => x.id === id);
+    if (d) {
+      const parts = [];
+      if (d.tripCount) parts.push(`${d.tripCount} trip${d.tripCount === 1 ? '' : 's'}`);
+      if (d.settlementTotal > 0) parts.push(`${currency(d.settlementTotal)} in settlement history`);
+      if (parts.length) return `This driver has ${parts.join(' and ')}.`;
+    }
+  } else if (entity === 'vehicle' || entity === 'route') {
+    try {
+      const data = await api.request(`/${entity}s/${id}`);
+      const tripCount = (data.trips || []).length;
+      if (tripCount) return `This ${entity} has ${tripCount}${tripCount >= 3 ? '+' : ''} linked trip${tripCount === 1 ? '' : 's'}.`;
+    } catch {
+      // Detail fetch failing here shouldn't block showing the dialog — the
+      // delete itself will still be validated server-side.
+    }
+  }
+  return '';
+}
+
 async function handleDelete(entity, id) {
+  const dependencySummary = await getDeleteDependencySummary(entity, id);
   const confirmed = await confirmDialog({
     title: `Delete ${capitalize(entity)}?`,
-    message: `Are you sure you want to delete this ${entity}? This action cannot be undone.`,
+    message: `${dependencySummary ? dependencySummary + ' ' : ''}Are you sure you want to delete this ${entity}? This action cannot be undone.`,
     confirmText: 'Delete',
     cancelText: 'Cancel',
     danger: true
@@ -390,7 +469,7 @@ async function handleTripStatusChange(tripId, status) {
   actions.setError('');
   try {
     await api.trip.updateStatus(tripId, status);
-    actions.setMessage(`Trip updated to ${status}.`);
+    actions.setMessage(`Trip updated to ${formatStatus(status)}.`);
     await refreshAfterMutation();
   } catch (error) {
     actions.setError(error.message);

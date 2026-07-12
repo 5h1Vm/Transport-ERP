@@ -2,6 +2,7 @@
  * Event Binding Utilities - Centralized event binding for components
  */
 import { state } from '../store/index.js';
+import { escapeHtml } from '../utils/helpers.js';
 
 /**
  * Bind form submit handlers
@@ -255,7 +256,7 @@ export function bindDriverMultiSelect(state) {
       optionsEl.innerHTML = drivers.map(d => `
         <label class="driver-select-option">
           <input type="checkbox" class="driver-option-checkbox" value="${d.id}" />
-          <span>${d.name}</span>
+          <span>${escapeHtml(d.name)}</span>
         </label>
       `).join('');
 
@@ -362,6 +363,28 @@ export function bindDriverMultiSelect(state) {
   document.addEventListener('click', document._driverDropdownClickHandler);
 }
 
+// A rate-per-km typo (e.g. an extra digit) can silently compute a freight
+// amount in the crores with no feedback until someone notices on the invoice.
+// This is a soft warning, not a hard block — legitimate high-value freight
+// still goes through, just flagged for a second look before saving.
+const FREIGHT_SANITY_THRESHOLD = 1000000; // ₹10,00,000
+
+function flagFreightSanity(freightInput, value) {
+  let warning = freightInput.parentElement.querySelector('.freight-sanity-warning');
+  if (value > FREIGHT_SANITY_THRESHOLD) {
+    freightInput.classList.add('field-error');
+    if (!warning) {
+      warning = document.createElement('span');
+      warning.className = 'field-error-message freight-sanity-warning';
+      freightInput.insertAdjacentElement('afterend', warning);
+    }
+    warning.textContent = `That's over ₹10,00,000 — double-check the rate before saving.`;
+  } else {
+    freightInput.classList.remove('field-error');
+    if (warning) warning.remove();
+  }
+}
+
 /**
  * Bind freight auto-calculator based on route distance and rate
  */
@@ -392,8 +415,11 @@ export function bindFreightCalculator() {
       // Use baseRate from route, or calculate from ratePerKm × distance
       if (baseRate > 0) {
         freightInput.value = baseRate;
+        flagFreightSanity(freightInput, baseRate);
       } else if (currentRate > 0 && distance > 0) {
-        freightInput.value = Math.round(currentRate * distance);
+        const computed = Math.round(currentRate * distance);
+        freightInput.value = computed;
+        flagFreightSanity(freightInput, computed);
       }
     }
   };
@@ -409,7 +435,9 @@ export function bindFreightCalculator() {
         const distance = selectedRoute.distanceKm || 0;
         const rate = parseFloat(rateInput.value);
         if (distance > 0 && rate > 0) {
-          freightInput.value = Math.round(rate * distance);
+          const computed = Math.round(rate * distance);
+          freightInput.value = computed;
+          flagFreightSanity(freightInput, computed);
         }
       }
     };
@@ -440,35 +468,6 @@ export function populateDriverMultiSelect(driverIds = []) {
   if (checkboxes.length > 0) {
     checkboxes[0].dispatchEvent(new Event('change'));
   }
-}
-
-/**
- * Bind vehicle filter by transporter
- * @param {Function} getVehicles - Function to get vehicles list
- */
-export function bindVehicleFilterByTransporter(getVehicles) {
-  const transporterSelect = document.getElementById('trip-transporter-select');
-  const vehicleSelect = document.getElementById('trip-vehicle-select');
-  if (!transporterSelect || !vehicleSelect) return;
-
-  transporterSelect.removeEventListener('change', transporterSelect._changeHandler);
-  transporterSelect._changeHandler = () => {
-    const selectedTransporterId = transporterSelect.value;
-    const currentVehicleValue = vehicleSelect.value;
-
-    const allVehicles = getVehicles();
-    const filteredVehicles = selectedTransporterId
-      ? allVehicles.filter(v => v.transporterId === selectedTransporterId)
-      : allVehicles;
-
-    vehicleSelect.innerHTML = '<option value="">Select vehicle</option>' +
-      filteredVehicles.map(v => `<option value="${v.id}" data-transporter-id="${v.transporterId || ''}">${v.vehicleNumber}</option>`).join('');
-
-    if (filteredVehicles.some(v => v.id === currentVehicleValue)) {
-      vehicleSelect.value = currentVehicleValue;
-    }
-  };
-  transporterSelect.addEventListener('change', transporterSelect._changeHandler);
 }
 
 /**
@@ -523,7 +522,10 @@ export function populateForm(form, data) {
       }
     } else if (key.endsWith('Date') && data[key]) {
       const date = new Date(data[key]);
-      input.value = date.toISOString().slice(0, 16);
+      // Plain date inputs need YYYY-MM-DD; datetime-local needs the time too.
+      // A mismatched format is silently rejected by the browser, leaving the
+      // field blank (this is why departureDate wasn't restoring on edit).
+      input.value = input.type === 'date' ? date.toISOString().slice(0, 10) : date.toISOString().slice(0, 16);
     } else {
       input.value = data[key];
     }

@@ -3,7 +3,7 @@
  */
 import { createPageHeader } from '../components/Layout.js';
 import { createRecordCard, createEmptyState, createHeroStat } from '../components/CardComponents.js';
-import { currency, formatDate, formatDateTime, formatStatus, getStatusChipClass, deleteButton } from '../utils/helpers.js';
+import { currency, formatDate, formatDateTime, formatStatus, getStatusChipClass, deleteButton, escapeHtml } from '../utils/helpers.js';
 import * as api from '../services/api.js';
 
 const SETTLEMENT_TYPES = ['SALARY', 'INCENTIVE', 'ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'ALLOWANCE'];
@@ -16,7 +16,7 @@ export async function renderDriverDetail(id) {
       api.trip.list({ driverId: id, limit: 200 })
     ]);
   } catch (error) {
-    return `<div class="error-card">Failed to load driver: ${error.message}</div>`;
+    return `<div class="error-card">Failed to load driver: ${escapeHtml(error.message)}</div>`;
   }
   if (!driver) return createEmptyState('Driver not found.');
 
@@ -28,7 +28,12 @@ export async function renderDriverDetail(id) {
     <div class="hero-stats">
       ${createHeroStat({ label: 'Trips', value: trips.length, helper: 'All time' })}
       ${createHeroStat({ label: 'Settlements paid', value: currency(driver.settlementTotal || 0), helper: `${settlements.length} entries`, className: 'success' })}
-      ${createHeroStat({ label: 'Accrued (owed)', value: currency(driver.outstandingBalance || 0), helper: 'Settlements + expenses + daily bhatta', className: (driver.outstandingBalance || 0) > 0 ? 'warning' : 'success' })}
+      ${createHeroStat({
+        label: driver.outstandingBalance && driver.outstandingBalance > 0 ? 'We owe you' : 'You owe us',
+        value: currency(Math.abs(driver.outstandingBalance || 0)),
+        helper: 'Settlements + expenses + daily bhatta',
+        className: (driver.outstandingBalance || 0) > 0 ? 'warning' : 'success'
+      })}
       ${createHeroStat({ label: 'Daily rate', value: currency(driver.dailyExpenseRate || 0), helper: 'Per day on trip' })}
     </div>
   `;
@@ -36,10 +41,10 @@ export async function renderDriverDetail(id) {
   // Matches the real settlementSchema on the backend: type, amount, tripId
   // (optional), description, date. There is no separate "advance" record —
   // an advance is just a settlement with type=ADVANCE.
-  const tripOptions = trips.map(t => `<option value="${t.id}">${t.internalRef || t.id.slice(0, 8)}</option>`).join('');
+  const tripOptions = trips.map(t => `<option value="${t.id}">${escapeHtml(t.internalRef || t.id.slice(0, 8))}</option>`).join('');
   const settlementForm = `
-    <form data-form="driver-settlement" class="form-grid two-col" data-entity-id="${driver.id}">
-      <input type="hidden" name="driverId" value="${driver.id}" />
+    <form data-form="driver-settlement" class="form-grid two-col" data-entity-id="${escapeHtml(driver.id)}">
+      <input type="hidden" name="driverId" value="${escapeHtml(driver.id)}" />
       <div class="form-field">
         <label>Type</label>
         <select name="type" required>${SETTLEMENT_TYPES.map(t => `<option value="${t}">${formatStatus(t)}</option>`).join('')}</select>
@@ -66,30 +71,30 @@ export async function renderDriverDetail(id) {
 
   const settlementsHtml = settlements.length ? settlements.map(s => createRecordCard({
     title: currency(s.amount),
-    subtitle: formatStatus(s.type),
-    meta: [formatDateTime(s.date || s.createdAt), s.description || '', s.tripId ? `<a href="#trip/${s.tripId}" class="text-link">Trip</a>` : ''].filter(Boolean)
+    subtitle: escapeHtml(formatStatus(s.type)),
+    meta: [escapeHtml(formatDateTime(s.date || s.createdAt)), escapeHtml(s.description || ''), s.tripId ? `<a href="#trip/${escapeHtml(s.tripId)}" class="text-link">Trip</a>` : ''].filter(Boolean)
   })).join('') : createEmptyState('No settlements recorded.');
 
   const expensesHtml = expenses.length ? expenses.map(e => createRecordCard({
     title: currency(e.amount),
-    subtitle: (e.category || '').replace(/_/g, ' '),
-    meta: [formatDateTime(e.createdAt), e.description || '', e.tripId ? `<a href="#trip/${e.tripId}" class="text-link">Trip</a>` : ''].filter(Boolean)
+    subtitle: escapeHtml((e.category || '').replace(/_/g, ' ')),
+    meta: [escapeHtml(formatDateTime(e.createdAt)), escapeHtml(e.description || ''), e.tripId ? `<a href="#trip/${escapeHtml(e.tripId)}" class="text-link">Trip</a>` : ''].filter(Boolean)
   })).join('') : createEmptyState('No expenses paid to this driver.');
 
   const tripsHtml = trips.length ? trips.map(trip => createRecordCard({
-    title: trip.internalRef || trip.id.slice(0, 8),
-    subtitle: trip.route ? `${trip.route.origin} → ${trip.route.destination}` : 'No route',
-    meta: [formatDate(trip.departureDate || trip.loadingDate || trip.createdAt), currency(trip.freightAmount || 0)],
-    chip: formatStatus(trip.status),
+    title: escapeHtml(trip.internalRef || trip.id.slice(0, 8)),
+    subtitle: trip.route ? `${escapeHtml(trip.route.origin)} → ${escapeHtml(trip.route.destination)}` : 'No route',
+    meta: [escapeHtml(formatDate(trip.departureDate || trip.loadingDate || trip.createdAt)), currency(trip.freightAmount || 0)],
+    chip: escapeHtml(formatStatus(trip.status)),
     chipClass: getStatusChipClass(trip.status),
-    actions: `<a href="#trip/${trip.id}" class="text-link">Detail</a>`
+    actions: `<a href="#trip/${escapeHtml(trip.id)}" class="text-link">Detail</a>`
   })).join('') : createEmptyState('No trips assigned.');
 
   const content = `
     ${createPageHeader({
       eyebrow: 'Driver',
-      title: driver.name,
-      copy: `${driver.phone || 'No phone'} • ${driver.licenseNumber || 'No license'}`
+      title: escapeHtml(driver.name),
+      copy: `${escapeHtml(driver.phone || 'No phone')} • ${escapeHtml(driver.licenseNumber || 'No license')}`
     })}
     ${heroStats}
 

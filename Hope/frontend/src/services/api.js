@@ -20,24 +20,38 @@ function qs(params = {}) {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    },
-    ...options
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15 seconds
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new ApiError(
-      error.message || `Request failed: ${response.status}`,
-      response.status,
-      error.issues || null
-    );
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      },
+      ...options
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new ApiError(
+        error.message || `Request failed: ${response.status}`,
+        response.status,
+        error.issues || null
+      );
+    }
+
+    return response.status === 204 ? null : await response.json();
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') {
+      throw new ApiError('Request timed out', 408);
+    }
+    throw err;
   }
-
-  return response.status === 204 ? null : response.json();
 }
 
 // Transporter API
