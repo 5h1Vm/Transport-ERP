@@ -13,6 +13,12 @@ class ApiError extends Error {
   }
 }
 
+// Build a query string from a params object, skipping empty values.
+function qs(params = {}) {
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
+  return entries.length ? '?' + new URLSearchParams(entries).toString() : '';
+}
+
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
@@ -36,7 +42,7 @@ async function request(path, options = {}) {
 
 // Transporter API
 export const transporterApi = {
-  list: () => request('/transporters'),
+  list: (params) => request('/transporters' + qs(params)),
   get: (id) => request(`/transporters/${id}`),
   create: (data) => request('/transporters', { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => request(`/transporters/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -47,7 +53,7 @@ export const transporterApi = {
 
 // Vehicle API
 export const vehicleApi = {
-  list: () => request('/vehicles'),
+  list: (params) => request('/vehicles' + qs(params)),
   get: (id) => request(`/vehicles/${id}`),
   create: (data) => request('/vehicles', { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => request(`/vehicles/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -56,7 +62,7 @@ export const vehicleApi = {
 
 // Driver API
 export const driverApi = {
-  list: () => request('/drivers'),
+  list: (params) => request('/drivers' + qs(params)),
   get: (id) => request(`/drivers/${id}`),
   create: (data) => request('/drivers', { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => request(`/drivers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -67,7 +73,7 @@ export const driverApi = {
 
 // Route API
 export const routeApi = {
-  list: () => request('/routes'),
+  list: (params) => request('/routes' + qs(params)),
   get: (id) => request(`/routes/${id}`),
   create: (data) => request('/routes', { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => request(`/routes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -76,7 +82,7 @@ export const routeApi = {
 
 // Trip API
 export const tripApi = {
-  list: () => request('/trips'),
+  list: (params) => request('/trips' + qs(params)),
   get: (id) => request(`/trips/${id}`),
   create: (data) => request('/trips', { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => request(`/trips/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -98,8 +104,8 @@ export const referenceApi = {
 
 // Ledger API
 export const ledgerApi = {
-  getTransporterEntries: () => request('/transporter-ledger-entries'),
-  getPayments: () => request('/payments'),
+  getTransporterEntries: (params) => request('/transporter-ledger-entries' + qs(params)),
+  getPayments: (params) => request('/payments' + qs(params)),
 };
 
 // Aliases for convenience (matches what main.js expects)

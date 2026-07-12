@@ -168,6 +168,14 @@ export function bindFilters(handlers) {
     driverSearch.addEventListener('input', driverSearch._inputHandler);
   }
 
+  // Route search
+  const routeSearch = document.getElementById('route-search');
+  if (routeSearch && handlers.routes) {
+    routeSearch.removeEventListener('input', routeSearch._inputHandler);
+    routeSearch._inputHandler = (e) => handlers.routes(e.target.value);
+    routeSearch.addEventListener('input', routeSearch._inputHandler);
+  }
+
   // Trips filters
   if (handlers.trips) {
     const tripFilters = {
@@ -205,12 +213,14 @@ export function bindDriverMultiSelect(state) {
   if (container) {
     const optionsEl = container.querySelector('.driver-select-options');
     const footerEl = container.querySelector('.driver-select-footer');
-    const drivers = state.data.drivers || [];
+    // Dropdown data comes from the reference payload (route-scoped loading);
+    // fall back to the rich list if it happens to be loaded.
+    const drivers = (state.refs.drivers && state.refs.drivers.length ? state.refs.drivers : state.data.drivers) || [];
 
     if (optionsEl && drivers.length > 0) {
       optionsEl.innerHTML = drivers.map(d => `
         <label class="driver-select-option">
-          <input type="checkbox" name="driverIds" value="${d.id}" />
+          <input type="checkbox" class="driver-option-checkbox" value="${d.id}" />
           <span>${d.name}</span>
         </label>
       `).join('');
@@ -234,7 +244,7 @@ export function bindDriverMultiSelect(state) {
     if (clearBtn) {
       clearBtn.removeEventListener('click', clearBtn._clickHandler);
       clearBtn._clickHandler = () => {
-        container.querySelectorAll('input[type="checkbox"][name="driverIds"]').forEach(cb => {
+        container.querySelectorAll('input.driver-option-checkbox').forEach(cb => {
           cb.checked = false;
         });
         updateDriverSelect();
@@ -245,7 +255,7 @@ export function bindDriverMultiSelect(state) {
     }
 
     function updateDriverSelect() {
-      const selected = Array.from(container.querySelectorAll('input[type="checkbox"][name="driverIds"]:checked'))
+      const selected = Array.from(container.querySelectorAll('input.driver-option-checkbox:checked'))
         .map(cb => cb.value);
 
       // Update count
@@ -262,7 +272,7 @@ export function bindDriverMultiSelect(state) {
         placeholder.style.color = 'var(--muted)';
         if (chipsContainer) chipsContainer.innerHTML = '';
       } else if (selected.length <= 2) {
-        const names = Array.from(container.querySelectorAll('input[type="checkbox"][name="driverIds"]:checked'))
+        const names = Array.from(container.querySelectorAll('input.driver-option-checkbox:checked'))
           .map(cb => cb.parentElement.textContent.trim());
         placeholder.textContent = names.join(', ');
         placeholder.style.color = 'var(--text)';
@@ -285,7 +295,7 @@ export function bindDriverMultiSelect(state) {
     }
 
     // Bind all checkboxes
-    container.querySelectorAll('input[type="checkbox"][name="driverIds"]').forEach(checkbox => {
+    container.querySelectorAll('input.driver-option-checkbox').forEach(checkbox => {
       checkbox.removeEventListener('change', checkbox._changeHandler);
       checkbox._changeHandler = updateDriverSelect;
       checkbox.addEventListener('change', checkbox._changeHandler);
@@ -331,7 +341,7 @@ export function bindFreightCalculator() {
 
   routeSelect.removeEventListener('change', routeSelect._changeHandler);
   routeSelect._changeHandler = () => {
-    const routes = state.data.routes || [];
+    const routes = (state.refs.routes && state.refs.routes.length ? state.refs.routes : state.data.routes) || [];
     const selectedRoute = routes.find(r => r.id === routeSelect.value);
 
     if (selectedRoute) {
@@ -359,7 +369,8 @@ export function bindFreightCalculator() {
   if (rateInput) {
     rateInput.removeEventListener('input', rateInput._inputHandler);
     rateInput._inputHandler = () => {
-      const selectedRoute = (state.data.routes || []).find(r => r.id === routeSelect.value);
+      const routes = (state.refs.routes && state.refs.routes.length ? state.refs.routes : state.data.routes) || [];
+      const selectedRoute = routes.find(r => r.id === routeSelect.value);
       if (selectedRoute && rateInput.value) {
         const distance = selectedRoute.distanceKm || 0;
         const rate = parseFloat(rateInput.value);

@@ -2,54 +2,55 @@
  * Drivers Page
  */
 import { createPageHeader, createFilterRow } from '../components/Layout.js';
-import { createRecordCard, createEmptyState, createLoadingCard } from '../components/CardComponents.js';
-import { editButton, deleteButton, formField, formSubmit, createDriverMultiSelect } from '../utils/helpers.js';
+import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
+import { currency, editButton, deleteButton, formField, formSubmit } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
 export function renderDriversPage() {
   const drivers = state.data.drivers || [];
+  const filter = state.filters.drivers?.toLowerCase() || '';
+  const filteredDrivers = filter
+    ? drivers.filter(d =>
+        (d.name?.toLowerCase().includes(filter)) ||
+        (d.phone?.toLowerCase().includes(filter)) ||
+        (d.licenseNumber?.toLowerCase().includes(filter))
+      )
+    : drivers;
 
   const formHtml = `
     <form data-form="driver" class="form-grid two-col">
-      ${formField({ label: 'Name', type: 'text', id: 'name', name: 'name', placeholder: 'Driver name', required: true })}
-      ${formField({ label: 'Phone', type: 'tel', id: 'phone', name: 'phone', placeholder: '+91 98765 43210', required: true })}
-      ${formField({ label: 'License Number', type: 'text', id: 'licenseNumber', name: 'licenseNumber', placeholder: 'DL-XXXXXXXXX' })}
+      ${formField({ label: 'Name', type: 'text', id: 'name', name: 'name', placeholder: 'Driver name', required: true, maxlength: 60 })}
+      ${formField({ label: 'Phone', type: 'tel', id: 'phone', name: 'phone', placeholder: '+91 98765 43210', maxlength: 20 })}
+      ${formField({ label: 'License Number', type: 'text', id: 'licenseNumber', name: 'licenseNumber', placeholder: 'DL-XXXXXXXXX', maxlength: 30 })}
       ${formField({ label: 'License Expiry', type: 'date', id: 'licenseExpiry', name: 'licenseExpiry' })}
-      ${formField({ label: 'Daily Rate (₹)', type: 'number', id: 'dailyRate', name: 'dailyRate', placeholder: 'e.g., 500', min: '0', step: '1', required: true })}
-      ${formField({ label: 'Advance (₹)', type: 'number', id: 'advance', name: 'advance', placeholder: '0', min: '0', step: '1' })}
-      ${formField({ label: 'Status', type: 'select', id: 'status', name: 'status', options: [
-          { value: 'active', label: 'Active' },
-          { value: 'inactive', label: 'Inactive' }
-        ] })}
-      <div class="form-field full-width">${formSubmit('driver', 'active')}</div>
+      ${formField({ label: 'Monthly Salary (₹)', type: 'number', id: 'monthlySalary', name: 'monthlySalary', placeholder: '0', min: 0, step: 1 })}
+      ${formField({ label: 'Daily Expense Rate (₹)', type: 'number', id: 'dailyExpenseRate', name: 'dailyExpenseRate', placeholder: 'e.g., 500 (bhatta per day on trip)', min: 0, step: 1 })}
+      <div class="form-field full-width">${formSubmit('driver')}</div>
     </form>
   `;
 
   const filterHtml = createFilterRow([
-    { id: 'driver-search', label: 'Search', placeholder: 'Name, phone, license...' },
-    { id: 'driver-status', label: 'Status', type: 'select', options: [
-        { value: '', label: 'All' },
-        { value: 'active', label: 'Active' },
-        { value: 'inactive', label: 'Inactive' }
-      ]}
+    { id: 'driver-search', label: 'Search', placeholder: 'Name, phone, license...', value: filter }
   ]);
 
-  const listHtml = drivers.length ? drivers.map(driver => createRecordCard({
+  const listHtml = filteredDrivers.length ? filteredDrivers.map(driver => createRecordCard({
     title: driver.name,
-    subtitle: driver.phone,
+    subtitle: driver.phone || 'No phone',
     meta: [
       driver.licenseNumber ? `DL: ${driver.licenseNumber}` : '',
-      driver.dailyRate ? `₹${driver.dailyRate}/day` : '',
-      driver.status ? `<span class="chip chip-status chip--${driver.status}">${driver.status}</span>` : ''
+      `Trips: ${driver.tripCount ?? 0}`,
+      driver.dailyExpenseRate ? `${currency(driver.dailyExpenseRate)}/day` : ''
     ].filter(Boolean),
-    actions: `${editButton('driver', driver.id)}${deleteButton('driver', driver.id)}`
+    chip: currency(driver.outstandingBalance || 0),
+    chipClass: (driver.outstandingBalance || 0) > 0 ? 'warning' : 'success',
+    actions: `${editButton('driver', driver.id)}${deleteButton('driver', driver.id)} <a href="#driver/${driver.id}" class="text-link">Details</a>`
   })).join('') : createEmptyState('No driver records yet.');
 
   const content = `
     ${createPageHeader({
       eyebrow: 'Drivers',
       title: 'Driver master & salary config',
-      copy: 'Drivers with daily rates, advance tracking, and salary settlement basis.'
+      copy: 'Drivers with daily bhatta rate, salary, and outstanding balance.'
     })}
     <section class="panel-grid white two-col">
       <article class="panel white form-panel"><h3>Add driver</h3>${formHtml}</article>

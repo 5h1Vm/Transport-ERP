@@ -9,34 +9,26 @@ import { state } from '../store/index.js';
 // The real trip lifecycle the backend enforces.
 const TRIP_STATUSES = ['DRAFT', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'POD_RECEIVED', 'BILLED', 'SETTLED', 'CANCELLED'];
 
-// A route has no "name" — it's origin → destination.
 const routeLabel = (r) => `${r.origin} → ${r.destination}`;
 
 export function renderTripsPage() {
+  // Trip rows come pre-filtered and paginated from the server (see
+  // tripQueryParams()/fetchTrips() in main.js) — no client-side filtering here.
   const trips = state.data.trips || [];
-  const transporters = state.data.transporters || [];
-  const vehicles = state.data.vehicles || [];
-  const routes = state.data.routes || [];
+  // Dropdown options come from the always-loaded reference payload, not the
+  // page-scoped list, so they're populated even before visiting those pages.
+  const transporters = state.refs.transporters || [];
+  const vehicles = state.refs.vehicles || [];
+  const routes = state.refs.routes || [];
 
   const filters = state.filters.trips || {};
 
-  const filteredTrips = trips.filter((trip) => {
-    const tripDate = trip.departureDate || trip.loadingDate || trip.createdAt;
-    if (filters.vehicleId && trip.vehicleId !== filters.vehicleId) return false;
-    if (filters.transporter && trip.transporterId !== filters.transporter) return false;
-    if (filters.status && trip.status !== filters.status) return false;
-    if (filters.dateFrom && tripDate && tripDate < filters.dateFrom) return false;
-    if (filters.dateTo && tripDate && tripDate > filters.dateTo) return false;
-    if (filters.internalRef && !(trip.internalRef || '').toLowerCase().includes(filters.internalRef.toLowerCase())) return false;
-    return true;
-  });
-
   const filterHtml = createFilterRow([
-    { id: 'trip-transporter-filter', label: 'Transporter', type: 'select', options: [{ value: '', label: 'All transporters' }, ...transporters.map((t) => ({ value: t.id, label: t.firmName }))] },
-    { id: 'trip-status-filter', label: 'Status', type: 'select', options: [{ value: '', label: 'All statuses' }, ...TRIP_STATUSES.map((s) => ({ value: s, label: formatStatus(s) }))] },
-    { id: 'trip-internalref-filter', label: 'Ref', type: 'text', placeholder: 'TRP-001' },
-    { id: 'trip-datefrom-filter', label: 'From', type: 'text', inputType: 'date' },
-    { id: 'trip-dateto-filter', label: 'To', type: 'text', inputType: 'date' }
+    { id: 'trip-transporter-filter', label: 'Transporter', type: 'select', options: [{ value: '', label: 'All transporters' }, ...transporters.map((t) => ({ value: t.id, label: t.firmName, selected: filters.transporter === t.id }))] },
+    { id: 'trip-status-filter', label: 'Status', type: 'select', options: [{ value: '', label: 'All statuses' }, ...TRIP_STATUSES.map((s) => ({ value: s, label: formatStatus(s), selected: filters.status === s }))] },
+    { id: 'trip-internalref-filter', label: 'Ref', type: 'text', placeholder: 'TRP-001', value: filters.internalRef || '' },
+    { id: 'trip-datefrom-filter', label: 'From', type: 'text', inputType: 'date', value: filters.dateFrom || '' },
+    { id: 'trip-dateto-filter', label: 'To', type: 'text', inputType: 'date', value: filters.dateTo || '' }
   ]);
 
   const transporterOptions = [{ value: '', label: 'Select transporter' }, ...transporters.map((t) => ({ value: t.id, label: t.firmName }))];
@@ -65,39 +57,40 @@ export function renderTripsPage() {
     </form>
   `;
 
-  const listHtml = filteredTrips.length ? filteredTrips.map((trip) => {
-    const transporter = transporters.find((t) => t.id === trip.transporterId);
-    const vehicle = vehicles.find((v) => v.id === trip.vehicleId);
-
-    // Backend returns drivers as [{ driver, role }] via the trip-driver join.
+  const listHtml = trips.length ? trips.map((trip) => {
+    // The slim /trips response embeds transporter/vehicle/route/drivers directly —
+    // no cross-referencing a separately loaded list needed.
     const driverNames = (trip.drivers || []).map((td) => td.driver?.name).filter(Boolean).join(', ') || '—';
 
-    // Payment info: prefer the server-computed summary, fall back to included payments.
-    const summary = trip.financialSummary;
-    const totalPaid = summary ? summary.totalPaid : (trip.payments || []).reduce((s, p) => s + (p.amount || 0), 0);
-    const amountDue = (trip.freightAmount || 0) - totalPaid;
-    const paymentCount = (trip.payments || []).length;
+    const summary = trip.financialSummary || {};
+    const totalPaid = summary.tripPaymentTotal || 0;
+    const outstanding = summary.outstanding || 0;
+    const paymentCount = trip.paymentCount || 0;
     const paymentInfo = paymentCount > 0
-      ? `${paymentCount} payment(s) • Paid ${currency(totalPaid)} • Due ${currency(amountDue)}`
+      ? `${paymentCount} payment(s) • Paid ${currency(totalPaid)} • Due ${currency(outstanding)}`
       : 'No payments';
 
     const tripDate = trip.departureDate || trip.loadingDate || trip.createdAt;
 
     return createRecordCard({
       title: trip.internalRef || trip.id.slice(0, 8),
-      subtitle: `${transporter?.firmName || '—'} • ${vehicle?.vehicleNumber || '—'}`,
+      subtitle: `${trip.transporter?.firmName || '—'} • ${trip.vehicle?.vehicleNumber || '—'}`,
       meta: [
         trip.lrNumber ? `LR: ${trip.lrNumber}` : '',
         `Drivers: ${driverNames}`,
         `Status: ${formatStatus(trip.status)}`,
         formatDate(tripDate),
-        `<span class="meta-item" style="color: ${amountDue > 0 ? 'var(--color-warning, #b45309)' : 'var(--color-success, #166534)'}">${paymentInfo}</span>`
+        `<span class="meta-item" style="color: ${outstanding > 0 ? 'var(--color-warning, #b45309)' : 'var(--color-success, #166534)'}">${paymentInfo}</span>`
       ],
       chip: currency(trip.freightAmount || 0),
       chipClass: getStatusChipClass(trip.status) || 'primary',
       actions: `${editButton('trip', trip.id)}${deleteButton('trip', trip.id)} <a href="#trip/${trip.id}" class="text-link">Detail</a>`
     });
   }).join('') : createEmptyState('No trips created yet.');
+
+  const loadMoreHtml = state.tripsHasMore
+    ? `<button type="button" id="trips-load-more" class="btn btn-ghost" style="width: 100%; margin-top: 12px;">Load more trips</button>`
+    : '';
 
   const content = `
     ${createPageHeader({
@@ -111,6 +104,7 @@ export function renderTripsPage() {
         <h3>Trip list</h3>
         ${filterHtml}
         <div class="stack">${listHtml}</div>
+        ${loadMoreHtml}
       </article>
     </section>
   `;

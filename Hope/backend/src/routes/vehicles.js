@@ -24,7 +24,7 @@ module.exports = function vehicleRoutes(ctx) {
       orderBy: { createdAt: 'desc' },
       take: parseLimit(req.query.limit, 100, 500),
       skip: parseOffset(req.query.offset),
-      include: { trips: { orderBy: { createdAt: 'desc' }, take: 3 } }
+      include: { transporter: { select: { id: true, firmName: true } } }
     });
     res.json(vehicles);
   }));

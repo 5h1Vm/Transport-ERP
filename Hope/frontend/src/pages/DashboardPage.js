@@ -2,7 +2,7 @@
  * Dashboard Page
  */
 import { createMetricCard, createRecordCard, createEmptyState } from '../components/CardComponents.js';
-import { currency, formatDate, editButton, deleteButton } from '../utils/helpers.js';
+import { currency, formatDate, formatStatus, getStatusChipClass } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
 /**
@@ -38,14 +38,14 @@ export function renderDashboardPage() {
     ? recentTrips.map(trip => createRecordCard({
         title: trip.internalRef || trip.id.slice(0, 8),
         subtitle: `${trip.transporter?.firmName || 'Transporter'} • ${trip.vehicle?.vehicleNumber || 'Vehicle'}`,
-        chip: trip.status,
-        chipClass: '',
+        chip: formatStatus(trip.status),
+        chipClass: getStatusChipClass(trip.status),
         meta: [
           `${trip.route ? `${trip.route.origin} → ${trip.route.destination}` : 'No route'}`,
           currency(trip.freightAmount),
           formatDate(trip.createdAt)
         ],
-        actions: `${editButton('trip', trip.id)}${deleteButton('trip', trip.id)}`
+        actions: `<a href="#trip/${trip.id}" class="text-link">View</a>`
       })).join('')
     : createEmptyState('No trips created yet.');
 
@@ -65,8 +65,10 @@ export function renderDashboardPage() {
     ? pendingPodTrips.map(trip => createRecordCard({
         title: trip.internalRef || trip.id.slice(0, 8),
         subtitle: `${trip.transporter?.firmName || 'Transporter'} • ${trip.vehicle?.vehicleNumber || 'Vehicle'}`,
-        chip: trip.status,
-        meta: []
+        chip: formatStatus(trip.status),
+        chipClass: getStatusChipClass(trip.status),
+        meta: [],
+        actions: `<a href="#trip/${trip.id}" class="text-link">View</a>`
       })).join('')
     : createEmptyState('No trips are waiting for POD.');
 

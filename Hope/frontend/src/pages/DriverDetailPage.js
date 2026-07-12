@@ -3,95 +3,85 @@
  */
 import { createPageHeader } from '../components/Layout.js';
 import { createRecordCard, createEmptyState, createHeroStat } from '../components/CardComponents.js';
-import { currency, formatDate, formatDateTime, editButton, deleteButton, formField, formSubmit } from '../utils/helpers.js';
-import { state } from '../store/index.js';
+import { currency, formatDate, formatDateTime, formatStatus, getStatusChipClass, deleteButton } from '../utils/helpers.js';
+import * as api from '../services/api.js';
+
+const SETTLEMENT_TYPES = ['SALARY', 'INCENTIVE', 'ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'ALLOWANCE'];
 
 export async function renderDriverDetail(id) {
-  const driver = state.data.drivers?.find(d => d.id === id);
+  let driver, trips;
+  try {
+    [driver, trips] = await Promise.all([
+      api.driver.get(id),
+      api.trip.list({ driverId: id, limit: 200 })
+    ]);
+  } catch (error) {
+    return `<div class="error-card">Failed to load driver: ${error.message}</div>`;
+  }
   if (!driver) return createEmptyState('Driver not found.');
 
-  const trips = state.data.trips?.filter(t => t.driverIds?.includes(driver.id)) || [];
-  const settlements = state.data.driverSettlements?.filter(s => s.driverId === driver.id) || [];
-  const advances = state.data.driverAdvances?.filter(a => a.driverId === driver.id) || [];
+  const settlements = driver.settlements || [];
+  // Trip expenses this driver was paid directly (diesel/toll/etc handed to them).
+  const expenses = driver.expenses || [];
 
-  const totalTrips = trips.length;
-  const settledAmount = settlements.reduce((s, st) => s + st.amount, 0);
-  const advanceTotal = advances.reduce((s, a) => s + a.amount, 0);
-  const advanceGiven = trips.reduce((s, trip) => {
-    const ledger = state.data.driverLedgerEntries?.find(e => e.tripId === trip.id);
-    return s + (ledger?.advanceGiven || 0);
-  }, 0);
-  const outstanding = (driver.advanceBalance || 0) + advanceGiven - settledAmount;
-
-  // This month
-  const now = new Date();
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const thisMonthTrips = trips.filter(t => t.date && new Date(t.date) >= thisMonthStart && new Date(t.date) <= thisMonthEnd);
-  const thisMonthSettlements = settlements.filter(s => s.date && new Date(s.date) >= thisMonthStart && new Date(s.date) <= thisMonthEnd);
-
-  // Calculate this month earnings from trips (via driver ledger entries)
-  const thisMonthEarnings = thisMonthTrips.reduce((sum, trip) => {
-    const ledger = state.data.driverLedgerEntries?.find(e => e.tripId === trip.id && e.driverId === driver.id);
-    return sum + (ledger?.netPayable || ledger?.amount || trip.freightAmount || 0);
-  }, 0);
-
-  const thisMonthSettled = thisMonthSettlements.reduce((sum, s) => sum + s.amount, 0);
-  const thisMonthOutstanding = thisMonthEarnings - thisMonthSettled;
-
-  // Helper for month display
-  const monthName = thisMonthStart.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-
-  // Hero stats
   const heroStats = `
     <div class="hero-stats">
-      ${createHeroStat({ label: 'Total Trips', value: totalTrips, helper: 'All time' })}
-      ${createHeroStat({ label: `This Month (${monthName})`, value: currency(thisMonthEarnings), helper: `${thisMonthTrips.length} trips • ${currency(thisMonthOutstanding)} outstanding`, className: thisMonthOutstanding > 0 ? 'warning' : 'success' })}
-      ${createHeroStat({ label: 'Settled', value: currency(settledAmount), helper: 'Total paid', className: 'success' })}
-      ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: 'Advances - Settlements', className: outstanding > 0 ? 'warning' : 'success' })}
-      ${createHeroStat({ label: 'Daily Rate', value: currency(driver.dailyRate || 0), helper: 'Per day' })}
+      ${createHeroStat({ label: 'Trips', value: trips.length, helper: 'All time' })}
+      ${createHeroStat({ label: 'Settlements paid', value: currency(driver.settlementTotal || 0), helper: `${settlements.length} entries`, className: 'success' })}
+      ${createHeroStat({ label: 'Accrued (owed)', value: currency(driver.outstandingBalance || 0), helper: 'Settlements + expenses + daily bhatta', className: (driver.outstandingBalance || 0) > 0 ? 'warning' : 'success' })}
+      ${createHeroStat({ label: 'Daily rate', value: currency(driver.dailyExpenseRate || 0), helper: 'Per day on trip' })}
     </div>
   `;
 
-  // Settlement form
+  // Matches the real settlementSchema on the backend: type, amount, tripId
+  // (optional), description, date. There is no separate "advance" record —
+  // an advance is just a settlement with type=ADVANCE.
+  const tripOptions = trips.map(t => `<option value="${t.id}">${t.internalRef || t.id.slice(0, 8)}</option>`).join('');
   const settlementForm = `
     <form data-form="driver-settlement" class="form-grid two-col" data-entity-id="${driver.id}">
       <input type="hidden" name="driverId" value="${driver.id}" />
-      ${formField({ label: 'Amount (₹)', type: 'number', id: 'settlement-amount', name: 'amount', placeholder: outstanding > 0 ? outstanding : 0, min: '0', step: '1', required: true })}
-      ${formField({ label: 'Date', type: 'date', id: 'settlement-date', name: 'date', required: true })}
-      ${formField({ label: 'Method', type: 'select', id: 'settlement-method', name: 'method', options: [
-          { value: 'CASH', label: 'Cash' },
-          { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
-          { value: 'UPI', label: 'UPI' },
-          { value: 'CHEQUE', label: 'Cheque' }
-        ] })}
-      ${formField({ label: 'Reference', type: 'text', id: 'settlement-ref', name: 'reference', placeholder: 'UTR / Note' })}
-      <div class="form-field full-width">${formSubmit('driver-settlement')}</div>
+      <div class="form-field">
+        <label>Type</label>
+        <select name="type" required>${SETTLEMENT_TYPES.map(t => `<option value="${t}">${formatStatus(t)}</option>`).join('')}</select>
+      </div>
+      <div class="form-field">
+        <label>Amount (₹)</label>
+        <input name="amount" type="number" min="1" step="1" required />
+      </div>
+      <div class="form-field">
+        <label>Date</label>
+        <input name="date" type="datetime-local" />
+      </div>
+      <div class="form-field">
+        <label>Trip (optional)</label>
+        <select name="tripId"><option value="">No trip</option>${tripOptions}</select>
+      </div>
+      <div class="form-field full-width">
+        <label>Description</label>
+        <input name="description" placeholder="Notes" maxlength="200" />
+      </div>
+      <div class="form-field full-width"><button type="submit" class="btn btn-primary">Record settlement</button></div>
     </form>
   `;
 
-  // Settlement history
   const settlementsHtml = settlements.length ? settlements.map(s => createRecordCard({
     title: currency(s.amount),
-    subtitle: `${s.method || '—'} • ${s.reference || 'No ref'}`,
-    meta: [formatDateTime(s.createdAt), formatDateTime(s.date)],
-    actions: deleteButton('driver-settlement', s.id)
+    subtitle: formatStatus(s.type),
+    meta: [formatDateTime(s.date || s.createdAt), s.description || '', s.tripId ? `<a href="#trip/${s.tripId}" class="text-link">Trip</a>` : ''].filter(Boolean)
   })).join('') : createEmptyState('No settlements recorded.');
 
-  // Advance history
-  const advancesHtml = advances.length ? advances.map(a => createRecordCard({
-    title: currency(a.amount),
-    subtitle: a.reason || 'Advance',
-    meta: [formatDateTime(a.createdAt), formatDateTime(a.date)],
-    actions: deleteButton('driver-advance', a.id)
-  })).join('') : createEmptyState('No advances recorded.');
+  const expensesHtml = expenses.length ? expenses.map(e => createRecordCard({
+    title: currency(e.amount),
+    subtitle: (e.category || '').replace(/_/g, ' '),
+    meta: [formatDateTime(e.createdAt), e.description || '', e.tripId ? `<a href="#trip/${e.tripId}" class="text-link">Trip</a>` : ''].filter(Boolean)
+  })).join('') : createEmptyState('No expenses paid to this driver.');
 
-  // Trip list
   const tripsHtml = trips.length ? trips.map(trip => createRecordCard({
     title: trip.internalRef || trip.id.slice(0, 8),
-    subtitle: `${trip.status}${trip.route ? ` • ${trip.route.fromCity} → ${trip.route.toCity}` : ''}`,
-    meta: [formatDate(trip.date), currency(trip.freightAmount || 0)],
-    chip: trip.status,
+    subtitle: trip.route ? `${trip.route.origin} → ${trip.route.destination}` : 'No route',
+    meta: [formatDate(trip.departureDate || trip.loadingDate || trip.createdAt), currency(trip.freightAmount || 0)],
+    chip: formatStatus(trip.status),
+    chipClass: getStatusChipClass(trip.status),
     actions: `<a href="#trip/${trip.id}" class="text-link">Detail</a>`
   })).join('') : createEmptyState('No trips assigned.');
 
@@ -99,44 +89,9 @@ export async function renderDriverDetail(id) {
     ${createPageHeader({
       eyebrow: 'Driver',
       title: driver.name,
-      copy: `${driver.phone} • ${driver.licenseNumber || 'No license'} • ${driver.status || 'Active'}`
+      copy: `${driver.phone || 'No phone'} • ${driver.licenseNumber || 'No license'}`
     })}
     ${heroStats}
-
-    <!-- This Month Breakdown -->
-    <section class="panel-grid white two-col">
-      <article class="panel white">
-        <div class="panel-head">
-          <div><p class="eyebrow dark">${monthName}</p><h3>Earnings</h3></div>
-          <span class="chip primary">${thisMonthTrips.length} trips</span>
-        </div>
-        <p class="page-copy">Gross earnings from trips completed this month</p>
-        <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-text);">${currency(thisMonthEarnings)}</div>
-      </article>
-      <article class="panel white">
-        <div class="panel-head">
-          <div><p class="eyebrow dark">${monthName}</p><h3>Settlements</h3></div>
-          <span class="chip success">${thisMonthSettlements.length} paid</span>
-        </div>
-        <p class="page-copy">Total amount settled this month</p>
-        <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-success);">${currency(thisMonthSettled)}</div>
-      </article>
-    </section>
-
-    ${thisMonthOutstanding !== 0 ? `
-    <section class="panel-grid white">
-      <article class="panel white full-width">
-        <div class="panel-head">
-          <div><p class="eyebrow dark">${monthName}</p><h3>Outstanding Balance</h3></div>
-          <span class="chip ${thisMonthOutstanding > 0 ? 'warning' : 'success'}">${thisMonthOutstanding > 0 ? 'Pending' : 'Overpaid'}</span>
-        </div>
-        <p class="page-copy">${thisMonthOutstanding > 0 ? 'Amount owed to driver' : 'Amount to recover from driver'}</p>
-        <div style="font-size: 1.5rem; font-weight: 700; color: ${thisMonthOutstanding > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">
-          ${currency(Math.abs(thisMonthOutstanding))}
-        </div>
-      </article>
-    </section>
-    ` : ''}
 
     <section class="panel-grid white two-col">
       <article class="panel white form-panel">
@@ -149,20 +104,10 @@ export async function renderDriverDetail(id) {
       </article>
     </section>
 
-    <section class="panel-grid white two-col">
-      <article class="panel white form-panel">
-        <h3>Record advance</h3>
-        <form data-form="driver-advance" class="form-grid two-col" data-entity-id="${driver.id}">
-          <input type="hidden" name="driverId" value="${driver.id}" />
-          ${formField({ label: 'Amount (₹)', type: 'number', id: 'advance-amount', name: 'amount', placeholder: '0', min: '0', step: '1', required: true })}
-          ${formField({ label: 'Date', type: 'date', id: 'advance-date', name: 'date', required: true })}
-          ${formField({ label: 'Reason', type: 'text', id: 'advance-reason', name: 'reason', placeholder: 'Diesel, Food, etc.' })}
-          <div class="form-field full-width">${formSubmit('driver-advance')}</div>
-        </form>
-      </article>
-      <article class="panel white">
-        <h3>Advances (${advances.length})</h3>
-        <div class="stack">${advancesHtml}</div>
+    <section class="panel-grid white">
+      <article class="panel white full-width">
+        <h3>Expenses paid to driver (${expenses.length})</h3>
+        <div class="stack">${expensesHtml}</div>
       </article>
     </section>
 

@@ -51,16 +51,20 @@ module.exports = function driverRoutes(ctx) {
     const drivers = await prisma.driver.findMany({
       orderBy: { createdAt: 'desc' },
       take,
-      skip
+      skip,
+      include: {
+        _count: { select: { tripAssignments: true } }
+      }
     });
 
     // Bulk-compute outstanding for all drivers in this page (2 queries total).
     const outstandingMap = await calculateDriverOutstandingBulk(prisma, drivers.map((d) => d.id));
-    const result = drivers.map((driver) => {
+    const result = drivers.map(({ _count, ...driver }) => {
       const entry = outstandingMap.get(driver.id) || { outstanding: 0, details: { settlementTotal: 0, tripExpensesPaid: 0, dailyExpenses: 0 } };
       const { outstanding, details } = entry;
       return {
         ...driver,
+        tripCount: _count.tripAssignments,
         settlementTotal: details.settlementTotal + details.tripExpensesPaid + details.dailyExpenses,
         outstandingBalance: outstanding
       };

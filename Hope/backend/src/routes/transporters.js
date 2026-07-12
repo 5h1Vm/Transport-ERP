@@ -4,7 +4,7 @@ const asyncHandler = require('../middleware/asyncHandler');
 const { parseLimit, parseOffset } = require('../utils/pagination');
 const {
   calculateTransporterOutstanding,
-  calculateTransporterOutstandingBulk
+  calculateTransporterTotalsBulk
 } = require('../services/calculations');
 
 const transporterSchema = z.object({
@@ -29,22 +29,29 @@ module.exports = function transporterRoutes(ctx) {
     const take = parseLimit(req.query.limit, 100, 500);
     const skip = parseOffset(req.query.offset);
 
+    // Slim list: no embedded trips/payments (detail views fetch their own).
+    // Trip count + ledger totals ride along so list/ledger pages need no extra calls.
     const items = await prisma.transporter.findMany({
       orderBy: { createdAt: 'desc' },
       take,
       skip,
       include: {
-        trips: { orderBy: { createdAt: 'desc' }, take: 5 },
-        payments: { orderBy: { paymentDate: 'desc' }, take: 5 }
+        _count: { select: { trips: true } }
       }
     });
 
-    // Bulk-compute outstanding for all transporters in this page (2 queries total).
-    const outstandingMap = await calculateTransporterOutstandingBulk(prisma, items.map((t) => t.id));
-    const result = items.map((transporter) => ({
-      ...transporter,
-      outstanding: outstandingMap.get(transporter.id) || 0
-    }));
+    // Bulk-compute totals for all transporters in this page (2 queries total).
+    const totalsMap = await calculateTransporterTotalsBulk(prisma, items.map((t) => t.id));
+    const result = items.map(({ _count, ...transporter }) => {
+      const totals = totalsMap.get(transporter.id) || { freightTotal: 0, paidTotal: 0, outstanding: 0 };
+      return {
+        ...transporter,
+        tripCount: _count.trips,
+        freightTotal: totals.freightTotal,
+        paidTotal: totals.paidTotal,
+        outstanding: totals.outstanding
+      };
+    });
 
     res.json(result);
   }));

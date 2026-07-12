@@ -32,6 +32,9 @@ export const state = reactive({
     payments: []
   },
 
+  // Trips pagination (server-side)
+  tripsHasMore: false,
+
   // Editing state
   editing: null,
   failedFormData: null,
@@ -42,6 +45,7 @@ export const state = reactive({
     transporters: '',
     vehicles: '',
     drivers: '',
+    routes: '',
     trips: {
       transporter: '',
       status: '',
@@ -147,6 +151,7 @@ export const actions = {
       transporters: '',
       vehicles: '',
       drivers: '',
+      routes: '',
       trips: { transporter: '', status: '', dateFrom: '', dateTo: '', internalRef: '' }
     };
   },

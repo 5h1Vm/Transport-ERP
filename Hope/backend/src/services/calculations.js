@@ -89,6 +89,17 @@ async function calculateTripPaymentSummary(prisma, tripId) {
 // Bulk version — outstanding for many transporters in 2 queries total instead of
 // 2 queries per transporter. Returns Map<transporterId, outstandingNumber>.
 async function calculateTransporterOutstandingBulk(prisma, transporterIds) {
+  const totals = await calculateTransporterTotalsBulk(prisma, transporterIds);
+  const result = new Map();
+  for (const [id, t] of totals) {
+    result.set(id, t.outstanding);
+  }
+  return result;
+}
+
+// Richer bulk totals — freight receivable, payments received, and outstanding
+// per transporter, in 2 queries total. Returns Map<transporterId, totals>.
+async function calculateTransporterTotalsBulk(prisma, transporterIds) {
   const result = new Map();
   if (!transporterIds || transporterIds.length === 0) {
     return result;
@@ -111,7 +122,9 @@ async function calculateTransporterOutstandingBulk(prisma, transporterIds) {
   const paymentByT = new Map(paymentGroups.map((g) => [g.transporterId, toNumber(g._sum.amount)]));
 
   for (const id of transporterIds) {
-    result.set(id, (ledgerByT.get(id) || 0) - (paymentByT.get(id) || 0));
+    const freightTotal = ledgerByT.get(id) || 0;
+    const paidTotal = paymentByT.get(id) || 0;
+    result.set(id, { freightTotal, paidTotal, outstanding: freightTotal - paidTotal });
   }
 
   return result;
@@ -252,6 +265,7 @@ module.exports = {
   calculateCommission,
   calculateTransporterOutstanding,
   calculateTransporterOutstandingBulk,
+  calculateTransporterTotalsBulk,
   calculateTripPaymentSummary,
   computeTripPaymentSummary,
   calculateDriverTripExpenses,

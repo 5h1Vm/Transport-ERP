@@ -1,64 +1,45 @@
 /**
  * Ledgers Page - Transporter & Driver ledger summaries
+ *
+ * Both lists come pre-aggregated from the server (GET /transporters, GET
+ * /drivers already compute outstanding/tripCount/freightTotal in 2 bulk
+ * queries) — this page does zero client-side scanning of trips/payments.
  */
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
 import { createPageHeader } from '../components/Layout.js';
-import { currency, formatDate } from '../utils/helpers.js';
+import { currency } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
 function renderLedgersPage() {
   const transporters = state.data.transporters || [];
   const drivers = state.data.drivers || [];
-  const trips = state.data.trips || [];
-  const transporterEntries = state.data.transporterLedgerEntries || [];
-  const payments = state.data.payments || [];
 
-  // Transporter ledger summary — outstanding comes authoritative from the server.
-  const transporterSummary = transporters.map(t => {
-    const tTrips = trips.filter(tr => tr.transporterId === t.id);
-    const tEntries = tTrips.flatMap(tr => transporterEntries.filter(e => e.tripId === tr.id));
-    const tPayments = payments.filter(p => p.transporterId === t.id);
-
-    const totalFreight = tEntries.reduce((sum, e) => sum + (e.netReceivable || 0), 0);
-    const totalPaid = tPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-    const outstanding = typeof t.outstanding === 'number' ? t.outstanding : totalFreight - totalPaid;
-
-    return { transporter: t, totalFreight: currency(totalFreight), totalPaid: currency(totalPaid), outstanding: currency(outstanding), trips: tTrips.length };
-  });
-
-  // Driver ledger summary — settlementTotal & outstandingBalance come from the server.
-  const driverSummary = drivers.map(d => {
-    const dTrips = trips.filter(tr => (tr.drivers || []).some(td => td.driver?.id === d.id || td.driverId === d.id));
-    const settled = currency(d.settlementTotal || 0);
-    const outstanding = currency(d.outstandingBalance || 0);
-
-    return { driver: d, trips: dTrips.length, settled, outstanding };
-  });
-
-  const transporterHtml = transporterSummary.length
-    ? transporterSummary.map(item => createRecordCard({
-        title: item.transporter.firmName,
-        subtitle: `${item.transporter.contactPerson || 'No contact'} • ${item.transporter.phone || 'No phone'}`,
+  const transporterHtml = transporters.length
+    ? transporters.map(t => createRecordCard({
+        title: t.firmName,
+        subtitle: `${t.contactPerson || 'No contact'} • ${t.phone || 'No phone'}`,
         meta: [
-          `Trips: ${item.trips}`,
-          `Freight: ${item.totalFreight}`,
-          `Paid: ${item.totalPaid}`,
-          `Outstanding: ${item.outstanding}`
+          `Trips: ${t.tripCount ?? 0}`,
+          `Freight: ${currency(t.freightTotal || 0)}`,
+          `Paid: ${currency(t.paidTotal || 0)}`
         ],
-        actions: `<a href="#transporter/${item.transporter.id}" class="text-link">View Details</a>`
+        chip: currency(t.outstanding || 0),
+        chipClass: (t.outstanding || 0) > 0 ? 'warning' : 'success',
+        actions: `<a href="#transporter/${t.id}" class="text-link">View Details</a>`
       })).join('')
     : createEmptyState('No transporter records.');
 
-  const driverHtml = driverSummary.length
-    ? driverSummary.map(item => createRecordCard({
-        title: item.driver.name,
-        subtitle: `${item.driver.phone || 'No phone'} • License: ${item.driver.licenseNumber || 'N/A'}`,
+  const driverHtml = drivers.length
+    ? drivers.map(d => createRecordCard({
+        title: d.name,
+        subtitle: `${d.phone || 'No phone'} • License: ${d.licenseNumber || 'N/A'}`,
         meta: [
-          `Trips: ${item.trips}`,
-          `Paid to driver: ${item.settled}`,
-          `Outstanding: ${item.outstanding}`
+          `Trips: ${d.tripCount ?? 0}`,
+          `Paid to driver: ${currency(d.settlementTotal || 0)}`
         ],
-        actions: `<a href="#driver/${item.driver.id}" class="text-link">View Details</a>`
+        chip: currency(d.outstandingBalance || 0),
+        chipClass: (d.outstandingBalance || 0) > 0 ? 'warning' : 'success',
+        actions: `<a href="#driver/${d.id}" class="text-link">View Details</a>`
       })).join('')
     : createEmptyState('No driver records.');
 

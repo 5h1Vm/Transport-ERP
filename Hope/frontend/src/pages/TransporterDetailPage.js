@@ -4,38 +4,42 @@
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
 import { createPageHeader } from '../components/Layout.js';
 import { currency, formatDate, formatStatus, getStatusChipClass } from '../utils/helpers.js';
-import { state } from '../store/index.js';
+import * as api from '../services/api.js';
 
 async function renderTransporterDetail(id) {
-  const transporter = (state.data.transporters || []).find(t => t.id === id);
+  // Detail routes are not part of route-scoped page loading (see PAGE_RESOURCES
+  // in main.js) — they fetch exactly what they need, scoped to this one record,
+  // instead of requiring the full transporters/trips/payments lists in memory.
+  let transporter, trips, payments;
+  try {
+    [transporter, trips, payments] = await Promise.all([
+      api.transporter.get(id),
+      api.trip.list({ transporterId: id, limit: 200 }),
+      api.ledger.getPayments({ transporterId: id, limit: 200 })
+    ]);
+  } catch (error) {
+    return `<div class="error-card">Failed to load transporter: ${error.message}</div>`;
+  }
+
   if (!transporter) {
     return '<div class="error-card">Transporter not found</div>';
   }
 
-  const trips = (state.data.trips || []).filter(t => t.transporterId === id);
-  const entries = (state.data.transporterLedgerEntries || []).filter(e => trips.some(tr => tr.id === e.tripId));
-  // Every payment carries transporterId — filter on that (there is no `p.type`).
-  const payments = (state.data.payments || []).filter(p => p.transporterId === id);
-
-  const totalFreight = entries.reduce((sum, e) => sum + (e.netReceivable || 0), 0);
+  const totalFreight = trips.reduce((sum, t) => sum + (t.financialSummary?.chargeTotal || t.freightAmount || 0), 0);
   const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  // Prefer the server-computed outstanding when available; else derive it.
+  // Server-authoritative outstanding (transporters.js: ledger receivable − payments).
   const outstanding = typeof transporter.outstanding === 'number' ? transporter.outstanding : totalFreight - totalPaid;
 
-  // Trips table
   const tripsHtml = trips.length
     ? trips.map(trip => {
-        const vehicle = (state.data.vehicles || []).find(v => v.id === trip.vehicleId);
-        const route = (state.data.routes || []).find(r => r.id === trip.routeId);
         const driverNames = (trip.drivers || []).map(td => td.driver?.name).filter(Boolean).join(', ');
-
         return createRecordCard({
           title: trip.internalRef || trip.id.slice(0, 8),
-          subtitle: `${vehicle?.vehicleNumber || 'No vehicle'} • ${driverNames || 'No driver'}`,
+          subtitle: `${trip.vehicle?.vehicleNumber || 'No vehicle'} • ${driverNames || 'No driver'}`,
           chip: formatStatus(trip.status),
           chipClass: getStatusChipClass(trip.status),
           meta: [
-            route ? `${route.origin} → ${route.destination}` : 'No route',
+            trip.route ? `${trip.route.origin} → ${trip.route.destination}` : 'No route',
             currency(trip.freightAmount || 0),
             formatDate(trip.departureDate || trip.loadingDate || trip.createdAt)
           ],
@@ -44,7 +48,6 @@ async function renderTransporterDetail(id) {
       }).join('')
     : createEmptyState('No trips for this transporter.');
 
-  // Payments table
   const paymentsHtml = payments.length
     ? payments.map(p => createRecordCard({
         title: currency(p.amount),
@@ -54,7 +57,7 @@ async function renderTransporterDetail(id) {
       })).join('')
     : createEmptyState('No payments recorded.');
 
-  // Add payment form — posts to /payments (see createEntity 'transporter-payment').
+  // Posts to /payments (see createEntity 'transporter-payment' in main.js).
   const paymentForm = `
     <form data-form="transporter-payment" class="form-grid white" style="margin-top: 16px;">
       <input name="transporterId" type="hidden" value="${id}" />
@@ -99,7 +102,7 @@ async function renderTransporterDetail(id) {
         ${paymentForm}
       </article>
       <article class="panel white">
-        <h3>Payments received</h3>
+        <h3>Payments received (${payments.length})</h3>
         <div class="stack">${paymentsHtml}</div>
       </article>
     </section>

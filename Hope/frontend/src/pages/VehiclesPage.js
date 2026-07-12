@@ -7,13 +7,15 @@ import { state } from '../store/index.js';
 
 export function renderVehiclesPage() {
   const items = state.data.vehicles || [];
-  const transporters = state.data.transporters || [];
+  // Dropdown options come from the always-loaded reference payload; the vehicle
+  // list itself already embeds { transporter: { firmName } } per row.
+  const transporters = state.refs.transporters || [];
   const filter = state.filters.vehicles?.toLowerCase() || '';
   const filteredItems = filter
     ? items.filter(item =>
         (item.vehicleNumber?.toLowerCase().includes(filter)) ||
         (item.transporter?.firmName?.toLowerCase().includes(filter)) ||
-        (item.type?.toLowerCase().includes(filter))
+        (item.make?.toLowerCase().includes(filter))
       )
     : items;
 
@@ -30,31 +32,31 @@ export function renderVehiclesPage() {
 
   const formHtml = `
     <form data-form="vehicle" class="form-grid white">
-      <input name="vehicleNumber" placeholder="Vehicle number (e.g., MH12 AB 1234)" required />
-      <input name="transporterId" type="hidden" />
-      <select name="transporterSelect" id="vehicle-transporter-select" required>
+      <input name="vehicleNumber" placeholder="Vehicle number (e.g., MH12 AB 1234)" required maxlength="20" />
+      <select name="transporterId" required>
         <option value="">Select transporter</option>
         ${transporterOptions}
       </select>
-      <input name="type" placeholder="Type (e.g., Truck, Trailer, Container)" />
-      <input name="capacity" type="number" step="0.01" placeholder="Capacity (tons)" />
-      <input name="ownerName" placeholder="Owner name" />
-      <input name="ownerPhone" placeholder="Owner phone" />
+      <input name="make" placeholder="Make (e.g., Tata, Ashok Leyland)" maxlength="40" />
+      <input name="model" placeholder="Model" maxlength="40" />
+      <input name="year" type="number" min="1990" max="2100" step="1" placeholder="Year" />
+      <select name="ownershipStatus">
+        <option value="OWNED">Owned</option>
+        <option value="ATTACHED">Attached</option>
+        <option value="LEASED">Leased</option>
+      </select>
       <button type="submit">Save vehicle</button>
     </form>
   `;
 
   const listHtml = filteredItems.length
-    ? filteredItems.map(item => {
-        const transporter = transporters.find(t => t.id === item.transporterId);
-        return createRecordCard({
-          title: item.vehicleNumber,
-          subtitle: `${transporter?.firmName || 'No transporter'} • ${item.type || 'No type'} • ${item.capacity ? item.capacity + ' tons' : 'No capacity'}`,
-          chip: item.transporterId ? 'Active' : 'Unassigned',
-          chipClass: item.transporterId ? 'success' : 'muted',
-          actions: `${editButton('vehicle', item.id)}${deleteButton('vehicle', item.id)}`
-        });
-      }).join('')
+    ? filteredItems.map(item => createRecordCard({
+        title: item.vehicleNumber,
+        subtitle: `${item.transporter?.firmName || 'No transporter'} • ${[item.make, item.model].filter(Boolean).join(' ') || 'No make/model'}`,
+        chip: item.transporterId ? 'Assigned' : 'Unassigned',
+        chipClass: item.transporterId ? 'success' : 'muted',
+        actions: `${editButton('vehicle', item.id)}${deleteButton('vehicle', item.id)}`
+      })).join('')
     : createEmptyState('No vehicle records yet.');
 
   const content = `

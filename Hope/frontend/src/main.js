@@ -1,6 +1,9 @@
 /**
  * Transit Ledger - Main Entry Point
- * Modular architecture with clean separation of concerns
+ *
+ * Data loading is ROUTE-SCOPED: each page declares the resources it needs and
+ * only those are fetched (stale-while-revalidate). Nothing ever re-downloads
+ * the whole database — that was the source of the lag at scale.
  */
 import './styles/main.css';
 
@@ -25,11 +28,12 @@ import { renderRouteDetail } from './pages/RouteDetailPage.js';
 
 // Components
 import { createMainLayout } from './components/Layout.js';
-import { showToast, showStateMessages } from './components/Toast.js';
+import { showStateMessages } from './components/Toast.js';
 import { confirmDialog } from './components/Dialog.js';
 
 // Utils
-import { bindForms, bindDeleteButtons, bindEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindVehicleFilterByTransporter, bindFreightCalculator, applyValidationErrors, clearValidationErrors, populateForm, resetForm } from './utils/binding.js';
+import { bindForms, bindDeleteButtons, bindEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindVehicleFilterByTransporter, bindFreightCalculator, applyValidationErrors, populateForm } from './utils/binding.js';
+import { debounce } from './utils/helpers.js';
 
 // App container
 const app = document.querySelector('#app');
@@ -37,32 +41,119 @@ const app = document.querySelector('#app');
 // Initialize hash change listener (keeps state.route in sync + closes mobile nav)
 initHashChangeListener();
 
-// Repaint the page whenever the route changes. The store's hashchange listener
-// (registered above) updates state.route first, then this repaints for it. Without
-// this, clicking a nav link updated state but never re-rendered — you had to refresh.
-window.addEventListener('hashchange', () => { render(); });
+// On navigation: paint instantly from cache, then fetch anything missing/stale
+// for the new page and repaint. No full-app reload.
+window.addEventListener('hashchange', () => {
+  render();
+  loadPageData(currentPage.value)
+    .then((fetched) => { if (fetched) render(); })
+    .catch((error) => { actions.setError(error.message); render(); });
+});
 
-// Main render function
+/* ------------------------------------------------------------------ */
+/* Route-scoped data loading                                          */
+/* ------------------------------------------------------------------ */
+
+const PAGE_SIZE = 50;
+const FRESH_MS = 15000; // within this window a resource is reused, not refetched
+const loadedAt = {};    // resource name -> last successful fetch timestamp
+
+const RESOURCE_LOADERS = {
+  dashboard: async () => { actions.setDashboard(await api.dashboard.get()); },
+  reference: async () => { actions.setRefs(await api.reference.get()); },
+  transporters: async () => { actions.setData({ transporters: await api.transporter.list() }); },
+  vehicles: async () => { actions.setData({ vehicles: await api.vehicle.list() }); },
+  drivers: async () => { actions.setData({ drivers: await api.driver.list() }); },
+  routes: async () => { actions.setData({ routes: await api.route.list() }); },
+  trips: async () => { await fetchTrips(); }
+};
+
+// What each list page needs. Detail pages fetch their own data inside their
+// renderers (via GET /<entity>/:id), so they are intentionally absent here.
+const PAGE_RESOURCES = {
+  dashboard: ['dashboard'],
+  transporters: ['transporters'],
+  vehicles: ['vehicles', 'reference'],
+  drivers: ['drivers'],
+  routes: ['routes'],
+  trips: ['trips', 'reference'],
+  ledgers: ['transporters', 'drivers']
+};
+
+async function loadPageData(page, { force = false } = {}) {
+  const wanted = PAGE_RESOURCES[page] || [];
+  const stale = wanted.filter((r) => force || !loadedAt[r] || Date.now() - loadedAt[r] > FRESH_MS);
+  if (!stale.length) return false;
+
+  await Promise.all(stale.map(async (r) => {
+    await RESOURCE_LOADERS[r]();
+    loadedAt[r] = Date.now();
+  }));
+  return true;
+}
+
+// Server-side trip filters, built from the filter UI state.
+function tripQueryParams() {
+  const f = state.filters.trips || {};
+  return {
+    transporterId: f.transporter || undefined,
+    status: f.status || undefined,
+    search: f.internalRef || undefined,
+    fromDate: f.dateFrom ? new Date(f.dateFrom).toISOString() : undefined,
+    toDate: f.dateTo ? new Date(f.dateTo + 'T23:59:59').toISOString() : undefined
+  };
+}
+
+// Fetch trips with current filters. `append` loads the next page; otherwise it
+// reloads from the top, keeping at least as many rows as were already visible
+// so a background refresh never shrinks the list under the user.
+async function fetchTrips({ append = false } = {}) {
+  const current = state.data.trips || [];
+  const offset = append ? current.length : 0;
+  const limit = append ? PAGE_SIZE : Math.min(Math.max(current.length, PAGE_SIZE), 200);
+
+  const batch = await api.trip.list({ ...tripQueryParams(), limit, offset });
+  state.tripsHasMore = batch.length === limit;
+  actions.setData({ trips: append ? [...current, ...batch] : batch });
+}
+
+// After any mutation: everything cached is suspect. Drop freshness stamps and
+// reload only what the CURRENT page needs — silently, no loading-card flash.
+async function refreshAfterMutation() {
+  Object.keys(loadedAt).forEach((k) => delete loadedAt[k]);
+  try {
+    await loadPageData(currentPage.value, { force: true });
+  } catch (error) {
+    actions.setError(error.message);
+  }
+  render();
+}
+
+/* ------------------------------------------------------------------ */
+/* Rendering                                                          */
+/* ------------------------------------------------------------------ */
+
+// Monotonic token: if a newer render starts while an async detail page is
+// loading, the stale render aborts instead of overwriting fresh content.
+let renderSeq = 0;
+
 async function render() {
+  const token = ++renderSeq;
   const page = currentPage.value;
   let contentHtml;
 
   try {
-    // Handle async detail pages
+    // Detail pages fetch their own data (async)
     if (page.startsWith('transporter/')) {
-      const id = page.split('/')[1];
-      contentHtml = await renderTransporterDetail(id);
+      contentHtml = await renderTransporterDetail(page.split('/')[1]);
     } else if (page.startsWith('trip/')) {
-      const id = page.split('/')[1];
-      contentHtml = await renderTripDetail(id);
+      contentHtml = await renderTripDetail(page.split('/')[1]);
     } else if (page.startsWith('driver/')) {
-      const id = page.split('/')[1];
-      contentHtml = await renderDriverDetail(id);
+      contentHtml = await renderDriverDetail(page.split('/')[1]);
     } else if (page.startsWith('route/')) {
-      const id = page.split('/')[1];
-      contentHtml = await renderRouteDetail(id);
+      contentHtml = await renderRouteDetail(page.split('/')[1]);
     } else {
-      // Sync pages
+      // Sync list pages render from the store
       contentHtml = state.loading ? '<div class="loading-card">Preparing workspace...</div>' :
         page === 'transporters' ? renderTransportersPage() :
         page === 'vehicles' ? renderVehiclesPage() :
@@ -70,68 +161,97 @@ async function render() {
         page === 'routes' ? renderRoutesPage() :
         page === 'trips' ? renderTripsPage() :
         page === 'ledgers' ? renderLedgersPage() :
-        page === 'dashboard' ? renderDashboardPage() :
         renderDashboardPage();
     }
   } catch (error) {
     contentHtml = `<div class="error-card">Failed to load page: ${error.message}</div>`;
   }
 
-  app.innerHTML = createMainLayout(page, contentHtml);
+  if (token !== renderSeq) return; // superseded by a newer render
 
-  // Bind all event handlers
+  // Preserve focus + caret across the innerHTML swap (search/filter inputs).
+  const active = document.activeElement;
+  const activeId = active && active.id;
+  let selStart = null;
+  let selEnd = null;
+  try { selStart = active && active.selectionStart; selEnd = active && active.selectionEnd; } catch { /* not a text input */ }
+
+  app.innerHTML = createMainLayout(page, contentHtml);
   bindEventHandlers();
 
-  // Show toast messages from state
+  if (activeId) {
+    const el = document.getElementById(activeId);
+    if (el && typeof el.focus === 'function') {
+      el.focus();
+      if (selStart != null && typeof el.setSelectionRange === 'function') {
+        try { el.setSelectionRange(selStart, selEnd); } catch { /* number/date inputs */ }
+      }
+    }
+  }
+
   showStateMessages();
 }
 
+// Trip filter changes hit the server — debounce so typing doesn't spam it.
+const refreshTripsDebounced = debounce(async () => {
+  try {
+    await fetchTrips();
+  } catch (error) {
+    actions.setError(error.message);
+  }
+  render();
+}, 350);
+
 function bindEventHandlers() {
-  // Forms
   bindForms(handleFormSubmit);
-
-  // Delete buttons
   bindDeleteButtons(handleDelete);
-
-  // Edit buttons
   bindEditButtons(handleEdit);
-
-  // Trip status buttons
   bindTripStatusButtons(handleTripStatusChange);
 
-  // Navigation
   bindNavigation(
     (hash) => { window.location.hash = hash; },
     (forceOpen) => toggleSidebar(forceOpen)
   );
 
-  // Filters
+  // Master-list searches filter in memory (lists are ≤ a few hundred rows);
+  // trip filters are server-side and refetch.
   bindFilters({
     transporters: (value) => { actions.setFilter('transporters', value); render(); },
     vehicles: (value) => { actions.setFilter('vehicles', value); render(); },
     drivers: (value) => { actions.setFilter('drivers', value); render(); },
-    trips: (key, value) => { actions.setFilter('trips', { [key]: value }); render(); }
+    routes: (value) => { actions.setFilter('routes', value); render(); },
+    trips: (key, value) => { actions.setFilter('trips', { [key]: value }); refreshTripsDebounced(); }
   });
 
-  // Driver multi-select
+  // "Load more" for the paginated trip list (fresh node each render — no cleanup needed).
+  const loadMoreBtn = document.getElementById('trips-load-more');
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener('click', async () => {
+      loadMoreBtn.disabled = true;
+      loadMoreBtn.textContent = 'Loading…';
+      try {
+        await fetchTrips({ append: true });
+      } catch (error) {
+        actions.setError(error.message);
+      }
+      render();
+    });
+  }
+
   bindDriverMultiSelect(state);
-
-  // Vehicle filter by transporter
-  bindVehicleFilterByTransporter(() => state.data.vehicles);
-
-  // Freight auto-calculator
+  bindVehicleFilterByTransporter(() => state.refs.vehicles || []);
   bindFreightCalculator();
-
-  // Apply validation errors
   applyValidationErrors(state.validationErrors);
 }
 
-// Form submit handler
+/* ------------------------------------------------------------------ */
+/* Mutations                                                          */
+/* ------------------------------------------------------------------ */
+
 async function handleFormSubmit(type, rawBody, form) {
   const body = normalizeFormBody(form, type, rawBody);
 
-  // Disable the submit button and show a busy label instead of swapping the
-  // whole page to the loading card — the form (and the rest of the UI) stays put.
+  // Disable the submit button instead of swapping the page for a loading card.
   const submitBtn = form.querySelector('button[type="submit"]');
   const originalLabel = submitBtn ? submitBtn.textContent : '';
   if (submitBtn) {
@@ -143,14 +263,12 @@ async function handleFormSubmit(type, rawBody, form) {
 
   try {
     if (state.editing && state.editing.entity === type) {
-      // Update
       await api.request(`/${type}s/${state.editing.id}`, {
         method: 'PUT',
         body: JSON.stringify(body)
       });
       actions.setMessage(`${capitalize(type)} updated successfully.`);
     } else {
-      // Create
       await createEntity(type, body);
       actions.setMessage(`${capitalize(type)} created successfully.`);
     }
@@ -162,19 +280,15 @@ async function handleFormSubmit(type, rawBody, form) {
     if (state.editing && state.editing.entity === type) {
       actions.clearEditing();
     }
-    // Silent refresh: refetch data and repaint without the full-page loading flash.
-    await loadData({ silent: true });
+    await refreshAfterMutation();
   } catch (error) {
     if (submitBtn) {
       submitBtn.disabled = false;
       submitBtn.textContent = originalLabel;
     }
     actions.setError(error.message);
-
-    // Store form data for re-population
     actions.setFailedFormData(type, body);
 
-    // Handle validation errors
     if (error.issues && Array.isArray(error.issues)) {
       actions.setValidationErrors(
         error.issues.reduce((acc, issue) => {
@@ -191,7 +305,6 @@ async function handleFormSubmit(type, rawBody, form) {
   }
 }
 
-// Delete handler
 async function handleDelete(entity, id) {
   const confirmed = await confirmDialog({
     title: `Delete ${capitalize(entity)}?`,
@@ -203,20 +316,17 @@ async function handleDelete(entity, id) {
 
   if (!confirmed) return;
 
-  // Keep the current page visible while the delete + refresh happens.
   actions.setError('');
-
   try {
     await api.request(`/${entity}s/${id}`, { method: 'DELETE' });
     actions.setMessage('Deleted successfully.');
-    await loadData({ silent: true });
+    await refreshAfterMutation();
   } catch (error) {
     actions.setError(error.message);
     render();
   }
 }
 
-// Edit handler
 async function handleEdit(entity, id) {
   actions.setEditing(entity, id);
   actions.clearError();
@@ -233,21 +343,18 @@ async function handleEdit(entity, id) {
   }
 }
 
-// Trip status change handler
 async function handleTripStatusChange(tripId, status) {
   actions.setError('');
-
   try {
     await api.trip.updateStatus(tripId, status);
     actions.setMessage(`Trip updated to ${status}.`);
-    await loadData({ silent: true });
+    await refreshAfterMutation();
   } catch (error) {
     actions.setError(error.message);
     render();
   }
 }
 
-// Toggle sidebar
 function toggleSidebar(forceOpen) {
   const sidebar = document.querySelector('.sidebar');
   const overlay = document.querySelector('.sidebar-overlay');
@@ -265,13 +372,14 @@ function toggleSidebar(forceOpen) {
   }
 }
 
-// Normalize form body
+// Normalize form body: coerce date-ish fields to ISO, parse driverIds JSON.
 function normalizeFormBody(form, type, rawBody) {
   const body = {};
   for (const [key, value] of Object.entries(rawBody)) {
     if (value === '') continue;
 
-    if (key.toLowerCase().includes('date') && typeof value === 'string') {
+    const lower = key.toLowerCase();
+    if ((lower.includes('date') || lower.endsWith('expiry')) && typeof value === 'string') {
       let parsed;
       if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
         parsed = new Date(value + ':00');
@@ -303,7 +411,6 @@ function normalizeFormBody(form, type, rawBody) {
   return body;
 }
 
-// Create entity based on type
 async function createEntity(type, body) {
   switch (type) {
     case 'transporter': return api.transporter.create(body);
@@ -312,48 +419,13 @@ async function createEntity(type, body) {
     case 'route': return api.route.create(body);
     case 'trip': return api.trip.create(body);
     case 'driver-settlement': return api.driver.addSettlement(body.driverId, body);
+    // Both trip and transporter payments post to /payments (transporterId
+    // required, tripId optional). There is no /transporters/:id/payments route.
     case 'trip-payment': return api.trip.addPayment(body);
-    // Both trip and transporter payments post to /payments (transporterId is required,
-    // tripId optional). There is no /transporters/:id/payments endpoint.
     case 'transporter-payment': return api.trip.addPayment(body);
     case 'pod': return api.trip.addPod(body.tripId, body);
+    case 'trip-expense': return api.request(`/trips/${body.tripId}/expenses`, { method: 'POST', body: JSON.stringify(body) });
     default: throw new Error(`Unknown form type: ${type}`);
-  }
-}
-
-// Load all data.
-// { silent: true } refreshes in place (after a mutation) without flipping the
-// global loading flag, so the page never flashes the "Preparing workspace" card.
-async function loadData({ silent = false } = {}) {
-  if (!silent) {
-    actions.setLoading(true);
-    render();
-  }
-
-  try {
-    const [dashboard, refs, transporters, vehicles, drivers, routes, trips, ledgerEntries, payments] = await Promise.all([
-      api.dashboard.get(),
-      api.reference.get(),
-      api.transporter.list(),
-      api.vehicle.list(),
-      api.driver.list(),
-      api.route.list(),
-      api.trip.list(),
-      api.ledger.getTransporterEntries(),
-      api.ledger.getPayments()
-    ]);
-
-    actions.setDashboard(dashboard);
-    actions.setRefs(refs);
-    actions.setData({ transporters, vehicles, drivers, routes, trips, transporterLedgerEntries: ledgerEntries, payments });
-    actions.setLoading(false);
-    // Note: don't clear state.message here — a mutation may have set a success
-    // toast just before calling loadData({ silent: true }); let it show.
-    render();
-  } catch (error) {
-    actions.setLoading(false);
-    actions.setError(error.message);
-    render();
   }
 }
 
@@ -361,9 +433,19 @@ function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-// Initialize app
-loadData().catch(error => {
-  actions.setLoading(false);
-  actions.setMessage(error.message);
+/* ------------------------------------------------------------------ */
+/* Boot                                                               */
+/* ------------------------------------------------------------------ */
+
+(async function init() {
+  actions.setLoading(true);
   render();
-});
+  try {
+    await loadPageData(currentPage.value, { force: true });
+    actions.setLoading(false);
+  } catch (error) {
+    actions.setLoading(false);
+    actions.setError(error.message);
+  }
+  render();
+})();

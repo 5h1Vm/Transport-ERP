@@ -133,34 +133,59 @@ module.exports = function tripRoutes(ctx) {
   const { prisma, getOrganization, getSystemUser } = ctx;
   const router = express.Router();
 
+  // Slim, filterable, paginated list. Detail views use GET /trips/:tripId for
+  // the full record — this endpoint returns only what list cards need, so the
+  // payload stays small no matter how many payments/expenses a trip has.
   router.get('/trips', asyncHandler(async (req, res) => {
-    const take = parseLimit(req.query.limit, 100, 500);
+    const take = parseLimit(req.query.limit, 50, 200);
     const skip = parseOffset(req.query.offset);
+    const { transporterId, vehicleId, routeId, driverId, status, search, fromDate, toDate } = req.query;
+
+    const where = {};
+    if (transporterId) where.transporterId = transporterId;
+    if (vehicleId) where.vehicleId = vehicleId;
+    if (routeId) where.routeId = routeId;
+    if (status) where.status = status;
+    if (driverId) where.drivers = { some: { driverId } };
+    if (search) {
+      where.OR = [
+        { internalRef: { contains: search, mode: 'insensitive' } },
+        { lrNumber: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    if (fromDate || toDate) {
+      where.tripDate = {};
+      if (fromDate) where.tripDate.gte = new Date(fromDate);
+      if (toDate) where.tripDate.lte = new Date(toDate);
+    }
 
     const trips = await prisma.trip.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       take,
       skip,
       include: {
-        transporter: true,
-        vehicle: true,
-        route: true,
-        createdBy: true,
-        drivers: { include: { driver: true } },
-        expenses: true,
-        payments: true,
-        ledgerEntries: true
+        transporter: { select: { id: true, firmName: true } },
+        vehicle: { select: { id: true, vehicleNumber: true } },
+        route: { select: { id: true, origin: true, destination: true } },
+        drivers: { select: { role: true, driver: { select: { id: true, name: true } } } },
+        // Amount-only relations feed the summary and are stripped before sending.
+        expenses: { select: { amount: true } },
+        payments: { select: { amount: true } },
+        ledgerEntries: { select: { netReceivable: true } }
       }
     });
 
-    // Summary is derived from the expenses/payments/ledgerEntries already
-    // included above, so compute it in-memory — no extra query per trip.
-    const enrichedTrips = trips.map((trip) => ({
-      ...trip,
-      financialSummary: computeTripPaymentSummary(trip)
-    }));
+    const slim = trips.map((trip) => {
+      const { expenses, payments, ledgerEntries, ...rest } = trip;
+      return {
+        ...rest,
+        paymentCount: payments.length,
+        financialSummary: computeTripPaymentSummary(trip)
+      };
+    });
 
-    res.json(enrichedTrips);
+    res.json(slim);
   }));
 
   router.put('/trips/:tripId', asyncHandler(async (req, res) => {

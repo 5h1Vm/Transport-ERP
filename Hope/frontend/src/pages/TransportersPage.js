@@ -43,26 +43,16 @@ export function renderTransportersPage() {
   `;
 
   const listHtml = filteredItems.length
-    ? filteredItems.map(item => {
-        const trips = state.data.trips?.filter(t => t.transporterId === item.id) || [];
-        const payments = state.data.payments?.filter(p => p.transporterId === item.id) || [];
-
-        const totalEarned = trips.reduce((sum, trip) => {
-          const ledgerEntry = state.data.transporterLedgerEntries?.find(e => e.tripId === trip.id);
-          return sum + (ledgerEntry ? ledgerEntry.netReceivable : trip.freightAmount || 0);
-        }, 0);
-
-        const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-        const outstanding = totalEarned - totalPaid;
-
-        return createRecordCard({
-          title: item.firmName,
-          subtitle: `${item.contactPerson || 'No contact'} • ${item.phone || 'No phone'}`,
-          chip: currency(outstanding),
-          chipClass: 'warning',
-          actions: `${editButton('transporter', item.id)}${deleteButton('transporter', item.id)} <a href="#transporter/${item.id}" class="text-link">View Details</a>`
-        });
-      }).join('')
+    ? filteredItems.map(item => createRecordCard({
+        title: item.firmName,
+        subtitle: `${item.contactPerson || 'No contact'} • ${item.phone || 'No phone'}`,
+        // outstanding/tripCount are computed server-side (see GET /transporters)
+        // so this page never needs the full trips/payments lists in memory.
+        meta: [`Trips: ${item.tripCount ?? 0}`],
+        chip: currency(item.outstanding || 0),
+        chipClass: (item.outstanding || 0) > 0 ? 'warning' : 'success',
+        actions: `${editButton('transporter', item.id)}${deleteButton('transporter', item.id)} <a href="#transporter/${item.id}" class="text-link">View Details</a>`
+      })).join('')
     : createEmptyState('No transporter records yet.');
 
   const content = `
