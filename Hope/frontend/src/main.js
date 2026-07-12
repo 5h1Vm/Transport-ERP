@@ -7,6 +7,9 @@
  */
 import './styles/main.css';
 
+// Analytics
+import { inject } from '@vercel/analytics';
+
 // Core
 import { state, actions, initHashChangeListener, currentPage } from './store/index.js';
 
@@ -38,6 +41,9 @@ import { debounce } from './utils/helpers.js';
 
 // App container
 const app = document.querySelector('#app');
+
+// Initialize Vercel Web Analytics
+inject();
 
 // Initialize hash change listener (keeps state.route in sync + closes mobile nav)
 initHashChangeListener();
