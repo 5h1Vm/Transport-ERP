@@ -139,6 +139,18 @@ export function bindNavigation(onNavigate, onMenuToggle) {
   }
 }
 
+// Select-all-on-focus for text filter inputs. Without this, clicking into a
+// field that already has a value (carried over from a previous search, or
+// restored after a re-render) places the cursor rather than selecting the
+// text — typing then APPENDS instead of replacing (e.g. "TRP-001" + typing
+// "TRP-999" becomes the query "TRP-001TRP-999", matching nothing, which
+// reads exactly like "the filter is inverted" even though it isn't).
+function bindSelectOnFocus(el) {
+  if (!el || el._focusSelectHandler) return;
+  el._focusSelectHandler = () => el.select();
+  el.addEventListener('focus', el._focusSelectHandler);
+}
+
 /**
  * Bind search/filter inputs
  * @param {Object} handlers - Filter handlers
@@ -150,6 +162,7 @@ export function bindFilters(handlers) {
     transporterSearch.removeEventListener('input', transporterSearch._inputHandler);
     transporterSearch._inputHandler = (e) => handlers.transporters(e.target.value);
     transporterSearch.addEventListener('input', transporterSearch._inputHandler);
+    bindSelectOnFocus(transporterSearch);
   }
 
   // Vehicle search
@@ -158,6 +171,7 @@ export function bindFilters(handlers) {
     vehicleSearch.removeEventListener('input', vehicleSearch._inputHandler);
     vehicleSearch._inputHandler = (e) => handlers.vehicles(e.target.value);
     vehicleSearch.addEventListener('input', vehicleSearch._inputHandler);
+    bindSelectOnFocus(vehicleSearch);
   }
 
   // Driver search
@@ -166,6 +180,7 @@ export function bindFilters(handlers) {
     driverSearch.removeEventListener('input', driverSearch._inputHandler);
     driverSearch._inputHandler = (e) => handlers.drivers(e.target.value);
     driverSearch.addEventListener('input', driverSearch._inputHandler);
+    bindSelectOnFocus(driverSearch);
   }
 
   // Route search
@@ -174,6 +189,7 @@ export function bindFilters(handlers) {
     routeSearch.removeEventListener('input', routeSearch._inputHandler);
     routeSearch._inputHandler = (e) => handlers.routes(e.target.value);
     routeSearch.addEventListener('input', routeSearch._inputHandler);
+    bindSelectOnFocus(routeSearch);
   }
 
   // Trips filters
@@ -193,6 +209,7 @@ export function bindFilters(handlers) {
         el.removeEventListener(event, el._eventHandler);
         el._eventHandler = (e) => handlers.trips(key, e.target.value);
         el.addEventListener(event, el._eventHandler);
+        if (el.tagName !== 'SELECT') bindSelectOnFocus(el);
       }
     });
   }

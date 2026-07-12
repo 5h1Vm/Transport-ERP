@@ -194,5 +194,12 @@ export function initHashChangeListener() {
 
     state.route = window.location.hash || '#dashboard';
     state.error = '';
+    // A validation error (or its failed-form-data snapshot) belongs to the
+    // form that produced it. Left uncleared, it silently re-applies (red
+    // borders + messages) to a completely fresh, untouched form the next
+    // time this same page type is visited — looks like eager/premature
+    // validation on page load, but is really stale state from a previous visit.
+    state.validationErrors = {};
+    state.failedFormData = null;
   });
 }
