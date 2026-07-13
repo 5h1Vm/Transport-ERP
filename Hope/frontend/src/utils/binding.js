@@ -413,17 +413,33 @@ export function bindFreightCalculator() {
       const currentRate = rateInput ? parseFloat(rateInput.value) : 0;
 
       // Use baseRate from route, or calculate from ratePerKm × distance
+      // Only auto-fill if freightInput is empty or was last set by auto-calculator
       if (baseRate > 0) {
-        freightInput.value = baseRate;
-        flagFreightSanity(freightInput, baseRate);
+        if (!freightInput.value || freightInput.dataset.autofilled === 'true') {
+          freightInput.value = baseRate;
+          flagFreightSanity(freightInput, baseRate);
+          freightInput.dataset.autofilled = 'true';
+        }
       } else if (currentRate > 0 && distance > 0) {
-        const computed = Math.round(currentRate * distance);
-        freightInput.value = computed;
-        flagFreightSanity(freightInput, computed);
+        if (!freightInput.value || freightInput.dataset.autofilled === 'true') {
+          const computed = Math.round(currentRate * distance);
+          freightInput.value = computed;
+          flagFreightSanity(freightInput, computed);
+          freightInput.dataset.autofilled = 'true';
+        }
       }
     }
   };
   routeSelect.addEventListener('change', routeSelect._changeHandler);
+
+  // Clear autofilled flag when user manually edits freight amount
+  if (freightInput) {
+    freightInput.removeEventListener('input', freightInput._inputHandler);
+    freightInput._inputHandler = () => {
+      freightInput.dataset.autofilled = 'false';
+    };
+    freightInput.addEventListener('input', freightInput._inputHandler);
+  }
 
   // Also recalculate when ratePerKm changes
   if (rateInput) {
@@ -436,8 +452,12 @@ export function bindFreightCalculator() {
         const rate = parseFloat(rateInput.value);
         if (distance > 0 && rate > 0) {
           const computed = Math.round(rate * distance);
-          freightInput.value = computed;
-          flagFreightSanity(freightInput, computed);
+          // Only auto-fill if freightInput is empty or was last set by auto-calculator
+          if (!freightInput.value || freightInput.dataset.autofilled === 'true') {
+            freightInput.value = computed;
+            flagFreightSanity(freightInput, computed);
+            freightInput.dataset.autofilled = 'true';
+          }
         }
       }
     };

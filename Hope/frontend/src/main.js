@@ -435,12 +435,16 @@ async function handleDelete(entity, id) {
 }
 
 async function handleEdit(entity, id) {
-  actions.setEditing(entity, id);
   actions.clearError();
-  render();
 
   try {
+    // Fetch first so the edit form only ever renders already-populated —
+    // switching to edit mode before the data arrives caused a visible
+    // empty-form flash (fields blank for a moment, then filled in).
     const data = await api.request(`/${entity}s/${id}`);
+    actions.setEditing(entity, id);
+    render();
+
     const form = document.querySelector(`form[data-form="${entity}"]`);
     if (form) {
       populateForm(form, data);

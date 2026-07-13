@@ -35,7 +35,7 @@ function renderLedgersPage() {
         subtitle: `${d.phone || 'No phone'} • License: ${d.licenseNumber || 'N/A'}`,
         meta: [
           `Trips: ${d.tripCount ?? 0}`,
-          `Paid to driver: ${currency(d.settlementTotal || 0)}`
+          `Total settled to date: ${currency(d.settlementTotal || 0)}`
         ],
         chip: currency(d.outstandingBalance || 0),
         chipClass: (d.outstandingBalance || 0) > 0 ? 'warning' : 'success',

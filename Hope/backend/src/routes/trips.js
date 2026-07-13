@@ -409,6 +409,31 @@ module.exports = function tripRoutes(ctx) {
   router.delete('/trips/:tripId', asyncHandler(async (req, res) => {
     const tripId = req.params.tripId;
 
+    // Fetch the trip to check its status and payment status
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: { payments: true }
+    });
+
+    if (!trip) {
+      return res.status(404).json({ message: 'Trip not found' });
+    }
+
+    // Block deletion if trip is BILLED or SETTLED
+    if (trip.status === 'BILLED' || trip.status === 'SETTLED') {
+      return res.status(400).json({
+        message: `Cannot delete trip with status '${trip.status}'. Only DRAFT, LOADING, IN_TRANSIT, DELIVERED, or CANCELLED trips can be deleted.`
+      });
+    }
+
+    // Block deletion if trip has any payments
+    if (trip.payments && trip.payments.length > 0) {
+      return res.status(400).json({
+        message: 'Cannot delete trip that has payments recorded. Remove all payments first.'
+      });
+    }
+
+    // Only allow deletion for DRAFT, LOADING, IN_TRANSIT, DELIVERED, CANCELLED trips with no payments
     await prisma.tripDriver.deleteMany({ where: { tripId } });
     await prisma.tripExpense.deleteMany({ where: { tripId } });
     await prisma.payment.deleteMany({ where: { tripId } });

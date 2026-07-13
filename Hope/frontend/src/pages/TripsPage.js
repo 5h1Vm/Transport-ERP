@@ -129,7 +129,13 @@ export function renderTripsPage() {
       ],
       chip: currency(trip.freightAmount || 0),
       chipClass: getStatusChipClass(trip.status) || 'primary',
-      actions: `${editButton('trip', trip.id)}${deleteButton('trip', trip.id)} <a href="#trip/${trip.id}" class="text-link">Detail</a>`
+      // Disable edit and delete actions for BILLED or SETTLED trips
+      actions: (() => {
+        const isEditable = trip.status !== 'BILLED' && trip.status !== 'SETTLED';
+        const editBtn = isEditable ? editButton('trip', trip.id) : '';
+        const deleteBtn = isEditable ? deleteButton('trip', trip.id) : '';
+        return `${editBtn}${deleteBtn} <a href="#trip/${trip.id}" class="text-link">Detail</a>`;
+      })()
     });
   }).join('') : createEmptyState(
     hasActiveFilters ? 'No trips match these filters.' : 'No trips created yet.',
