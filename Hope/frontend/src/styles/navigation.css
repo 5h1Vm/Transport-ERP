@@ -544,6 +544,46 @@
     white-space: nowrap;
   }
 
+  /* Hide form panel on mobile unless actively editing or FAB-triggered */
+  .form-panel-mobile-hidden {
+    display: none;
+  }
+
+  /* FAB — floating add button */
+  .fab-btn {
+    position: fixed;
+    bottom: calc(var(--bottom-nav-height) + 24px);
+    right: 20px;
+    z-index: var(--z-fab, 900);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    background: var(--color-primary);
+    color: white;
+    font-size: 28px;
+    font-weight: 300;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(44, 74, 110, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .fab-btn:hover,
+  .fab-btn:active {
+    background: var(--color-primary-dark, #1a3a5c);
+    transform: scale(1.08);
+    box-shadow: 0 6px 20px rgba(44, 74, 110, 0.4);
+  }
+
+  .fab-btn:active {
+    transform: scale(0.95);
+  }
   }
 
 /* ========== FOCUS STATES ========== */

@@ -265,6 +265,23 @@ function bindEventHandlers() {
     }
   }
 
+  // FAB — mobile add button
+  const fabBtn = document.querySelector('[data-fab-add]');
+  if (fabBtn) {
+    fabBtn.removeEventListener('click', fabBtn._fabHandler);
+    fabBtn._fabHandler = () => {
+      actions.setMobileForm(true);
+      // Scroll to the form panel if it just appeared
+      const formPanel = document.querySelector('.form-panel');
+      render();
+      setTimeout(() => {
+        const fp = document.querySelector('.form-panel');
+        if (fp) fp.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    };
+    fabBtn.addEventListener('click', fabBtn._fabHandler);
+  }
+
   // Re-queried on every call — the trip form is a fresh DOM node after each
   // render() innerHTML swap, so this can't be hoisted to module scope.
   const tripForm = document.querySelector('form[data-form="trip"]');
@@ -535,6 +552,7 @@ async function handleFormSubmit(type, rawBody, form) {
     if (state.editing && state.editing.entity === type) {
       actions.clearEditing();
     }
+    actions.setMobileForm(false);
     await refreshAfterMutation();
   } catch (error) {
     if (submitBtn) {
@@ -710,6 +728,7 @@ async function handleEdit(entity, id) {
 
 function handleCancelEdit(entity) {
   actions.clearEditing();
+  actions.setMobileForm(false);
   actions.clearValidationErrors();
   actions.clearFailedFormData();
   const form = document.querySelector(`form[data-form="${entity}"]`);

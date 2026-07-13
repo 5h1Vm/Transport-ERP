@@ -10,6 +10,7 @@ export function renderVehiclesPage() {
   const items = state.data.vehicles || [];
   // Dropdown options come from the always-loaded reference payload
   const filter = state.filters.vehicles?.toLowerCase() || '';
+  const showForm = state.showMobileForm || isEditing;
   const filteredItems = filter
     ? items.filter(item =>
         (item.vehicleNumber?.toLowerCase().includes(filter)) ||
@@ -94,9 +95,10 @@ export function renderVehiclesPage() {
       </div>
     </section>
     <section class="panel-grid white two-col">
-      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}"><h3>${isEditing ? 'Edit vehicle' : 'Add vehicle'}</h3>${formHtml}</article>
+      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}${!showForm ? ' form-panel-mobile-hidden' : ''}"><h3>${isEditing ? 'Edit vehicle' : 'Add vehicle'}</h3>${formHtml}</article>
       <article class="panel white"><h3>Vehicle list</h3>${filterHtml}<div class="stack">${listHtml}</div></article>
     </section>
+    <button type="button" class="fab-btn" data-fab-add="vehicle" aria-label="Add vehicle">+</button>
   `;
 
   // Helper functions to determine chip display based on ownership status

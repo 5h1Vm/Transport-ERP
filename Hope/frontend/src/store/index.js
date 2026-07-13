@@ -37,6 +37,7 @@ export const state = reactive({
 
   // Editing state
   editing: null,
+  showMobileForm: false,
   failedFormData: null,
   validationErrors: {},
 
@@ -106,6 +107,14 @@ export const actions = {
 
   clearEditing() {
     state.editing = null;
+  },
+
+  setMobileForm(show) {
+    state.showMobileForm = show;
+  },
+
+  toggleMobileForm() {
+    state.showMobileForm = !state.showMobileForm;
   },
 
   setFailedFormData(type, body) {

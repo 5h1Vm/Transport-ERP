@@ -9,6 +9,7 @@ import { state } from '../store/index.js';
 export function renderRoutesPage() {
   const items = state.data.routes || [];
   const isEditing = state.editing && state.editing.entity === 'route';
+  const showForm = state.showMobileForm || isEditing;
   const filter = state.filters.routes?.toLowerCase() || '';
   const filteredItems = filter
     ? items.filter(item =>
@@ -60,9 +61,10 @@ export function renderRoutesPage() {
       </div>
     </section>
     <section class="panel-grid white two-col">
-      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}"><h3>${isEditing ? 'Edit route' : 'Add route'}</h3>${formHtml}</article>
+      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}${!showForm ? ' form-panel-mobile-hidden' : ''}"><h3>${isEditing ? 'Edit route' : 'Add route'}</h3>${formHtml}</article>
       <article class="panel white"><h3>Route list</h3>${filterHtml}<div class="stack">${listHtml}</div></article>
     </section>
+    <button type="button" class="fab-btn" data-fab-add="route" aria-label="Add route">+</button>
   `;
 
   return content;

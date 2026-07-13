@@ -9,6 +9,7 @@ import { state } from '../store/index.js';
 export function renderTransportersPage() {
   const items = state.data.transporters || [];
   const isEditing = state.editing && state.editing.entity === 'transporter';
+  const showForm = state.showMobileForm || isEditing;
   const filter = state.filters.transporters?.toLowerCase() || '';
   const filteredItems = filter
     ? items.filter(item =>
@@ -64,9 +65,10 @@ export function renderTransportersPage() {
       </div>
     </section>
     <section class="panel-grid white two-col">
-      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}"><h3>${isEditing ? 'Edit transporter' : 'Add transporter'}</h3>${formHtml}</article>
+      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}${!showForm ? ' form-panel-mobile-hidden' : ''}"><h3>${isEditing ? 'Edit transporter' : 'Add transporter'}</h3>${formHtml}</article>
       <article class="panel white"><h3>Transporter list</h3>${filterHtml}<div class="stack">${listHtml}</div></article>
     </section>
+    <button type="button" class="fab-btn" data-fab-add="transporter" aria-label="Add transporter">+</button>
   `;
 
   return content;

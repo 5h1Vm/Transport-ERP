@@ -109,6 +109,7 @@ export function renderTripsPage() {
 
   const isEditing = state.editing && state.editing.entity === 'trip';
   const entityId = isEditing ? state.editing.id : '';
+  const showForm = state.showMobileForm || isEditing;
 
   const formHtml = `
     <form data-form="trip" class="form-grid two-col" data-entity-id="${entityId}">
@@ -132,15 +133,17 @@ export function renderTripsPage() {
       ${formField({ label: 'Freight per ton (₹)', type: 'number', id: 'freightPerTon', name: 'freightPerTon', placeholder: 'e.g. 1500', min: 0, step: 1 })}
       ${formField({ label: 'Departure date', type: 'date', id: 'departureDate', name: 'departureDate' })}
       <div class="form-field full-width">
-        <label>Freight Mode</label>
-        <div class="form-field-options">
+        <label>Freight mode</label>
+        <div class="form-field-options freight-mode-options">
           <label class="form-field-option">
             <input type="radio" id="freightModeFixed" name="freightMode" value="fixed" checked />
-            <span>Fixed amount (enter total ₹)</span>
+            <span class="freight-option-label">Fixed amount</span>
+            <span class="freight-option-desc">Enter total ₹ directly — no calculation</span>
           </label>
           <label class="form-field-option">
             <input type="radio" id="freightModeWeightRate" name="freightMode" value="weight_rate" />
-            <span>Weight × rate per ton (auto-calc)</span>
+            <span class="freight-option-label">Weight × rate / ton</span>
+            <span class="freight-option-desc">Auto-calculated: weight × rate per ton</span>
           </label>
         </div>
       </div>
@@ -224,7 +227,7 @@ export function renderTripsPage() {
     copy: 'Create and manage trips with driver assignment, freight, payments, and POD tracking.'
   })}
     <section class="panel-grid white two-col">
-      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}">
+      <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}${!showForm ? ' form-panel-mobile-hidden' : ''}">
         <h3>${isEditing ? `Edit trip — ${trips.find(t => t.id === state.editing.id)?.internalRef || ''}` : 'Create trip'}</h3>
         ${formHtml}
       </article>
@@ -241,6 +244,7 @@ export function renderTripsPage() {
         ${loadMoreHtml}
       </article>
     </section>
+    <button type="button" class="fab-btn" data-fab-add="trip" aria-label="Add trip">+</button>
   `;
 
   return content;
