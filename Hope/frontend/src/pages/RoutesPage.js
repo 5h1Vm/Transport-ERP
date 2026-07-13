@@ -2,6 +2,7 @@
  * Routes Page
  */
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
+import { createBackButton } from '../components/MobileHeader.js';
 import { currency, formatDate, editButton, deleteButton } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
@@ -50,6 +51,7 @@ export function renderRoutesPage() {
     : createEmptyState('No route records yet.');
 
   const content = `
+    ${createBackButton(window.location.hash || '#dashboard')}
     <section class="page-header">
       <div>
         <p class="eyebrow dark">Routes</p>

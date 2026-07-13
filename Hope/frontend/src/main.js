@@ -29,6 +29,7 @@ import { renderVehicleDetail } from './pages/VehicleDetailPage.js';
 
 // Components
 import { createMainLayout } from './components/Layout.js';
+import { createSkeletonLoader } from './components/CardComponents.js';
 import { showStateMessages } from './components/Toast.js';
 import { confirmDialog } from './components/Dialog.js';
 
@@ -168,8 +169,16 @@ async function render() {
     } else if (page.startsWith('vehicle/')) {
       contentHtml = await renderVehicleDetail(page.split('/')[1]);
     } else {
-      // Sync list pages render from the store
-      contentHtml = state.loading ? '<div class="loading-card">Preparing workspace...</div>' :
+      // Sync list pages render from the store (MOB-024: skeleton loaders)
+	      contentHtml = state.loading ? (
+	        page === 'transporters' ? createSkeletonLoader(4) :
+	        page === 'vehicles' ? createSkeletonLoader(4) :
+	        page === 'drivers' ? createSkeletonLoader(4) :
+	        page === 'routes' ? createSkeletonLoader(4) :
+	        page === 'trips' ? createSkeletonLoader(3) :
+	        page === 'ledgers' ? createSkeletonLoader(6) :
+	        createSkeletonLoader(4)
+	      ) :
         page === 'transporters' ? renderTransportersPage() :
         page === 'vehicles' ? renderVehiclesPage() :
         page === 'drivers' ? renderDriversPage() :
@@ -229,6 +238,32 @@ function bindEventHandlers() {
     (hash) => { window.location.hash = hash; },
     (forceOpen) => toggleSidebar(forceOpen)
   );
+
+  // Sidebar close button (MOB-016)
+  const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
+  if (sidebarCloseBtn) {
+    sidebarCloseBtn.removeEventListener('click', sidebarCloseBtn._clickHandler);
+    sidebarCloseBtn._clickHandler = () => toggleSidebar(false);
+    sidebarCloseBtn.addEventListener('click', sidebarCloseBtn._clickHandler);
+  }
+
+  // Filter drawer toggle (MOB-003)
+  const filterToggle = document.querySelector('[data-filter-drawer-toggle]');
+  const filterContent = document.querySelector('.filter-drawer-content');
+  if (filterToggle && filterContent) {
+    filterToggle.removeEventListener('click', filterToggle._filterHandler);
+    filterToggle._filterHandler = () => {
+      const isOpen = filterToggle.getAttribute('aria-expanded') === 'true';
+      filterToggle.setAttribute('aria-expanded', !isOpen);
+      filterContent.classList.toggle('open');
+    };
+    filterToggle.addEventListener('click', filterToggle._filterHandler);
+    // If filters are active, open drawer by default
+    if (filterContent.classList.contains('filter-drawer-content--open')) {
+      filterContent.classList.add('open');
+      filterToggle.setAttribute('aria-expanded', 'true');
+    }
+  }
 
   // Re-queried on every call — the trip form is a fresh DOM node after each
   // render() innerHTML swap, so this can't be hoisted to module scope.

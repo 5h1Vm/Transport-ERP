@@ -32,7 +32,15 @@ export function renderTripsPage() {
   const filters = state.filters.trips || {};
   const hasActiveFilters = Boolean(filters.status || filters.internalRef || filters.dateFrom || filters.dateTo);
 
-  const filterHtml = createFilterRow([
+  // Wrap filter row in a mobile-collapsible drawer (MOB-003)
+  const filterContent = `
+    <div class="filter-drawer">
+      <button type="button" class="filter-drawer-toggle btn btn-ghost btn-sm" aria-expanded="false" data-filter-drawer-toggle>
+        <span class="filter-drawer-label">Filter trips${hasActiveFilters ? ' (active)' : ''}</span>
+        <span class="filter-drawer-icon">▾</span>
+      </button>
+      <div class="filter-drawer-content${hasActiveFilters ? ' filter-drawer-content--open' : ''}">
+        ${createFilterRow([
     {
       id: 'trip-status-filter',
       label: 'Status',
@@ -85,7 +93,9 @@ export function renderTripsPage() {
       inputType: 'date',
       value: filters.dateTo || ''
     }
-  ]);
+  ])}
+      </div>
+    </div>`;
 
   const transporterOptions = [{ value: '', label: 'Select transporter' }, ...transporters.map((t) => ({ value: t.id, label: t.firmName }))];
   const vehicleOptions = [{ value: '', label: 'Select vehicle' }, ...vehicles.map((v) => ({ value: v.id, label: v.vehicleNumber }))];
@@ -226,7 +236,7 @@ export function renderTripsPage() {
             ${hasActiveFilters ? '<button type="button" class="btn btn-ghost btn-sm" data-clear-trip-filters>Clear filters</button>' : ''}
           </div>
         </div>
-        ${filterHtml}
+        ${filterContent}
         <div class="stack">${listHtml}</div>
         ${loadMoreHtml}
       </article>

@@ -1,5 +1,11 @@
 /**
- * Mobile Header Component
+ * Pages that live behind the "More" drawer — used to highlight
+ * the More tab when a sub-page is active (MOB-006).
+ */
+const MORE_SUB_PAGES = new Set(['#transporters', '#vehicles', '#routes']);
+
+/**
+ * Mobile Header Component (MOB-005) — slim 44px bar, no tagline.
  */
 export function createMobileHeader() {
   return `
@@ -8,7 +14,6 @@ export function createMobileHeader() {
         <div class="brand-mark">TL</div>
         <div class="mobile-header-text">
           <h1>Transit Ledger</h1>
-          <span class="eyebrow dark">Fleet Operating System</span>
         </div>
       </div>
     </header>
@@ -16,7 +21,7 @@ export function createMobileHeader() {
 }
 
 /**
- * Bottom Navigation Component
+ * Bottom Navigation Component (MOB-001, MOB-006, MOB-014)
  * @param {string} currentRoute - Current active route
  */
 export function createBottomNav(currentRoute = '#dashboard') {
@@ -28,22 +33,37 @@ export function createBottomNav(currentRoute = '#dashboard') {
     { hash: '#more', label: 'More', icon: `<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>`, isMenu: true }
   ];
 
+  // MOB-006: Highlight "More" tab when any sub-page behind it is active
+  const effectiveRoute = MORE_SUB_PAGES.has(currentRoute) ? '#more' : currentRoute;
+
   return `
     <nav class="bottom-nav" role="navigation" aria-label="Main navigation">
       <ul class="bottom-nav-list">
-        ${navItems.map(item => `
+        ${navItems.map(item => {
+          const isActive = item.hash === effectiveRoute;
+          return `
           <li>
-            <button class="bottom-nav-item ${item.hash === currentRoute ? 'active' : ''} ${item.isMenu ? 'menu-item' : ''}"
+            <button class="bottom-nav-item ${isActive ? 'active' : ''} ${item.isMenu ? 'menu-item' : ''}"
                data-bottom-nav="${item.hash}"
-               aria-current="${item.hash === currentRoute ? 'page' : 'false'}"
+               aria-current="${isActive ? 'page' : 'false'}"
                aria-label="${item.label}"
                type="button">
               <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${item.icon}</svg>
               <span>${item.label}</span>
             </button>
-          </li>
-        `).join('')}
+          </li>`;
+        }).join('')}
       </ul>
     </nav>
   `;
+}
+
+/**
+ * Back button for More-drawer sub-pages (MOB-014)
+ * Shows "← Back" on pages accessed via the More drawer.
+ * @param {string} currentRoute
+ */
+export function createBackButton(currentRoute) {
+  if (!MORE_SUB_PAGES.has(currentRoute)) return '';
+  return '<a href="#dashboard" class="btn btn-ghost btn-sm" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:8px;">← Back</a>';
 }

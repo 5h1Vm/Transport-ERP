@@ -96,6 +96,29 @@ export function createLoadingCard(message = 'Preparing workspace...') {
 }
 
 /**
+ * Create skeleton loader for mobile (MOB-002)
+ * Renders shimmer placeholder cards while data loads
+ * @param {number} count - Number of skeleton cards to render
+ * @param {string} type - 'card' or 'row'
+ */
+export function createSkeletonLoader(count = 4, type = 'card') {
+  const cards = Array.from({ length: count }, () => {
+    if (type === 'row') {
+      return `<div class="skeleton-row">
+        <div class="skeleton-line skeleton-line--title"></div>
+        <div class="skeleton-line skeleton-line--subtitle"></div>
+      </div>`;
+    }
+    return `<div class="skeleton-card">
+      <div class="skeleton-line skeleton-line--title"></div>
+      <div class="skeleton-line skeleton-line--subtitle"></div>
+      <div class="skeleton-line skeleton-line--meta"></div>
+    </div>`;
+  }).join('');
+  return `<div class="skeleton-loader">${cards}</div>`;
+}
+
+/**
  * Create a panel
  */
 export function createPanel({ title, children, className = 'white', fullWidth = false }) {

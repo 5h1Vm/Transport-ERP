@@ -185,7 +185,7 @@
     grid-template-columns: 1fr;
   }
 
-  /* Show mobile header */
+  /* Slim mobile header (MOB-005) — 44px instead of 56px, no tagline */
   .mobile-header {
     display: flex !important;
     position: fixed;
@@ -195,11 +195,12 @@
     z-index: var(--z-mobile-header);
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-2);
     background: var(--color-panel);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
+    min-height: 44px;
   }
 
   .mobile-header-brand {
@@ -234,15 +235,15 @@
   }
 
   .mobile-header .brand-mark {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: var(--radius-md);
     display: grid;
     place-items: center;
     background: var(--color-primary);
     color: white;
     font-weight: 800;
-    font-size: 13px;
+    font-size: 12px;
     flex-shrink: 0;
   }
 
@@ -253,19 +254,16 @@
   }
 
   .mobile-header h1 {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     margin: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
+  /* Hide the FLEET OPERATING SYSTEM tagline (MOB-005) */
   .mobile-header .eyebrow {
-    font-size: 9px;
-    color: var(--color-text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: none;
   }
 
   /* Sidebar becomes off-canvas drawer on mobile. The floating mobile-header
@@ -290,6 +288,26 @@
 
   .sidebar.open {
     transform: translateX(0);
+  }
+
+  .sidebar .sidebar-close-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    margin-left: auto;
+  }
+
+  .sidebar .sidebar-close-btn:hover {
+    background: var(--color-panel-hover);
+    color: var(--color-text);
   }
 
   .sidebar .eyebrow,
@@ -329,14 +347,14 @@
     opacity: 1;
   }
 
-  /* Bottom navigation */
+  /* Bottom navigation (MOB-001) — full 72px touch height, no-subtitle label only */
   .bottom-nav {
     display: block !important;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: var(--bottom-nav-height);
+    height: 72px;
     background: var(--color-panel);
     border-top: 1px solid var(--color-border);
     box-shadow: 0 -4px 20px rgba(44, 74, 110, 0.08);
@@ -349,7 +367,7 @@
     align-items: center;
     height: 100%;
     margin: 0;
-    padding: 0;
+    padding: 0 0 var(--space-1);
     list-style: none;
   }
 
@@ -357,18 +375,35 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: var(--space-2);
-    color: var(--color-text);
+    justify-content: center;
+    gap: 2px;
+    padding: var(--space-1) var(--space-2);
+    color: var(--color-text-muted);
     font-size: 0.7rem;
     font-weight: 500;
     transition: all var(--transition-fast);
     cursor: pointer;
+    min-width: 56px;
+    min-height: 56px;
+    border-radius: var(--radius-lg);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
   .bottom-nav-item:hover,
   .bottom-nav-item.active {
     color: var(--color-primary);
+  }
+
+  /* Active tab styling (MOB-006) */
+  .bottom-nav-item.active .bottom-nav-icon {
+    color: var(--color-primary);
+    stroke-width: 2.5px;
+  }
+
+  .bottom-nav-item.active span {
+    font-weight: 700;
+    font-size: 0.72rem;
   }
 
   .bottom-nav-icon {
@@ -379,7 +414,137 @@
   .bottom-nav-item.menu-item {
     color: var(--color-text-muted);
   }
-}
+
+  /* Tap target area indicator — underline for active */
+  .bottom-nav-item.active::after {
+    content: '';
+    display: block;
+    width: 20px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--color-primary);
+    margin-top: 1px;
+  }
+
+  /* MOB-015: compress page header on mobile */
+  .page-header h2 {
+    font-size: 1.15rem;
+    margin: var(--space-1) 0;
+  }
+
+  .page-header .page-copy {
+    display: none;
+  }
+
+  .page-header .eyebrow {
+    font-size: 0.65rem;
+  }
+
+  /* MOB-019: "Open page" / CTA link styled as outline button */
+  a.text-link.cta-button,
+  .cta-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-lg);
+    color: var(--color-primary);
+    font-weight: 600;
+    font-size: 0.8rem;
+    background: transparent;
+    transition: all var(--transition-fast);
+    min-height: 44px;
+    margin-top: var(--space-1);
+  }
+
+  a.text-link.cta-button:hover {
+    background: var(--color-primary);
+    color: white;
+    text-decoration: none;
+  }
+
+  /* MOB-003: Collapsible filter drawer — toggle button visible on mobile */
+  .filter-drawer {
+    margin-bottom: var(--space-3);
+  }
+
+  .filter-drawer-toggle {
+    display: flex !important;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-panel);
+    color: var(--color-text);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    min-height: 44px;
+  }
+
+  .filter-drawer-toggle:hover {
+    background: var(--color-primary_light);
+    border-color: var(--color-primary);
+  }
+
+  .filter-drawer-icon {
+    transition: transform var(--transition-fast);
+    font-size: 0.8rem;
+  }
+
+  .filter-drawer-toggle[aria-expanded="true"] .filter-drawer-icon {
+    transform: rotate(180deg);
+  }
+
+  .filter-drawer-content {
+    display: none;
+    margin-top: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-panel-hover);
+  }
+
+  .filter-drawer-content--open,
+  .filter-drawer-content.open {
+    display: block;
+  }
+
+  .filter-drawer-content .filter-row {
+    margin-bottom: 0 !important;
+  }
+
+  /* MOB-020: Dashboard empty state — slim dismissible banner at top */
+  .dashboard {
+    position: relative;
+  }
+
+  .dashboard .empty-state {
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-warning-border);
+    background: var(--color-warning-bg);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+    text-align: left;
+  }
+
+  .dashboard .empty-state .empty-state-icon {
+    display: none;
+  }
+
+  .dashboard .empty-state .empty-state-action {
+    margin-top: 0;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  }
 
 /* ========== FOCUS STATES ========== */
 :focus-visible {

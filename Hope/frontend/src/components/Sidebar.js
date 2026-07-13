@@ -25,6 +25,7 @@ export function createSidebar(currentRoute = '#dashboard', loading = false) {
           <div class="eyebrow dark">Transit Ledger</div>
           <h1 class="sidebar-title">Indian transport ERP</h1>
         </div>
+        <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close menu" style="display:none;">&times;</button>
       </div>
       <nav class="nav white-nav">
         ${navItems.map(item => `

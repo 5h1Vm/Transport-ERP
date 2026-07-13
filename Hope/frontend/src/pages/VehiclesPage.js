@@ -2,6 +2,7 @@
  * Vehicles Page
  */
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
+import { createBackButton } from '../components/MobileHeader.js';
 import { currency, formatDate, editButton, deleteButton } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
@@ -29,17 +30,32 @@ export function renderVehiclesPage() {
 
   const formHtml = `
     <form data-form="vehicle" class="form-grid white">
-      <input name="vehicleNumber" placeholder="Vehicle number (e.g., MH12 AB 1234)" required maxlength="20" />
-      <input name="make" placeholder="Make (e.g., Tata, Ashok Leyland)" maxlength="40" />
-      <input name="model" placeholder="Model (e.g., 407, Prima)" maxlength="40" />
-      <input name="year" type="number" min="1990" max="2100" step="1" placeholder="Year (e.g., 2022)" />
-      <select name="ownershipStatus">
-        <option value="OWNED">Owned</option>
-        <option value="ATTACHED">Attached</option>
-        <option value="RENTED">Rented</option>
-        <option value="LEASED">Leased</option>
-        <option value="PARTNERSHIP">Partnership</option>
-      </select>
+      <div class="form-field">
+        <label>Vehicle number</label>
+        <input name="vehicleNumber" placeholder="e.g., MH12 AB 1234" required maxlength="20" />
+      </div>
+      <div class="form-field">
+        <label>Make</label>
+        <input name="make" placeholder="e.g., Tata, Ashok Leyland" maxlength="40" />
+      </div>
+      <div class="form-field">
+        <label>Model</label>
+        <input name="model" placeholder="e.g., 407, Prima" maxlength="40" />
+      </div>
+      <div class="form-field">
+        <label>Year</label>
+        <input name="year" type="number" min="1990" max="2100" step="1" placeholder="e.g., 2022" />
+      </div>
+      <div class="form-field">
+        <label>Ownership</label>
+        <select name="ownershipStatus">
+          <option value="OWNED">Owned</option>
+          <option value="ATTACHED">Attached</option>
+          <option value="RENTED">Rented</option>
+          <option value="LEASED">Leased</option>
+          <option value="PARTNERSHIP">Partnership</option>
+        </select>
+      </div>
       <div class="form-field full-width">
         <label>Current driver</label>
         <select name="currentDriverId">
@@ -51,7 +67,7 @@ export function renderVehiclesPage() {
             : ''}
         </select>
       </div>
-      <div class="form-actions-row">
+      <div class="form-field full-width form-actions-row">
         <button type="submit">${isEditing ? 'Update' : 'Save'} vehicle</button>
         ${isEditing ? '<button type="button" class="btn btn-ghost" data-cancel-edit="vehicle">Cancel</button>' : ''}
       </div>
@@ -69,6 +85,7 @@ export function renderVehiclesPage() {
     : createEmptyState('No vehicle records yet.');
 
   const content = `
+    ${createBackButton(window.location.hash || '#dashboard')}
     <section class="page-header">
       <div>
         <p class="eyebrow dark">Vehicles</p>

@@ -27,7 +27,7 @@ function renderLedgersPage() {
         chipClass: t.outstanding < 0 ? 'danger' : t.outstanding > 0 ? 'warning' : 'success',
         actions: `<a href="#transporter/${t.id}" class="text-link">View Details</a>`
       })).join('')
-    : createEmptyState('No transporter records.', '<a href="#transporters" class="text-link">Add a transporter →</a>');
+    : createEmptyState('No transporter records yet.', '<a href="#transporters" class="cta-button">Open Transporter page →</a>');
 
   const driverHtml = drivers.length
     ? drivers.map(d => createRecordCard({
@@ -41,7 +41,7 @@ function renderLedgersPage() {
         chipClass: d.outstandingBalance < 0 ? 'danger' : d.outstandingBalance > 0 ? 'warning' : 'success',
         actions: `<a href="#driver/${d.id}" class="text-link">View Details</a>`
       })).join('')
-    : createEmptyState('No driver records.', '<a href="#drivers" class="text-link">Add a driver →</a>');
+    : createEmptyState('No driver records yet.', '<a href="#drivers" class="cta-button">Open Driver page →</a>');
 
   const content = `
     ${createPageHeader({

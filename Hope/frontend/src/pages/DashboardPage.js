@@ -33,12 +33,10 @@ export function renderDashboardPage() {
   };
   const metricsHtml = metrics.length
     ? metrics.map(m => createMetricCard({ label: m.label, value: m.value, helper: metricHelpers[m.label] || '' })).join('')
-    : `
-      <div class="blank-card">
-        <h3>No records yet</h3>
-        <p>Start by adding a <a href="#transporters" class="text-link">transporter</a>, a <a href="#vehicles" class="text-link">vehicle</a>, and a <a href="#drivers" class="text-link">driver</a> — then create your first trip.</p>
-      </div>
-    `;
+    : createEmptyState(
+        'Add a transporter, vehicle, and driver to get started.',
+        '<a href="#transporters" class="text-link">Get started →</a>'
+      );
 
   // Recent trips panel
   const recentTripsHtml = recentTrips.length
@@ -80,6 +78,7 @@ export function renderDashboardPage() {
     : createEmptyState('No trips are waiting for POD.');
 
   const content = `
+    <div class="dashboard">
     <section class="page-header">
       <div>
         <p class="eyebrow dark">Dashboard</p>
@@ -95,14 +94,14 @@ export function renderDashboardPage() {
       <article class="panel white">
         <div class="panel-head">
           <div><p class="eyebrow dark">Trips</p><h3>Recent activity</h3></div>
-          <a class="text-link" href="#trips">Open page</a>
+          <a class="text-link cta-button" href="#trips">Open page</a>
         </div>
         <div class="stack">${recentTripsHtml}</div>
       </article>
       <article class="panel white">
         <div class="panel-head">
           <div><p class="eyebrow dark">Ledger</p><h3>Outstanding transporters</h3></div>
-          <a class="text-link" href="#ledgers">Open page</a>
+          <a class="text-link cta-button" href="#ledgers">Open page</a>
         </div>
         <div class="stack">${transporterBalancesHtml}</div>
       </article>
@@ -115,6 +114,7 @@ export function renderDashboardPage() {
         <div class="stack">${pendingPodHtml}</div>
       </article>
     </section>
+    </div>
   `;
 
   return content;
