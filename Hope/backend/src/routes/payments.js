@@ -51,52 +51,74 @@ module.exports = function paymentRoutes(ctx) {
     const organization = await getOrganization();
     const creator = await getSystemUser(organization.id);
 
-    // Prevent overpayment on trip-linked payments
-    if (payload.tripId) {
-      const summary = await calculateTripPaymentSummary(prisma, payload.tripId);
-      if (summary && summary.outstanding > 0 && payload.amount > summary.outstanding) {
-        return res.status(400).json({
-          message: `Overpayment blocked: payment of ₹${payload.amount} exceeds the outstanding balance of ₹${summary.outstanding}. Record at most ₹${summary.outstanding}.`
-        });
-      }
-    }
+    // Everything below runs inside one transaction so the overpayment check
+    // and the insert are atomic — without this, two concurrent payment
+    // requests on the same trip can each read the outstanding balance before
+    // either has committed, both pass the check, and both get inserted
+    // (classic check-then-act race). `SELECT ... FOR UPDATE` takes a row
+    // lock on the trip so a second concurrent request blocks until the
+    // first transaction commits, then re-reads the now-updated balance.
+    const payment = await prisma.$transaction(async (tx) => {
+      if (payload.tripId) {
+        await tx.$queryRaw`SELECT id FROM "Trip" WHERE id = ${payload.tripId} FOR UPDATE`;
 
-    const payment = await prisma.payment.create({
-      data: {
-        transporterId: payload.transporterId,
-        tripId: payload.tripId || null,
-        amount: payload.amount,
-        paymentType: payload.paymentType,
-        mode: payload.mode,
-        referenceNumber: payload.referenceNumber,
-        bankAccount: payload.bankAccount,
-        notes: payload.notes,
-        paymentDate: payload.paymentDate ? new Date(payload.paymentDate) : new Date(),
-        createdById: creator.id
-      }
-    });
-
-    if (payload.tripId) {
-      const summary = await calculateTripPaymentSummary(prisma, payload.tripId);
-      const currentTrip = await prisma.trip.findUnique({
-        where: { id: payload.tripId },
-        select: { status: true }
-      });
-
-      let statusUpdate = currentTrip ? currentTrip.status : 'DRAFT';
-      // Auto-advance to SETTLED only when a BILLED trip becomes fully paid.
-      if (currentTrip && currentTrip.status === 'BILLED' && summary.outstanding <= 0) {
-        statusUpdate = 'SETTLED';
+        const summary = await calculateTripPaymentSummary(tx, payload.tripId);
+        // outstanding can be 0 (fully settled) or negative (already overpaid
+        // some other way) — either way, no further payment should be let
+        // through un-flagged. Comparing against max(outstanding, 0) closes
+        // the gap where a `> 0` guard used to silently skip the check once
+        // a trip reached exactly zero outstanding.
+        const allowedAmount = Math.max(summary?.outstanding || 0, 0);
+        if (summary && payload.amount > allowedAmount) {
+          const err = new Error(
+            allowedAmount > 0
+              ? `Overpayment blocked: payment of ₹${payload.amount} exceeds the outstanding balance of ₹${allowedAmount}. Record at most ₹${allowedAmount}.`
+              : `Overpayment blocked: this trip has no outstanding balance. Record at most ₹0.`
+          );
+          err.statusCode = 400;
+          throw err;
+        }
       }
 
-      await prisma.trip.update({
-        where: { id: payload.tripId },
+      const created = await tx.payment.create({
         data: {
-          paymentStatus: summary.paymentStatus,
-          status: statusUpdate
+          transporterId: payload.transporterId,
+          tripId: payload.tripId || null,
+          amount: payload.amount,
+          paymentType: payload.paymentType,
+          mode: payload.mode,
+          referenceNumber: payload.referenceNumber,
+          bankAccount: payload.bankAccount,
+          notes: payload.notes,
+          paymentDate: payload.paymentDate ? new Date(payload.paymentDate) : new Date(),
+          createdById: creator.id
         }
       });
-    }
+
+      if (payload.tripId) {
+        const summary = await calculateTripPaymentSummary(tx, payload.tripId);
+        const currentTrip = await tx.trip.findUnique({
+          where: { id: payload.tripId },
+          select: { status: true }
+        });
+
+        let statusUpdate = currentTrip ? currentTrip.status : 'DRAFT';
+        // Auto-advance to SETTLED only when a BILLED trip becomes fully paid.
+        if (currentTrip && currentTrip.status === 'BILLED' && summary.outstanding <= 0) {
+          statusUpdate = 'SETTLED';
+        }
+
+        await tx.trip.update({
+          where: { id: payload.tripId },
+          data: {
+            paymentStatus: summary.paymentStatus,
+            status: statusUpdate
+          }
+        });
+      }
+
+      return created;
+    });
 
     res.status(201).json(payment);
   }));

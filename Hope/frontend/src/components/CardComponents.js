@@ -198,7 +198,7 @@ export function createPaymentHistory(payments = []) {
         <div class="payment-entry">
           <span>${formatDate(p.paymentDate)}</span>
           <span>${escapeHtml(p.paymentType ? formatStatus(p.paymentType) : 'Other')}</span>
-          <span class="chip chip-sm chip-${getModeClass(p.mode)}">${escapeHtml(p.mode ? formatStatus(p.mode) : '—')}</span>:
+          <span class="chip chip-sm chip-${getModeClass(p.mode)}">${escapeHtml(p.mode ? formatStatus(p.mode) : '—')}</span>
           <strong>${currency(p.amount)}</strong>
           ${p.notes ? ' - ' + escapeHtml(p.notes) : ''}
         </div>

@@ -6,6 +6,14 @@ const { z } = require('zod');
  * client responses, and hides internal details for anything unexpected.
  */
 function errorHandler(error, req, res, next) {
+  // Business-logic errors raised inside a transaction (e.g. an overpayment
+  // guard) carry their intended HTTP status explicitly, since they can't
+  // call res.status() directly without risking a second response after the
+  // transaction unwinds.
+  if (error.statusCode) {
+    return res.status(error.statusCode).json({ message: error.message });
+  }
+
   if (error instanceof z.ZodError) {
     return res.status(400).json({
       message: 'Validation failed',
