@@ -50,7 +50,7 @@ export function renderDashboardPage() {
         meta: [
           `${trip.route ? `${trip.route.origin} → ${trip.route.destination}` : 'No route'}`,
           currency(trip.freightAmount),
-          formatDate(trip.createdAt)
+          formatDate(trip.departureDate || trip.createdAt)
         ],
         actions: `<a href="#trip/${trip.id}" class="text-link">View</a>`
       })).join('')

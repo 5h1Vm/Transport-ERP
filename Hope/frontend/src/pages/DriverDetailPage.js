@@ -6,7 +6,17 @@ import { createRecordCard, createEmptyState, createHeroStat } from '../component
 import { currency, formatDate, formatDateTime, formatStatus, getStatusChipClass, deleteButton, escapeHtml } from '../utils/helpers.js';
 import * as api from '../services/api.js';
 
-const SETTLEMENT_TYPES = ['SALARY', 'INCENTIVE', 'ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'ALLOWANCE'];
+const SETTLEMENT_TYPES = ['SALARY', 'INCENTIVE', 'ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'ALLOWANCE', 'EXPENSE_REIMBURSEMENT'];
+const SETTLEMENT_LABELS = {
+  SALARY: 'Salary',
+  INCENTIVE: 'Incentive',
+  ADVANCE: 'Advance',
+  DEDUCTION: 'Deduction',
+  PENALTY: 'Penalty',
+  CASH_COLLECTED: 'Cash collected',
+  ALLOWANCE: 'Allowance',
+  EXPENSE_REIMBURSEMENT: 'Expense reimbursement (bhatta/toll payout)'
+};
 
 export async function renderDriverDetail(id) {
   let driver, trips;
@@ -47,7 +57,7 @@ export async function renderDriverDetail(id) {
       <input type="hidden" name="driverId" value="${escapeHtml(driver.id)}" />
       <div class="form-field">
         <label>Type</label>
-        <select name="type" required>${SETTLEMENT_TYPES.map(t => `<option value="${t}">${formatStatus(t)}</option>`).join('')}</select>
+        <select name="type" required>${SETTLEMENT_TYPES.map(t => `<option value="${t}">${SETTLEMENT_LABELS[t] || formatStatus(t)}</option>`).join('')}</select>
       </div>
       <div class="form-field">
         <label>Amount (₹)</label>

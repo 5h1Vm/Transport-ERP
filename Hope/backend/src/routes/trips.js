@@ -2,7 +2,7 @@ const express = require('express');
 const { z } = require('zod');
 const asyncHandler = require('../middleware/asyncHandler');
 const { parseLimit, parseOffset } = require('../utils/pagination');
-const { Prisma } = require('@prisma/client');
+const { Prisma, CommissionType } = require('@prisma/client');
 const { money, add, sub, mul, toRupees } = require('../utils/money');
 const {
   calculateCommission,
@@ -34,8 +34,8 @@ const tripCreateSchema = z.object({
   weightTons: z.coerce.number().default(0),
   freightAmount: z.coerce.number().optional(),
   freightPerTon: z.coerce.number().optional(),
-  commissionType: z.nativeEnum(Prisma.CommissionType).optional(),
-  commissionValue: z.coerce.number().optional(),
+  commissionType: z.nativeEnum(CommissionType),
+  commissionValue: z.coerce.number(),
   loadingDate: z.string().datetime().optional(),
   departureDate: z.string().datetime().optional(),
   deliveryDate: z.string().datetime().optional(),
@@ -54,8 +54,8 @@ const tripUpdateSchema = z.object({
   weightTons: z.coerce.number().default(0),
   freightAmount: z.coerce.number().optional(),
   freightPerTon: z.coerce.number().optional(),
-  commissionType: z.nativeEnum(Prisma.CommissionType).optional(),
-  commissionValue: z.coerce.number().optional(),
+  commissionType: z.nativeEnum(CommissionType),
+  commissionValue: z.coerce.number(),
   loadingDate: z.string().datetime().optional(),
   departureDate: z.string().datetime().optional(),
   internalRef: z.string().optional(),
@@ -98,10 +98,14 @@ async function createDailyExpensesForTrip(prisma, tripId) {
 
   if (!trip || !trip.departureDate || !trip.deliveryDate) return;
 
-  const startDate = new Date(trip.departureDate);
-  const endDate = new Date(trip.deliveryDate);
-  const diffTime = Math.abs(endDate - startDate);
-  const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
+  // Normalise both dates to calendar-date midnight (UTC) so the day-count
+  // is immune to the time-of-day component on deliveryDate (set as new Date()
+  // in the status-transition handler, not a midnight date-only value).
+  const dep = new Date(trip.departureDate);
+  const del = new Date(trip.deliveryDate);
+  const start = Date.UTC(dep.getFullYear(), dep.getMonth(), dep.getDate());
+  const end = Date.UTC(del.getFullYear(), del.getMonth(), del.getDate());
+  const days = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1; // inclusive
 
   for (const td of trip.drivers) {
     const driver = td.driver;
@@ -227,6 +231,8 @@ module.exports = function tripRoutes(ctx) {
         weightTons: payload.weightTons,
         freightAmount,
         freightPerTon: payload.freightPerTon ?? null,
+        commissionType: payload.commissionType,
+        commissionValue: payload.commissionValue,
         internalRef: payload.internalRef,
         lrNumber: payload.lrNumber ?? null,
         notes: payload.notes,
@@ -343,7 +349,7 @@ module.exports = function tripRoutes(ctx) {
     }
 
     const freightAmount = calculateFreightAmount(payload);
-    const transportCommission = calculateCommission(transporter, freightAmount, payload.weightTons, payload);
+    const transportCommission = calculateCommission(payload.commissionType, payload.commissionValue, freightAmount, payload.weightTons);
     const freightNet = freightAmount - transportCommission;
     const latestOutstanding = await calculateTransporterOutstanding(prisma, transporter.id);
     const systemUser = await getSystemUser(organization.id);
@@ -358,6 +364,8 @@ module.exports = function tripRoutes(ctx) {
         weightTons: payload.weightTons,
         freightAmount,
         freightPerTon: payload.freightPerTon ?? null,
+        commissionType: payload.commissionType,
+        commissionValue: payload.commissionValue,
         internalRef,
         lrNumber: payload.lrNumber ?? null,
         notes: payload.notes,

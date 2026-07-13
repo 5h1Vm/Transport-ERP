@@ -23,7 +23,7 @@ const driverSchema = z.object({
 });
 
 const settlementSchema = z.object({
-  type: z.enum(['SALARY', 'INCENTIVE', 'ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'ALLOWANCE']),
+  type: z.enum(['SALARY', 'INCENTIVE', 'ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'ALLOWANCE', 'EXPENSE_REIMBURSEMENT']),
   amount: z.coerce.number().positive(),
   tripId: z.string().cuid().optional().or(z.literal('')),
   description: z.string().optional(),

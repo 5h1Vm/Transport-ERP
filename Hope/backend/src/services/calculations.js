@@ -28,45 +28,27 @@ function calculateFreightAmount({ freightAmount, weightTons, freightPerTon }) {
 }
 
 /**
- * Calculate commission based on transporter settings.
- * @param {{commissionType: string, commissionValue: number|string|Prisma.Decimal}} transporter
+ * Calculate commission based on trip-level settings (no transporter fallback).
+ * @param {string} commissionType
+ * @param {number|string|Prisma.Decimal} commissionValue
  * @param {number|string|Prisma.Decimal} freightAmount
  * @param {number|string|Prisma.Decimal} weightTons
  * @returns {number}
  */
-/**
- * Calculate commission based on transporter settings, with optional trip override.
- * @param {{commissionType: string, commissionValue: number|string|Prisma.Decimal}} transporter
- * @param {number|string|Prisma.Decimal} freightAmount
- * @param {number|string|Prisma.Decimal} weightTons
- * @param {{commissionType?: string, commissionValue?: number|string|Prisma.Decimal}|null} tripOverride
- * @returns {number}
- */
-function calculateCommission(transporter, freightAmount, weightTons = 0, tripOverride = null) {
+function calculateCommission(commissionType, commissionValue, freightAmount, weightTons = 0) {
   const base = money(freightAmount);
-  // Determine effective commission values: prefer trip override if present
-  let effType = transporter.commissionType;
-  let effValue = transporter.commissionValue;
-  if (tripOverride) {
-    if (tripOverride.commissionType !== undefined && tripOverride.commissionType !== null) {
-      effType = tripOverride.commissionType;
-    }
-    if (tripOverride.commissionValue !== undefined && tripOverride.commissionValue !== null) {
-      effValue = tripOverride.commissionValue;
-    }
-  }
-  const commissionValue = money(effValue);
+  const value = money(commissionValue);
   const weight = money(weightTons);
 
-  switch (effType) {
+  switch (commissionType) {
     case 'FIXED_PER_TRIP':
-      return toRupees(commissionValue);
+      return toRupees(value);
     case 'FIXED_PER_TON':
-      return toRupees(mul(commissionValue, weight));
+      return toRupees(mul(value, weight));
     case 'PERCENTAGE':
     default:
       // commission = base * (commissionValue / 100)
-      const percent = commissionValue.div(new Prisma.Decimal(100));
+      const percent = value.div(new Prisma.Decimal(100));
       return toRupees(mul(base, percent));
   }
 }
@@ -238,7 +220,10 @@ async function calculateDriverTripExpenses(prisma, driverId, options = {}) {
 
     const startDate = new Date(trip.departureDate);
     const endDate = new Date(trip.deliveryDate);
-    const diffTime = Math.abs(endDate - startDate);
+    // Normalise to calendar-date midnight to avoid time-of-day drift
+    const start = Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const end = Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    const diffTime = Math.abs(end - start);
     const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
 
     const dailyExpense = money(driver.dailyExpenseRate).times(new Prisma.Decimal(days));
@@ -285,7 +270,7 @@ async function calculateDriverOutstanding(prisma, driverId) {
 
   const negativeSettlements = money(sumBy(
     driver.settlements || [],
-    s => (['ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED'].includes(s.type) ? s.amount : 0)
+    s => (['ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'EXPENSE_REIMBURSEMENT'].includes(s.type) ? s.amount : 0)
   ));
 
   // driver.expenses already includes DAILY_EXPENSE rows created when a trip is
@@ -340,7 +325,7 @@ async function calculateDriverOutstandingBulk(prisma, driverIds) {
 
     const negativeSettlements = money(sumBy(
       driver.settlements || [],
-      s => (['ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED'].includes(s.type) ? s.amount : 0)
+      s => (['ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'EXPENSE_REIMBURSEMENT'].includes(s.type) ? s.amount : 0)
     ));
 
     const tripExpensesPaid = money(sumBy(driver.expenses || [], e => e.amount));
@@ -348,7 +333,7 @@ async function calculateDriverOutstandingBulk(prisma, driverIds) {
       (driver.expenses || []).filter(e => e.category === 'DAILY_EXPENSE'),
       e => e.amount
     ));
-    // outstanding = (SALARY+INCENTIVE+ALLOWANCE) + tripExpensesPaid − (ADVANCE+DEDUCTION+PENALTY+CASH_COLLECTED)
+    // outstanding = (SALARY+INCENTIVE+ALLOWANCE) + tripExpensesPaid − (ADVANCE+DEDUCTION+PENALTY+CASH_COLLECTED+EXPENSE_REIMBURSEMENT)
     // tripExpensesPaid already includes any DAILY_EXPENSE (bhatta) rows — do not add dailyExpenses again.
     const outstanding = sub(add(positiveSettlements, tripExpensesPaid), negativeSettlements);
 
@@ -374,7 +359,11 @@ async function calculateDriverOutstandingBulk(prisma, driverIds) {
  */
 function tripDurationDays(departureDate, deliveryDate) {
   if (!departureDate || !deliveryDate) return 0;
-  const diffTime = Math.abs(new Date(deliveryDate) - new Date(departureDate));
+  const dep = new Date(departureDate);
+  const del = new Date(deliveryDate);
+  const start = Date.UTC(dep.getFullYear(), dep.getMonth(), dep.getDate());
+  const end = Date.UTC(del.getFullYear(), del.getMonth(), del.getDate());
+  const diffTime = Math.abs(end - start);
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
 }
 

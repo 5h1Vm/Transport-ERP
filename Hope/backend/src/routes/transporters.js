@@ -18,8 +18,6 @@ const transporterSchema = z.object({
   gstin: z.string().optional(),
   pan: z.string().optional(),
   address: z.string().optional(),
-  commissionType: z.enum(['PERCENTAGE', 'FIXED_PER_TRIP', 'FIXED_PER_TON']).default('PERCENTAGE'),
-  commissionValue: z.coerce.number().default(0),
   isActive: z.coerce.boolean().default(true),
   notes: z.string().optional()
 });

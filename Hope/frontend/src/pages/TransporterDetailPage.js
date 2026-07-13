@@ -52,7 +52,7 @@ async function renderTransporterDetail(id) {
     ? payments.map(p => createRecordCard({
         title: currency(p.amount),
         subtitle: escapeHtml(formatDate(p.paymentDate)),
-        meta: [escapeHtml(p.mode || 'Cash'), escapeHtml(p.paymentType || ''), escapeHtml(p.referenceNumber || ''), escapeHtml(p.notes || '')].filter(Boolean),
+        meta: [escapeHtml(formatStatus(p.mode || 'CASH')), escapeHtml(formatStatus(p.paymentType || '')), escapeHtml(p.referenceNumber || ''), escapeHtml(p.notes || '')].filter(Boolean),
         actions: ''
       })).join('')
     : createEmptyState('No payments recorded.');

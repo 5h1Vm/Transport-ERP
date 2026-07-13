@@ -33,12 +33,6 @@ export function renderTransportersPage() {
       <input name="contactPerson" placeholder="Contact person" maxlength="60" />
       <input name="phone" type="tel" placeholder="Phone" maxlength="20" pattern="[+0-9 -]{10,20}" title="At least 10 digits" />
       <input name="email" type="email" placeholder="Email" maxlength="100" />
-      <select name="commissionType">
-        <option value="PERCENTAGE">Commission: Percentage</option>
-        <option value="FIXED_PER_TRIP">Commission: Fixed per trip</option>
-        <option value="FIXED_PER_TON">Commission: Fixed per ton</option>
-      </select>
-      <input name="commissionValue" type="number" step="0.01" min="0" placeholder="Commission value" value="5" />
       <div class="form-actions-row">
         <button type="submit">${isEditing ? 'Update' : 'Save'} transporter</button>
         ${isEditing ? '<button type="button" class="btn btn-ghost" data-cancel-edit="transporter">Cancel</button>' : ''}
@@ -49,7 +43,7 @@ export function renderTransportersPage() {
   const listHtml = filteredItems.length
     ? filteredItems.map(item => createRecordCard({
         title: item.firmName,
-        subtitle: `${item.contactPerson || 'No contact'} • ${item.phone || 'No phone'}`,
+        subtitle: `${item.contactPerson || 'No contact'} • ${item.phone || 'No phone'}${item.email ? ' • ' + item.email : ''}`,
         // outstanding/tripCount are computed server-side (see GET /transporters)
         // so this page never needs the full trips/payments lists in memory.
         meta: [`Trips: ${item.tripCount ?? 0}`],

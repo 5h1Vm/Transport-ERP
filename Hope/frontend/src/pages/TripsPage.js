@@ -92,7 +92,6 @@ export function renderTripsPage() {
   const routeOptions = [{ value: '', label: 'Select route (optional)' }, ...routes.map((r) => ({ value: r.id, label: routeLabel(r) }))];
 
   const commissionTypeOptions = [
-    { value: "", label: "Use transporter's default" },
     { value: "PERCENTAGE", label: "Percentage" },
     { value: "FIXED_PER_TRIP", label: "Fixed per trip" },
     { value: "FIXED_PER_TON", label: "Fixed per ton" }
@@ -137,8 +136,8 @@ export function renderTripsPage() {
       </div>
       ${formField({ label: 'Freight Amount (₹)', type: 'number', id: 'freightAmount', name: 'freightAmount', placeholder: 'e.g. 50000 (auto-calculated)', min: 0, step: 1 })}
       ${formField({ label: 'Rate per km (₹)', type: 'number', id: 'ratePerKm', name: 'ratePerKm', placeholder: 'Optional: manual rate', min: 0, step: 1 })}
-      ${formField({ label: 'Override commission type (optional)', type: 'select', id: 'commissionType', name: 'commissionType', options: commissionTypeOptions })}
-      ${formField({ label: 'Override commission value (optional)', type: 'number', id: 'commissionValue', name: 'commissionValue', placeholder: 'e.g. 5 for 5% or fixed amount', min: 0, step: 0.01 })}
+      ${formField({ label: 'Commission type', type: 'select', id: 'commissionType', name: 'commissionType', required: true, options: commissionTypeOptions })}
+      ${formField({ label: 'Commission value', type: 'number', id: 'commissionValue', name: 'commissionValue', placeholder: 'e.g. 5 for 5% or 500 for fixed amount', min: 0, step: 0.01, required: true })}
       <div class="form-field full-width">
         <label>Drivers</label>
         ${createDriverMultiSelect('driver-multi-select-container')}
