@@ -129,6 +129,14 @@
   display: none !important;
 }
 
+/* The FAB is a mobile pattern (re-enabled at <=639px below); desktop/tablet
+   get a normal "+ Add trip" button in the panel header instead. */
+@media (min-width: 640px) {
+  .fab-btn {
+    display: none;
+  }
+}
+
 /* ========== TABLET (640px - 1023px) ========== */
 @media (min-width: 640px) and (max-width: 1023px) {
   body {
@@ -547,6 +555,14 @@
   /* Hide form panel on mobile unless actively editing or FAB-triggered */
   .form-panel-mobile-hidden {
     display: none;
+  }
+
+  /* The FAB is a mobile pattern — desktop gets a normal button instead
+     (see .desktop-add-btn below), so hide it here. !important because
+     buttons.css loads after this file and its .btn base rule sets its own
+     display value at equal specificity. */
+  .desktop-add-btn {
+    display: none !important;
   }
 
   /* FAB — floating add button */

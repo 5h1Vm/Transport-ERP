@@ -19,7 +19,7 @@ import { renderTransportersPage } from './pages/TransportersPage.js';
 import { renderVehiclesPage } from './pages/VehiclesPage.js';
 import { renderDriversPage } from './pages/DriversPage.js';
 import { renderRoutesPage } from './pages/RoutesPage.js';
-import { renderTripsPage } from './pages/TripsPage.js';
+import { renderTripsPage, renderTripFormPage, hydrateTripFormIfPending } from './pages/TripsPage.js';
 import { renderLedgersPage } from './pages/LedgersPage.js';
 import { renderTransporterDetail } from './pages/TransporterDetailPage.js';
 import { renderTripDetail } from './pages/TripDetailPage.js';
@@ -86,6 +86,16 @@ const PAGE_RESOURCES = {
 };
 
 async function loadPageData(page, { force = false } = {}) {
+  // Trip form pages need reference data (transporters, vehicles, drivers, routes)
+  if (page === 'trips/new' || /^trips\/.+\/edit$/.test(page)) {
+    const stale = !loadedAt.reference || Date.now() - loadedAt.reference > FRESH_MS;
+    if (stale || force) {
+      await RESOURCE_LOADERS.reference();
+      loadedAt.reference = Date.now();
+    }
+    return true;
+  }
+
   const wanted = PAGE_RESOURCES[page] || [];
   const stale = wanted.filter((r) => force || !loadedAt[r] || Date.now() - loadedAt[r] > FRESH_MS);
   if (!stale.length) return false;
@@ -168,6 +178,11 @@ async function render() {
       contentHtml = await renderRouteDetail(page.split('/')[1]);
     } else if (page.startsWith('vehicle/')) {
       contentHtml = await renderVehicleDetail(page.split('/')[1]);
+    } else if (page === 'trips/new') {
+      contentHtml = await renderTripFormPage('new');
+    } else if (/^trips\/.+\/edit$/.test(page)) {
+      const tripId = page.split('/')[1];
+      contentHtml = await renderTripFormPage('edit', tripId);
     } else {
       // Sync list pages render from the store (MOB-024: skeleton loaders)
 	      contentHtml = state.loading ? (
@@ -202,6 +217,7 @@ async function render() {
 
   app.innerHTML = createMainLayout(page, contentHtml);
   bindEventHandlers();
+  hydrateTripFormIfPending();
 
   if (activeId) {
     const el = document.getElementById(activeId);
@@ -534,8 +550,15 @@ async function handleFormSubmit(type, rawBody, form) {
   actions.clearValidationErrors();
 
   try {
-    if (state.editing && state.editing.entity === type) {
-      await api.request(`/${type}s/${state.editing.id}`, {
+    // Trips no longer use state.editing at all (Sprint 1F moved create/edit
+    // to their own routes) — the form's data-entity-id, set by
+    // renderTripFormPage, is the only signal that this is an edit. Every
+    // other entity still uses the inline state.editing mechanism.
+    const tripEditId = type === 'trip' ? form.dataset.entityId : null;
+    const editingId = tripEditId || (state.editing && state.editing.entity === type ? state.editing.id : null);
+
+    if (editingId) {
+      await api.request(`/${type}s/${editingId}`, {
         method: 'PUT',
         body: JSON.stringify(body)
       });
@@ -553,7 +576,13 @@ async function handleFormSubmit(type, rawBody, form) {
       actions.clearEditing();
     }
     actions.setMobileForm(false);
-    await refreshAfterMutation();
+    // Trip form pages redirect to the list — hashchange handles the rest
+    const curPage = window.location.hash.replace('#', '');
+    if (type === 'trip' && (curPage === 'trips/new' || /^trips\/.+\/edit$/.test(curPage))) {
+      window.location.hash = '#trips';
+    } else {
+      await refreshAfterMutation();
+    }
   } catch (error) {
     if (submitBtn) {
       submitBtn.disabled = false;

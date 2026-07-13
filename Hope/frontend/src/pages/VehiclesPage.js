@@ -8,6 +8,7 @@ import { state } from '../store/index.js';
 
 export function renderVehiclesPage() {
   const items = state.data.vehicles || [];
+  const isEditing = state.editing && state.editing.entity === 'vehicle';
   // Dropdown options come from the always-loaded reference payload
   const filter = state.filters.vehicles?.toLowerCase() || '';
   const showForm = state.showMobileForm || isEditing;
@@ -17,8 +18,6 @@ export function renderVehiclesPage() {
         (item.make?.toLowerCase().includes(filter))
       )
     : items;
-
-  const isEditing = state.editing && state.editing.entity === 'vehicle';
 
   const filterHtml = `
     <div class="filter-row" style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
