@@ -21,6 +21,14 @@ export function renderTripsPage() {
   const vehicles = state.refs.vehicles || [];
   const routes = state.refs.routes || [];
 
+  // Get distinct origin and destination values for From/To dropdowns
+  const origins = [...new Set(routes.map(r => r.origin))].filter(Boolean).sort();
+  const destinations = [...new Set(routes.map(r => r.destination))].filter(Boolean).sort();
+
+  // Create options for From/To dropdowns
+  const originOptions = [{ value: '', label: 'Select origin' }, ...origins.map(o => ({ value: o, label: o }))];
+  const destinationOptions = [{ value: '', label: 'Select destination' }, ...destinations.map(d => ({ value: d, label: d }))];
+
   const filters = state.filters.trips || {};
   const hasActiveFilters = Boolean(filters.status || filters.internalRef || filters.dateFrom || filters.dateTo);
 
@@ -44,6 +52,24 @@ export function renderTripsPage() {
       type: 'text',
       placeholder: 'TRP-001',
       value: filters.internalRef || ''
+    },
+    {
+      id: 'trip-fromlocation-filter',
+      label: 'From',
+      type: 'select',
+      options: [
+        { value: '', label: 'From (optional)' },
+        ...origins.map(o => ({ value: o, label: o }))
+      ]
+    },
+    {
+      id: 'trip-tolocation-filter',
+      label: 'To',
+      type: 'select',
+      options: [
+        { value: '', label: 'To (optional)' },
+        ...destinations.map(d => ({ value: d, label: d }))
+      ]
     },
     {
       id: 'trip-datefrom-filter',
@@ -81,12 +107,35 @@ export function renderTripsPage() {
       ${formField({ label: 'LR Number', type: 'text', id: 'lrNumber', name: 'lrNumber', placeholder: 'LR-12345', maxlength: 40 })}
       ${formField({ label: 'Transporter', type: 'select', id: 'transporterId', name: 'transporterId', required: true, options: transporterOptions })}
       ${formField({ label: 'Vehicle', type: 'select', id: 'vehicleId', name: 'vehicleId', required: true, options: vehicleOptions })}
-      ${formField({ label: 'Route', type: 'select', id: 'routeId', name: 'routeId', options: routeOptions })}
+      <div class="form-field full-width">
+        <label>From</label>
+        ${formField({ label: '', type: 'select', id: 'fromLocation', name: 'fromLocation', options: originOptions })}
+      </div>
+      <div class="form-field full-width">
+        <label>To</label>
+        ${formField({ label: '', type: 'select', id: 'toLocation', name: 'toLocation', options: destinationOptions })}
+      </div>
+      <div id="route-validation-message" class="form-message error"></div>
       <input type="hidden" id="distanceKm" name="distanceKm" />
+      <input type="hidden" id="routeId" name="routeId" />
       ${formField({ label: 'Material', type: 'text', id: 'material', name: 'material', placeholder: 'e.g. Cement', maxlength: 80 })}
       ${formField({ label: 'Weight (tons)', type: 'number', id: 'weightTons', name: 'weightTons', placeholder: '0', min: 0, step: 0.1 })}
+      ${formField({ label: 'Freight per ton (₹)', type: 'number', id: 'freightPerTon', name: 'freightPerTon', placeholder: 'e.g. 1500', min: 0, step: 1 })}
       ${formField({ label: 'Departure date', type: 'date', id: 'departureDate', name: 'departureDate' })}
-      ${formField({ label: 'Freight Amount (₹)', type: 'number', id: 'freightAmount', name: 'freightAmount', placeholder: 'e.g. 50000 (auto-fills from route)', min: 0, step: 1 })}
+      <div class="form-field full-width">
+        <label>Freight Mode</label>
+        <div class="form-field-options">
+          <label class="form-field-option">
+            <input type="radio" id="freightModeFixed" name="freightMode" value="fixed" checked />
+            <span>Fixed Amount</span>
+          </label>
+          <label class="form-field-option">
+            <input type="radio" id="freightModeWeightRate" name="freightMode" value="weight_rate" />
+            <span>Weight × Rate</span>
+          </label>
+        </div>
+      </div>
+      ${formField({ label: 'Freight Amount (₹)', type: 'number', id: 'freightAmount', name: 'freightAmount', placeholder: 'e.g. 50000 (auto-calculated)', min: 0, step: 1 })}
       ${formField({ label: 'Rate per km (₹)', type: 'number', id: 'ratePerKm', name: 'ratePerKm', placeholder: 'Optional: manual rate', min: 0, step: 1 })}
       ${formField({ label: 'Override commission type (optional)', type: 'select', id: 'commissionType', name: 'commissionType', options: commissionTypeOptions })}
       ${formField({ label: 'Override commission value (optional)', type: 'number', id: 'commissionValue', name: 'commissionValue', placeholder: 'e.g. 5 for 5% or fixed amount', min: 0, step: 0.01 })}

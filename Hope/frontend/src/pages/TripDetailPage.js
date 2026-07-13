@@ -31,7 +31,13 @@ export async function renderTripDetail(id) {
 
   const heroStats = `
     <div class="hero-stats">
-      ${createHeroStat({ label: 'Freight', value: currency(trip.freightAmount || 0), helper: 'Gross freight' })}
+      ${trip.freightPerTon && trip.weightTons
+        ? createHeroStat({
+            label: 'Freight',
+            value: `Weight × Rate: ${trip.weightTons}t × ₹${trip.freightPerTon}/ton`,
+            helper: `Total: ${currency(trip.freightAmount || 0)}`
+          })
+        : createHeroStat({ label: 'Freight', value: currency(trip.freightAmount || 0), helper: 'Gross freight' })}
       ${commission > 0 ? createHeroStat({ label: 'Commission', value: currency(commission), helper: `${escapeHtml(trip.transporter?.firmName || 'Transporter')}'s cut` }) : ''}
       ${createHeroStat({ label: 'Paid', value: currency(totalPaid), helper: 'Received', className: 'success' })}
       ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: 'Due from transporter', className: `hero-stat-dominant ${outstanding > 0 ? 'warning' : 'success'}` })}

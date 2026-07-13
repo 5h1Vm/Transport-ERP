@@ -147,6 +147,8 @@ model Vehicle {
   fitnessExpiry    DateTime?
   permitExpiry     DateTime?
   nationalPermitExpiry DateTime?
+  currentDriverId  String?         @unique
+  currentDriver    Driver?         @relation("CurrentVehicle", fields: [currentDriverId], references: [id])
   isActive         Boolean         @default(true)
   notes            String?
   createdAt        DateTime        @default(now())
@@ -190,6 +192,7 @@ model Driver {
   updatedAt        DateTime     @updatedAt
 
   user             User?              // for DRIVER self-login
+  vehicle          Vehicle?           @relation("CurrentVehicle")
   tripAssignments  TripDriver[]
   expenses         TripExpense[]      @relation("DriverExpenses")
   settlements      DriverSettlement[]

@@ -40,6 +40,17 @@ export function renderVehiclesPage() {
         <option value="LEASED">Leased</option>
         <option value="PARTNERSHIP">Partnership</option>
       </select>
+      <div class="form-field full-width">
+        <label>Current driver</label>
+        <select name="currentDriverId">
+          <option value="">None (unassigned)</option>
+          ${state.refs.drivers && state.refs.drivers.length
+            ? state.refs.drivers
+                .map(driver => `<option value="${driver.id}">${driver.name}</option>`)
+                .join('')
+            : ''}
+        </select>
+      </div>
       <div class="form-actions-row">
         <button type="submit">${isEditing ? 'Update' : 'Save'} vehicle</button>
         ${isEditing ? '<button type="button" class="btn btn-ghost" data-cancel-edit="vehicle">Cancel</button>' : ''}

@@ -398,6 +398,15 @@ export function bindFreightCalculator() {
 
   routeSelect.removeEventListener('change', routeSelect._changeHandler);
   routeSelect._changeHandler = () => {
+    // Check if we're in Weight × Rate mode - if so, don't override freight amount
+    const freightModeRadios = document.querySelectorAll('input[name="freightMode"]');
+    const isWeightRateMode = Array.from(freightModeRadios).find(radio =>
+      radio.checked && radio.value === 'weight_rate');
+
+    if (isWeightRateMode) {
+      return; // Don't override freight amount in Weight × Rate mode
+    }
+
     const routes = (state.refs.routes && state.refs.routes.length ? state.refs.routes : state.data.routes) || [];
     const selectedRoute = routes.find(r => r.id === routeSelect.value);
 
@@ -441,10 +450,19 @@ export function bindFreightCalculator() {
     freightInput.addEventListener('input', freightInput._inputHandler);
   }
 
-  // Also recalculate when ratePerKm changes
+  // Also recalculate when ratePerKm changes (only in Fixed mode)
   if (rateInput) {
     rateInput.removeEventListener('input', rateInput._inputHandler);
     rateInput._inputHandler = () => {
+      // Check if we're in Weight × Rate mode - if so, don't recalculate
+      const freightModeRadios = document.querySelectorAll('input[name="freightMode"]');
+      const isWeightRateMode = Array.from(freightModeRadios).find(radio =>
+        radio.checked && radio.value === 'weight_rate');
+
+      if (isWeightRateMode) {
+        return; // Don't recalculate in Weight × Rate mode
+      }
+
       const routes = (state.refs.routes && state.refs.routes.length ? state.refs.routes : state.data.routes) || [];
       const selectedRoute = routes.find(r => r.id === routeSelect.value);
       if (selectedRoute && rateInput.value) {

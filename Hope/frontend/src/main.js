@@ -229,6 +229,67 @@ function bindEventHandlers() {
     (forceOpen) => toggleSidebar(forceOpen)
   );
 
+  // Re-queried on every call — the trip form is a fresh DOM node after each
+  // render() innerHTML swap, so this can't be hoisted to module scope.
+  const tripForm = document.querySelector('form[data-form="trip"]');
+
+  // Handle From/To location selection in trip form to auto-set routeId
+  const fromSelect = tripForm ? tripForm.querySelector('#fromLocation') : null;
+  const toSelect = tripForm ? tripForm.querySelector('#toLocation') : null;
+  const routeIdInput = tripForm ? tripForm.querySelector('#routeId') : null;
+  const validationMessage = tripForm ? tripForm.querySelector('#route-validation-message') : null;
+
+  if (fromSelect && toSelect && routeIdInput && validationMessage) {
+      const updateRouteId = () => {
+        const fromValue = fromSelect.value;
+        const toValue = toSelect.value;
+
+        // Clear validation message
+        if (validationMessage) {
+          validationMessage.textContent = '';
+        }
+
+        // If both From and To are selected, find matching route
+        if (fromValue && toValue) {
+          // Find the route with matching origin and destination
+          const matchingRoute = (state.refs.routes || []).find(
+            route => route.origin === fromValue && route.destination === toValue
+          );
+
+          if (matchingRoute) {
+            // Set the hidden routeId field
+            if (routeIdInput) {
+              routeIdInput.value = matchingRoute.id;
+            }
+          } else {
+            // No route found for this combination
+            if (routeIdInput) {
+              routeIdInput.value = ''; // Clear the routeId
+            }
+            if (validationMessage) {
+              validationMessage.textContent = 'No route on file for this pair — add it under Routes first';
+            }
+          }
+        } else {
+          // Clear routeId if either From or To is not selected
+          if (routeIdInput) {
+            routeIdInput.value = '';
+          }
+        }
+      };
+
+      // Add event listeners to both selects
+      if (fromSelect) {
+        fromSelect.addEventListener('change', updateRouteId);
+      }
+      if (toSelect) {
+        toSelect.addEventListener('change', updateRouteId);
+      }
+
+      // Initialize routeId on form load (in case we're editing)
+      // Note: The actual value will be set by populateForm when editing an existing trip
+  }
+
   // Master-list searches filter in memory (lists are ≤ a few hundred rows);
   // trip filters are server-side and refetch.
   bindFilters({
@@ -270,6 +331,135 @@ function bindEventHandlers() {
 
   bindDriverMultiSelect(state);
   bindFreightCalculator();
+
+  // Handle freight mode switching (Fixed vs Weight×Rate)
+  if (tripForm) {
+    const freightModeRadios = tripForm.querySelectorAll('input[name="freightMode"]');
+    const weightTonsInput = tripForm.querySelector('#weightTons');
+    const freightPerTonInput = tripForm.querySelector('#freightPerTon');
+    const freightAmountInput = tripForm.querySelector('#freightAmount');
+    const ratePerKmInput = tripForm.querySelector('#ratePerKm');
+
+    if (freightModeRadios.length && weightTonsInput && freightPerTonInput && freightAmountInput && ratePerKmInput) {
+      const updateFreightFields = () => {
+        const isWeightRateMode = Array.from(freightModeRadios).find(radio =>
+          radio.checked && radio.value === 'weight_rate');
+
+        if (isWeightRateMode) {
+          // Weight × Rate mode: show weightTons and freightPerTon, calculate freightAmount
+          weightTonsInput.disabled = false;
+          freightPerTonInput.disabled = false;
+          // readOnly, not disabled — a disabled input is excluded from
+          // FormData entirely, which silently dropped freightAmount from
+          // the submitted trip body while the UI still showed a computed value.
+          freightAmountInput.readOnly = true;
+          freightAmountInput.placeholder = 'Auto-calculated from Weight × Rate';
+
+          // Calculate freightAmount when weightTons or freightPerTon changes
+          const calculateFreightAmount = () => {
+            const weight = parseFloat(weightTonsInput.value) || 0;
+            const ratePerTon = parseFloat(freightPerTonInput.value) || 0;
+            if (weight > 0 && ratePerTon > 0) {
+              freightAmountInput.value = Math.round(weight * ratePerTon);
+            } else {
+              freightAmountInput.value = '';
+            }
+          };
+
+          weightTonsInput.removeEventListener('input', weightTonsInput._freightCalcHandler);
+          weightTonsInput._freightCalcHandler = calculateFreightAmount;
+          weightTonsInput.addEventListener('input', calculateFreightAmount);
+
+          freightPerTonInput.removeEventListener('input', freightPerTonInput._freightCalcHandler);
+          freightPerTonInput._freightCalcHandler = calculateFreightAmount;
+          freightPerTonInput.addEventListener('input', calculateFreightAmount);
+
+          // Initial calculation
+          calculateFreightAmount();
+        } else {
+          // Fixed mode: hide calculation, allow manual freight amount entry
+          weightTonsInput.disabled = false;
+          freightPerTonInput.disabled = false;
+          freightAmountInput.readOnly = false;
+          freightAmountInput.placeholder = 'e.g. 50000 (auto-calculated from route/rate)';
+
+          // Remove weight×rate calculation listeners
+          if (weightTonsInput._freightCalcHandler) {
+            weightTonsInput.removeEventListener('input', weightTonsInput._freightCalcHandler);
+            weightTonsInput._freightCalcHandler = null;
+          }
+          if (freightPerTonInput._freightCalcHandler) {
+            freightPerTonInput.removeEventListener('input', freightPerTonInput._freightCalcHandler);
+            freightPerTonInput._freightCalcHandler = null;
+          }
+        }
+      };
+
+      // Add event listeners to radio buttons
+      freightModeRadios.forEach(radio => {
+        radio.removeEventListener('change', radio._freightModeHandler);
+        radio._freightModeHandler = updateFreightFields;
+        radio.addEventListener('change', updateFreightFields);
+      });
+
+      // Initialize based on current state
+      updateFreightFields();
+    }
+  }
+
+  // Handle vehicle → driver auto-select in trip form (using existing tripForm from above)
+  if (tripForm) {
+    const vehicleSelect = tripForm.querySelector('#vehicleId');
+    const driverMultiSelectContainer = document.getElementById('driver-multi-select-container');
+
+    if (vehicleSelect && driverMultiSelectContainer) {
+      const updateSelectedDriver = () => {
+        const vehicleId = vehicleSelect.value;
+
+        // Find the selected vehicle
+        const selectedVehicle = (state.refs.vehicles || []).find(
+          vehicle => vehicle.id === vehicleId
+        );
+
+        if (selectedVehicle && selectedVehicle.currentDriverId) {
+          // Vehicle has a current driver, select it in the multi-select
+          const driverCheckboxes = driverMultiSelectContainer.querySelectorAll(
+            'input.driver-option-checkbox'
+          );
+          driverCheckboxes.forEach(checkbox => {
+            checkbox.checked = (checkbox.value === selectedVehicle.currentDriverId);
+          });
+
+          // Trigger change event to update the UI
+          if (driverCheckboxes.length > 0) {
+            driverCheckboxes[0].dispatchEvent(new Event('change'));
+          }
+        } else {
+          // No vehicle or no current driver, clear selection
+          const driverCheckboxes = driverMultiSelectContainer.querySelectorAll(
+            'input.driver-option-checkbox'
+          );
+          driverCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+          });
+
+          // Trigger change event to update the UI
+          if (driverCheckboxes.length > 0) {
+            driverCheckboxes[0].dispatchEvent(new Event('change'));
+          }
+        }
+      };
+
+      // Add event listener to vehicle select
+      vehicleSelect.removeEventListener('change', vehicleSelect._vehicleChangeHandler);
+      vehicleSelect._vehicleChangeHandler = updateSelectedDriver;
+      vehicleSelect.addEventListener('change', updateSelectedDriver);
+
+      // Initialize based on current state (in case we're editing an existing trip)
+      updateSelectedDriver();
+    }
+  }
+
   applyValidationErrors(state.validationErrors);
 }
 
