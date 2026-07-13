@@ -83,6 +83,25 @@ export function bindCancelEditButtons(onCancel) {
 }
 
 /**
+ * Bind expense delete buttons
+ * @param {Function} onDeleteExpense - Delete handler (receives expenseId, tripId)
+ */
+export function bindExpenseDeleteButtons(onDeleteExpense) {
+  document.querySelectorAll('[data-delete-expense]').forEach(button => {
+    button.removeEventListener('click', button._clickHandler);
+
+    const handler = () => {
+      const expenseId = button.getAttribute('data-delete-expense');
+      const tripId = button.getAttribute('data-trip-id');
+      onDeleteExpense(expenseId, tripId);
+    };
+
+    button._clickHandler = handler;
+    button.addEventListener('click', handler);
+  });
+}
+
+/**
  * Bind trip status buttons
  * @param {Function} onStatusChange - Status change handler
  */

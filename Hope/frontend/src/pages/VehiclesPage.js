@@ -31,8 +31,8 @@ export function renderVehiclesPage() {
     <form data-form="vehicle" class="form-grid white">
       <input name="vehicleNumber" placeholder="Vehicle number (e.g., MH12 AB 1234)" required maxlength="20" />
       <input name="make" placeholder="Make (e.g., Tata, Ashok Leyland)" maxlength="40" />
-      <input name="model" placeholder="Model" maxlength="40" />
-      <input name="year" type="number" min="1990" max="2100" step="1" placeholder="Year" />
+      <input name="model" placeholder="Model (e.g., 407, Prima)" maxlength="40" />
+      <input name="year" type="number" min="1990" max="2100" step="1" placeholder="Year (e.g., 2022)" />
       <select name="ownershipStatus">
         <option value="OWNED">Owned</option>
         <option value="ATTACHED">Attached</option>

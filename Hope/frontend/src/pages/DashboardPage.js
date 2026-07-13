@@ -1,7 +1,7 @@
 /**
  * Dashboard Page
  */
-import { createMetricCard, createRecordCard, createEmptyState } from '../components/CardComponents.js';
+import { createMetricCard, createRecordCard, createEmptyState, createHeroStat } from '../components/CardComponents.js';
 import { currency, formatDate, formatStatus, getStatusChipClass } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
@@ -15,11 +15,11 @@ export function renderDashboardPage() {
   const transporterBalances = dashboard.transporterBalances || [];
   const pendingPodTrips = dashboard.pendingPodTrips || [];
 
-  // Hero stats
+  // Hero stats — use createHeroStat for consistency with trip detail page
   const heroStats = `
     <div class="hero-stats">
-      <div><span>Payments today</span><strong>${currency(dashboard.paymentTotals?.today || 0)}</strong></div>
-      <div><span>This month</span><strong>${currency(dashboard.paymentTotals?.month || 0)}</strong></div>
+      ${createHeroStat({ label: 'Payments today', value: currency(dashboard.paymentTotals?.today || 0) })}
+      ${createHeroStat({ label: 'This month', value: currency(dashboard.paymentTotals?.month || 0) })}
     </div>
   `;
 
@@ -61,8 +61,8 @@ export function renderDashboardPage() {
     ? transporterBalances.map(item => createRecordCard({
         title: item.name || 'Transporter',
         subtitle: 'Running balance',
-        chip: currency(item.outstanding || 0),
-        chipClass: 'warning',
+        chip: item.outstanding < 0 ? '⚠ ' + currency(item.outstanding) : currency(item.outstanding || 0),
+        chipClass: item.outstanding < 0 ? 'danger' : item.outstanding > 0 ? 'warning' : 'success',
         meta: [`<a href="#transporter/${item.id}" class="text-link">View Details</a>`]
       })).join('')
     : createEmptyState('No transporter balances yet.', '<a href="#transporters" class="text-link">Add a transporter →</a>');

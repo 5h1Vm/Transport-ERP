@@ -93,7 +93,7 @@ export async function renderDriverDetail(id) {
 
   const tripsHtml = trips.length ? trips.map(trip => createRecordCard({
     title: escapeHtml(trip.internalRef || trip.id.slice(0, 8)),
-    subtitle: trip.route ? `${escapeHtml(trip.route.origin)} → ${escapeHtml(trip.route.destination)}` : 'No route',
+    subtitle: trip.route ? `${escapeHtml(trip.route.origin)} → ${escapeHtml(trip.route.destination)}` : '<span class="chip chip-sm chip-muted">No route</span>',
     meta: [escapeHtml(formatDate(trip.departureDate || trip.loadingDate || trip.createdAt)), currency(trip.freightAmount || 0)],
     chip: escapeHtml(formatStatus(trip.status)),
     chipClass: getStatusChipClass(trip.status),
@@ -104,7 +104,7 @@ export async function renderDriverDetail(id) {
     ${createPageHeader({
       eyebrow: 'Driver',
       title: escapeHtml(driver.name),
-      copy: `${escapeHtml(driver.phone || 'No phone')} • ${escapeHtml(driver.licenseNumber || 'No license')}`
+      copy: `${escapeHtml(driver.phone || 'No phone')} ${driver.licenseNumber ? '• ' + escapeHtml(driver.licenseNumber) : ''}`.trim()
     })}
     ${heroStats}
 

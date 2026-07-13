@@ -33,7 +33,7 @@ import { showStateMessages } from './components/Toast.js';
 import { confirmDialog } from './components/Dialog.js';
 
 // Utils
-import { bindForms, bindDeleteButtons, bindEditButtons, bindCancelEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindFreightCalculator, applyValidationErrors, populateForm, populateDriverMultiSelect } from './utils/binding.js';
+import { bindForms, bindDeleteButtons, bindEditButtons, bindCancelEditButtons, bindTripStatusButtons, bindNavigation, bindFilters, bindDriverMultiSelect, bindFreightCalculator, bindExpenseDeleteButtons, applyValidationErrors, populateForm, populateDriverMultiSelect } from './utils/binding.js';
 import { debounce, formatStatus, currency } from './utils/helpers.js';
 
 // App container
@@ -223,6 +223,7 @@ function bindEventHandlers() {
   bindEditButtons(handleEdit);
   bindCancelEditButtons(handleCancelEdit);
   bindTripStatusButtons(handleTripStatusChange);
+  bindExpenseDeleteButtons(handleExpenseDelete);
 
   bindNavigation(
     (hash) => { window.location.hash = hash; },
@@ -617,6 +618,28 @@ async function handleDelete(entity, id) {
   try {
     await api.request(`/${entity}s/${id}`, { method: 'DELETE' });
     actions.setMessage('Deleted successfully.');
+    await refreshAfterMutation();
+  } catch (error) {
+    actions.setError(error.message);
+    render();
+  }
+}
+
+async function handleExpenseDelete(expenseId, tripId) {
+  const confirmed = await confirmDialog({
+    title: 'Delete expense?',
+    message: 'Are you sure you want to delete this expense entry? This cannot be undone.',
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    danger: true
+  });
+
+  if (!confirmed) return;
+
+  actions.setError('');
+  try {
+    await api.request(`/trips/expenses/${expenseId}`, { method: 'DELETE' });
+    actions.setMessage('Expense deleted.');
     await refreshAfterMutation();
   } catch (error) {
     actions.setError(error.message);

@@ -47,8 +47,8 @@ export function renderTransportersPage() {
         // outstanding/tripCount are computed server-side (see GET /transporters)
         // so this page never needs the full trips/payments lists in memory.
         meta: [`Trips: ${item.tripCount ?? 0}`],
-        chip: currency(item.outstanding || 0),
-        chipClass: (item.outstanding || 0) > 0 ? 'warning' : 'success',
+        chip: item.outstanding < 0 ? '⚠ ' + currency(item.outstanding) : currency(item.outstanding || 0),
+        chipClass: item.outstanding < 0 ? 'danger' : item.outstanding > 0 ? 'warning' : 'success',
         actions: `${editButton('transporter', item.id)}${deleteButton('transporter', item.id)} <a href="#transporter/${item.id}" class="text-link">View Details</a>`
       })).join('')
     : createEmptyState('No transporter records yet.');

@@ -42,9 +42,10 @@ export function renderRoutesPage() {
     ? filteredItems.map(item => createRecordCard({
         title: `${item.origin} → ${item.destination}`,
         subtitle: item.distanceKm ? `${item.distanceKm} km` : 'Distance not set',
+        meta: item.tripCount !== undefined ? [`Trips: ${item.tripCount}`] : [],
         chip: item.isActive === false ? 'Inactive' : 'Active',
         chipClass: item.isActive === false ? 'muted' : 'success',
-        actions: `${editButton('route', item.id)}${deleteButton('route', item.id)}`
+        actions: `${editButton('route', item.id)}${deleteButton('route', item.id)} <a href="#route/${item.id}" class="text-link">Details</a>`
       })).join('')
     : createEmptyState('No route records yet.');
 

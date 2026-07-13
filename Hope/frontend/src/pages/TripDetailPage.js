@@ -34,11 +34,11 @@ export async function renderTripDetail(id) {
       ${trip.freightPerTon && trip.weightTons
         ? createHeroStat({
             label: 'Freight',
-            value: `Weight × Rate: ${trip.weightTons}t × ₹${trip.freightPerTon}/ton`,
-            helper: `Total: ${currency(trip.freightAmount || 0)}`
+            value: currency(trip.freightAmount || 0),
+            helper: `${trip.weightTons}t × ₹${trip.freightPerTon}/ton`
           })
         : createHeroStat({ label: 'Freight', value: currency(trip.freightAmount || 0), helper: 'Gross freight' })}
-      ${commission > 0 ? createHeroStat({ label: 'Commission', value: currency(commission), helper: `${escapeHtml(trip.transporter?.firmName || 'Transporter')}'s cut` }) : ''}
+      ${commission > 0 ? createHeroStat({ label: 'Commission', value: currency(commission), helper: 'Deducted from freight' }) : ''}
       ${createHeroStat({ label: 'Paid', value: currency(totalPaid), helper: 'Received', className: 'success' })}
       ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: 'Due from transporter', className: `hero-stat-dominant ${outstanding > 0 ? 'warning' : 'success'}` })}
       ${createHeroStat({ label: 'Expenses', value: currency(summary.tripExpenseTotal || 0), helper: 'Trip expenses' })}
@@ -60,8 +60,8 @@ export async function renderTripDetail(id) {
     { label: 'Date', value: formatDate(trip.departureDate || trip.loadingDate || trip.createdAt) },
     { label: 'Transporter', value: `${escapeHtml(trip.transporter?.firmName || '—')}${trip.transporter?.phone ? ` • ${escapeHtml(trip.transporter.phone)}` : ''}` },
     { label: 'Vehicle', value: `${escapeHtml(trip.vehicle?.vehicleNumber || '—')}${vehicleLabel ? ` • ${vehicleLabel}` : ''}` },
-    { label: 'Route', value: trip.route ? `${escapeHtml(trip.route.origin)} → ${escapeHtml(trip.route.destination)}${trip.route.distanceKm ? ` (${trip.route.distanceKm} km)` : ''}` : '—' },
-    { label: 'LR Number', value: escapeHtml(trip.lrNumber || '—') }
+    { label: 'Route', value: trip.route ? `${escapeHtml(trip.route.origin)} → ${escapeHtml(trip.route.destination)}${trip.route.distanceKm ? ` (${trip.route.distanceKm} km)` : ''}` : '<span class="chip chip-sm chip-muted">No route set</span>' },
+    { label: 'LR Number', value: trip.lrNumber ? escapeHtml(trip.lrNumber) : '<span class="chip chip-sm chip-muted">Not entered</span>' }
   ]);
 
   const tripInfo = `
@@ -93,16 +93,23 @@ export async function renderTripDetail(id) {
     })}
     ${heroStats}
     ${tripInfo}
+    ${!isTerminal ? `
     <section class="panel-grid white two-col">
       <article class="panel white panel-accent-payment">
         <h3>Record payment <span class="text-muted" style="font-weight:400;">— money in</span></h3>
-        ${createPaymentForm(trip.id, trip.transporterId, isTerminal)}
+        ${createPaymentForm(trip.id, trip.transporterId, false)}
       </article>
       <article class="panel white">
         <h3>Payment history (${(trip.payments || []).length})</h3>
         ${createPaymentHistory(trip.payments || []) || createEmptyState('No payments recorded yet.', '<span class="text-muted">Use the form to record an advance or part payment.</span>')}
       </article>
-    </section>
+    </section>` : (trip.payments || []).length ? `
+    <section class="panel-grid white two-col">
+      <article class="panel white">
+        <h3>Payment history (${(trip.payments || []).length})</h3>
+        ${createPaymentHistory(trip.payments || [])}
+      </article>
+    </section>` : ''}
     <section class="panel-grid white two-col">
       <article class="panel white panel-accent-expense">
         <h3>Record expense <span class="text-muted" style="font-weight:400;">— money out</span></h3>

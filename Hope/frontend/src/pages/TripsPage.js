@@ -103,7 +103,7 @@ export function renderTripsPage() {
   const formHtml = `
     <form data-form="trip" class="form-grid two-col" data-entity-id="${entityId}">
       ${formField({ label: 'Internal Ref', type: 'text', id: 'internalRef', name: 'internalRef', placeholder: 'Auto (TRP-001)', maxlength: 40 })}
-      ${formField({ label: 'LR Number', type: 'text', id: 'lrNumber', name: 'lrNumber', placeholder: 'LR-12345', maxlength: 40 })}
+      ${formField({ label: 'LR Number', type: 'text', id: 'lrNumber', name: 'lrNumber', placeholder: 'LR number (optional)', maxlength: 40 })}
       ${formField({ label: 'Transporter', type: 'select', id: 'transporterId', name: 'transporterId', required: true, options: transporterOptions })}
       ${formField({ label: 'Vehicle', type: 'select', id: 'vehicleId', name: 'vehicleId', required: true, options: vehicleOptions })}
       <div class="form-field full-width">
@@ -126,11 +126,11 @@ export function renderTripsPage() {
         <div class="form-field-options">
           <label class="form-field-option">
             <input type="radio" id="freightModeFixed" name="freightMode" value="fixed" checked />
-            <span>Fixed Amount</span>
+            <span>Fixed amount (enter total ₹)</span>
           </label>
           <label class="form-field-option">
             <input type="radio" id="freightModeWeightRate" name="freightMode" value="weight_rate" />
-            <span>Weight × Rate</span>
+            <span>Weight × rate per ton (auto-calc)</span>
           </label>
         </div>
       </div>
@@ -153,15 +153,24 @@ export function renderTripsPage() {
   const listHtml = trips.length ? trips.map((trip) => {
     // The slim /trips response embeds transporter/vehicle/route/drivers directly —
     // no cross-referencing a separately loaded list needed.
-    const driverNames = (trip.drivers || []).map((td) => td.driver?.name).filter(Boolean).join(', ') || '—';
+    const driverNames = (trip.drivers || []).map((td) => td.driver?.name).filter(Boolean).join(', ');
 
     const summary = trip.financialSummary || {};
     const totalPaid = summary.tripPaymentTotal || 0;
     const outstanding = summary.outstanding || 0;
     const paymentCount = trip.paymentCount || 0;
-    const paymentInfo = paymentCount > 0
-      ? `<span class="chip chip-sm ${outstanding > 0 ? 'chip-warning' : 'chip-success'}">Due ${currency(outstanding)}</span>`
-      : `<span class="chip chip-sm chip-muted">No payments</span>`;
+    const isDraft = trip.status === 'DRAFT';
+    const isSettled = trip.status === 'SETTLED';
+    let paymentInfo = '';
+    if (isDraft) {
+      paymentInfo = '<span class="chip chip-sm chip-muted">Draft</span>';
+    } else if (isSettled) {
+      paymentInfo = '<span class="chip chip-sm chip-success">Settled ✓</span>';
+    } else if (paymentCount === 0) {
+      paymentInfo = `<span class="chip chip-sm chip-muted">Due ${currency(outstanding)}</span>`;
+    } else {
+      paymentInfo = `<span class="chip chip-sm ${outstanding > 0 ? 'chip-warning' : 'chip-success'}">Due ${currency(outstanding)}</span>`;
+    }
 
     const tripDate = trip.departureDate || trip.loadingDate || trip.createdAt;
 
@@ -170,7 +179,7 @@ export function renderTripsPage() {
       subtitle: `${trip.transporter?.firmName || '—'} • ${trip.vehicle?.vehicleNumber || '—'}`,
       meta: [
         trip.lrNumber ? `LR: ${trip.lrNumber}` : '',
-        `Drivers: ${driverNames}`,
+        driverNames ? `Drivers: ${driverNames}` : '',
         `Status: ${formatStatus(trip.status)}`,
         formatDate(tripDate),
         paymentInfo

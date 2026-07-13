@@ -4,6 +4,12 @@
 import { editButton, deleteButton } from '../utils/helpers.js';
 import { currency, formatDate, formatStatus, escapeHtml } from '../utils/helpers.js';
 
+/** Map payment mode to chip colour */
+function getModeClass(mode) {
+  const map = { CASH: 'success', BANK_TRANSFER: 'info', UPI: 'info', CHEQUE: 'warning' };
+  return map[mode] || '';
+}
+
 /**
  * Create a hero stat card
  */
@@ -70,7 +76,16 @@ export function createBlankCard({ title, message, action = '' }) {
  *   so a bare "nothing here" message wastes the moment).
  */
 export function createEmptyState(message, action = '') {
-  return `<div class="empty-state">${escapeHtml(message)}${action ? `<div class="empty-state-action">${action}</div>` : ''}</div>`;
+  return `<div class="empty-state">
+    <svg class="empty-state-icon" width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="6" y="6" width="36" height="36" rx="4" opacity="0.3"/>
+      <line x1="16" y1="20" x2="32" y2="20" opacity="0.4"/>
+      <line x1="16" y1="28" x2="28" y2="28" opacity="0.25"/>
+      <line x1="16" y1="24" x2="32" y2="24" opacity="0.2"/>
+      <rect x="18" y="16" width="12" height="16" rx="2" opacity="0.15"/>
+    </svg>
+    ${escapeHtml(message)}${action ? `<div class="empty-state-action">${action}</div>` : ''}
+  </div>`;
 }
 
 /**
@@ -159,7 +174,8 @@ export function createPaymentHistory(payments = []) {
       ${payments.map(p => `
         <div class="payment-entry">
           <span>${formatDate(p.paymentDate)}</span>
-          <span>${escapeHtml(p.paymentType ? formatStatus(p.paymentType) : 'Other')}</span>:
+          <span>${escapeHtml(p.paymentType ? formatStatus(p.paymentType) : 'Other')}</span>
+          <span class="chip chip-sm chip-${getModeClass(p.mode)}">${escapeHtml(p.mode ? formatStatus(p.mode) : '—')}</span>:
           <strong>${currency(p.amount)}</strong>
           ${p.notes ? ' - ' + escapeHtml(p.notes) : ''}
         </div>
@@ -182,6 +198,7 @@ export function createTripExpenses(expenses = [], showDriver = true) {
           <span class="expense-amount">${currency(e.amount)}</span>
           <span class="expense-desc">${escapeHtml(e.description || '')}</span>
           ${showDriver && e.paidToDriver ? `<span class="expense-driver">→ ${escapeHtml(e.paidToDriver.name)}</span>` : ''}
+          <button type="button" class="btn btn-ghost btn-danger btn-xs" data-delete-expense="${escapeHtml(e.id)}" data-trip-id="${escapeHtml(e.tripId || '')}" title="Delete expense" style="margin-left:auto;">&times;</button>
         </div>
       `).join('')}
     </div>
@@ -268,7 +285,7 @@ export function createStatusActions(tripId, status) {
   const transitionsAllowingCancel = ['DRAFT', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'POD_RECEIVED', 'BILLED'];
   if (!allowed.length && !transitionsAllowingCancel.includes(status)) return '';
 
-  let html = '<div class="status-actions-wrap"><span class="status-actions-label">Advance to:</span><div class="status-actions">';
+  let html = '<div class="status-actions-wrap"><span class="status-actions-label">Progress to:</span><div class="status-actions">';
 
   allowed.forEach(s => {
     html += `<button type="button" class="btn btn-primary btn-sm" data-trip-status="${escapeHtml(s)}" data-trip-id="${tripId}">${escapeHtml(formatStatus(s))}</button>`;
@@ -303,9 +320,10 @@ export function createPodForm(tripId, status, podReceivedDate) {
  */
 export function createPodMeta(trip) {
   const parts = [];
+  const isTerminal = trip.status === 'SETTLED' || trip.status === 'CANCELLED';
   if (trip.podReceivedDate) {
     parts.push(`<span>POD on ${escapeHtml(formatDate(trip.podReceivedDate))}</span>`);
-  } else {
+  } else if (!isTerminal) {
     parts.push('<span>POD pending</span>');
   }
   if (trip.podImageUrl) {
@@ -326,12 +344,11 @@ export function createPodMeta(trip) {
 export function createPaymentForm(tripId, transporterId, isCancelledOrSettled = false) {
   if (isCancelledOrSettled) return '';
 
-  // Prefill "now" so the field is never left blank by omission — the server
-  // already defaults to now() if empty, but making that explicit in the UI
-  // avoids the field looking optional when it isn't really meant to be.
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  const nowLocal = now.toISOString().slice(0, 16);
+  // Prefill "now" so the field is never left blank by omission. Use local
+  // time formatting, NOT UTC: toISOString() with tz offset correction was
+  // wrong for datetime-local inputs (which expect local time).
+  const __now = new Date();
+  const nowLocal = `${__now.getFullYear()}-${String(__now.getMonth() + 1).padStart(2, '0')}-${String(__now.getDate()).padStart(2, '0')}T${String(__now.getHours()).padStart(2, '0')}:${String(__now.getMinutes()).padStart(2, '0')}`;
 
   return `
     <form data-form="trip-payment" class="form-grid white" style="margin-top: 12px;">

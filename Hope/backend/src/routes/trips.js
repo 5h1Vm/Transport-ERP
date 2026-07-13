@@ -214,6 +214,12 @@ module.exports = function tripRoutes(ctx) {
       const route = await prisma.route.findUnique({ where: { id: payload.routeId } });
       if (!route) return res.status(400).json({ message: 'Invalid route' });
     }
+    if (payload.lrNumber) {
+      const existing = await prisma.trip.findFirst({
+        where: { lrNumber: payload.lrNumber, id: { not: req.params.tripId } }
+      });
+      if (existing) return res.status(400).json({ message: `LR number '${payload.lrNumber}' is already used by trip ${existing.internalRef || existing.id}` });
+    }
 
     if (payload.driverIds) {
       await syncTripDrivers(prisma, req.params.tripId, payload.driverIds, payload.driverRoles);
@@ -348,6 +354,13 @@ module.exports = function tripRoutes(ctx) {
       return res.status(400).json({ message: 'Invalid transporter' });
     }
 
+    if (payload.lrNumber) {
+      const existing = await prisma.trip.findFirst({
+        where: { lrNumber: payload.lrNumber }
+      });
+      if (existing) return res.status(400).json({ message: `LR number '${payload.lrNumber}' is already used by trip ${existing.internalRef || existing.id}` });
+    }
+
     const freightAmount = calculateFreightAmount(payload);
     const transportCommission = calculateCommission(payload.commissionType, payload.commissionValue, freightAmount, payload.weightTons);
     const freightNet = freightAmount - transportCommission;
@@ -472,6 +485,22 @@ module.exports = function tripRoutes(ctx) {
     });
 
     res.status(201).json(expense);
+  }));
+
+  router.delete('/trips/expenses/:expenseId', asyncHandler(async (req, res) => {
+    const expense = await prisma.tripExpense.findUnique({ where: { id: req.params.expenseId } });
+    if (!expense) return res.status(404).json({ message: 'Expense not found' });
+
+    await prisma.tripExpense.delete({ where: { id: req.params.expenseId } });
+
+    // Recalculate trip payment summary after expense deletion
+    const summary = await calculateTripPaymentSummary(prisma, expense.tripId);
+    await prisma.trip.update({
+      where: { id: expense.tripId },
+      data: { paymentStatus: summary.paymentStatus }
+    });
+
+    res.status(204).send();
   }));
 
   router.post('/trips/:tripId/pod', asyncHandler(async (req, res) => {

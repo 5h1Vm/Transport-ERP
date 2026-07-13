@@ -45,8 +45,8 @@ export function renderDriversPage() {
       `Trips: ${driver.tripCount ?? 0}`,
       driver.dailyExpenseRate ? `${currency(driver.dailyExpenseRate)}/day` : ''
     ].filter(Boolean),
-    chip: currency(driver.outstandingBalance || 0),
-    chipClass: (driver.outstandingBalance || 0) > 0 ? 'warning' : 'success',
+    chip: driver.outstandingBalance < 0 ? '⚠ ' + currency(driver.outstandingBalance) : currency(driver.outstandingBalance || 0),
+    chipClass: driver.outstandingBalance < 0 ? 'danger' : driver.outstandingBalance > 0 ? 'warning' : 'success',
     actions: `${editButton('driver', driver.id)}${deleteButton('driver', driver.id)} <a href="#driver/${driver.id}" class="text-link">Details</a>`
   })).join('') : createEmptyState('No driver records yet.');
 

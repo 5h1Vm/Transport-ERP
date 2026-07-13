@@ -23,8 +23,8 @@ function renderLedgersPage() {
           `Net freight (after commission): ${currency(t.freightTotal || 0)}`,
           `Paid: ${currency(t.paidTotal || 0)}`
         ],
-        chip: currency(t.outstanding || 0),
-        chipClass: (t.outstanding || 0) > 0 ? 'warning' : 'success',
+        chip: t.outstanding < 0 ? '⚠ ' + currency(t.outstanding) : currency(t.outstanding || 0),
+        chipClass: t.outstanding < 0 ? 'danger' : t.outstanding > 0 ? 'warning' : 'success',
         actions: `<a href="#transporter/${t.id}" class="text-link">View Details</a>`
       })).join('')
     : createEmptyState('No transporter records.', '<a href="#transporters" class="text-link">Add a transporter →</a>');
@@ -32,13 +32,13 @@ function renderLedgersPage() {
   const driverHtml = drivers.length
     ? drivers.map(d => createRecordCard({
         title: d.name,
-        subtitle: `${d.phone || 'No phone'} • License: ${d.licenseNumber || 'N/A'}`,
+        subtitle: `${d.phone || 'No phone'} ${d.licenseNumber ? '• License: ' + d.licenseNumber : ''}`.trim(),
         meta: [
           `Trips: ${d.tripCount ?? 0}`,
           `Total settled to date: ${currency(d.settlementTotal || 0)}`
         ],
-        chip: currency(d.outstandingBalance || 0),
-        chipClass: (d.outstandingBalance || 0) > 0 ? 'warning' : 'success',
+        chip: d.outstandingBalance < 0 ? '⚠ ' + currency(d.outstandingBalance) : currency(d.outstandingBalance || 0),
+        chipClass: d.outstandingBalance < 0 ? 'danger' : d.outstandingBalance > 0 ? 'warning' : 'success',
         actions: `<a href="#driver/${d.id}" class="text-link">View Details</a>`
       })).join('')
     : createEmptyState('No driver records.', '<a href="#drivers" class="text-link">Add a driver →</a>');

@@ -119,6 +119,13 @@ button[type="submit"]:disabled {
   font-size: 0.78rem;
 }
 
+.btn-xs {
+  padding: 2px 8px;
+  min-height: 24px;
+  font-size: 0.7rem;
+  border-radius: var(--radius-md);
+}
+
 .btn-lg {
   padding: var(--space-4) var(--space-6);
   min-height: 52px;

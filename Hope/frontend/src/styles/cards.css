@@ -153,6 +153,7 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1) 0;
+  flex-shrink: 0;
 }
 
 .status-step-dot {
@@ -261,6 +262,15 @@
   .hero-stats {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
+}
+
+.hero-stat-helper {
+  margin-top: var(--space-1);
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hero-stats > div {
@@ -405,6 +415,13 @@
   border: 2px dashed var(--color-border);
   border-radius: var(--radius-xl);
   background: var(--color-bg-elevated);
+}
+
+.empty-state-icon {
+  display: block;
+  margin: 0 auto var(--space-3);
+  color: var(--color-border-strong);
+  opacity: 0.6;
 }
 
 .empty-state-action {

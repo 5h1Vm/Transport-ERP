@@ -51,6 +51,16 @@ module.exports = function paymentRoutes(ctx) {
     const organization = await getOrganization();
     const creator = await getSystemUser(organization.id);
 
+    // Prevent overpayment on trip-linked payments
+    if (payload.tripId) {
+      const summary = await calculateTripPaymentSummary(prisma, payload.tripId);
+      if (summary && summary.outstanding > 0 && payload.amount > summary.outstanding) {
+        return res.status(400).json({
+          message: `Overpayment blocked: payment of ₹${payload.amount} exceeds the outstanding balance of ₹${summary.outstanding}. Record at most ₹${summary.outstanding}.`
+        });
+      }
+    }
+
     const payment = await prisma.payment.create({
       data: {
         transporterId: payload.transporterId,

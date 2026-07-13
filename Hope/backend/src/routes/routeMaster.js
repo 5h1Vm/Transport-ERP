@@ -22,16 +22,21 @@ module.exports = function routeMasterRoutes(ctx) {
   const router = express.Router();
 
   router.get('/routes', asyncHandler(async (req, res) => {
-    const routes = await prisma.route.findMany({
+    const items = await prisma.route.findMany({
       orderBy: { createdAt: 'desc' },
       take: parseLimit(req.query.limit, 200, 500),
-      skip: parseOffset(req.query.offset)
+      skip: parseOffset(req.query.offset),
+      include: { _count: { select: { trips: true } } }
     });
-    res.json(routes);
+    const result = items.map(({ _count, ...route }) => ({
+      ...route,
+      tripCount: _count.trips
+    }));
+    res.json(result);
   }));
 
   router.get('/routes/:routeId', asyncHandler(async (req, res) => {
-    const route = await prisma.route.findUnique({ where: { id: req.params.routeId } });
+    const route = await prisma.route.findUnique({ where: { id: req.params.routeId }, include: { _count: { select: { trips: true } } } });
 
     if (!route) {
       return res.status(404).json({ message: 'Route not found' });
