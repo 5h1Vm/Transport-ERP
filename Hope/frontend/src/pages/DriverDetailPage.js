@@ -3,10 +3,13 @@
  */
 import { createPageHeader } from '../components/Layout.js';
 import { createRecordCard, createEmptyState, createHeroStat } from '../components/CardComponents.js';
+import { createTransactionForm } from '../components/TransactionForm.js';
 import { currency, formatDate, formatDateTime, formatStatus, getStatusChipClass, deleteButton, escapeHtml } from '../utils/helpers.js';
 import * as api from '../services/api.js';
 
-const SETTLEMENT_TYPES = ['SALARY', 'INCENTIVE', 'ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'ALLOWANCE', 'EXPENSE_REIMBURSEMENT'];
+// Display labels for existing settlement rows. SALARY is still listed here
+// because historical rows may carry it — it is no longer creatable (the
+// unified entry form doesn't offer it, and the backend rejects it).
 const SETTLEMENT_LABELS = {
   SALARY: 'Salary',
   INCENTIVE: 'Incentive',
@@ -48,40 +51,15 @@ export async function renderDriverDetail(id) {
     </div>
   `;
 
-  // Matches the real settlementSchema on the backend: type, amount, tripId
-  // (optional), description, date. There is no separate "advance" record —
-  // an advance is just a settlement with type=ADVANCE.
-  const tripOptions = trips.map(t => `<option value="${t.id}">${escapeHtml(t.internalRef || t.id.slice(0, 8))}</option>`).join('');
-  const settlementForm = `
-    <form data-form="driver-settlement" class="form-grid two-col" data-entity-id="${escapeHtml(driver.id)}">
-      <input type="hidden" name="driverId" value="${escapeHtml(driver.id)}" />
-      <div class="form-field">
-        <label>Type</label>
-        <select name="type" required>${SETTLEMENT_TYPES.map(t => `<option value="${t}">${SETTLEMENT_LABELS[t] || formatStatus(t)}</option>`).join('')}</select>
-      </div>
-      <div class="form-field">
-        <label>Amount (₹)</label>
-        <input name="amount" type="number" min="1" step="1" required />
-      </div>
-      <div class="form-field">
-        <label>Date</label>
-        <input name="date" type="datetime-local" />
-      </div>
-      <div class="form-field">
-        <label>Trip (optional)</label>
-        <select name="tripId"><option value="">No trip</option>${tripOptions}</select>
-      </div>
-      <div class="form-field full-width">
-        <label>Description</label>
-        <input name="description" placeholder="Notes" maxlength="200" />
-      </div>
-      <div class="form-field full-width"><button type="submit" class="btn btn-primary">Record settlement</button></div>
-    </form>
-  `;
+  const settlementForm = createTransactionForm({
+    context: 'driver',
+    driverId: driver.id,
+    trips
+  });
 
   const settlementsHtml = settlements.length ? settlements.map(s => createRecordCard({
     title: currency(s.amount),
-    subtitle: escapeHtml(formatStatus(s.type)),
+    subtitle: escapeHtml(SETTLEMENT_LABELS[s.type] || formatStatus(s.type)),
     meta: [escapeHtml(formatDateTime(s.date || s.createdAt)), escapeHtml(s.description || ''), s.tripId ? `<a href="#trip/${escapeHtml(s.tripId)}" class="text-link">Trip</a>` : ''].filter(Boolean)
   })).join('') : createEmptyState('No settlements recorded.');
 
@@ -110,7 +88,8 @@ export async function renderDriverDetail(id) {
 
     <section class="panel-grid white two-col">
       <article class="panel white form-panel">
-        <h3>Record settlement</h3>
+        <h3>Record entry</h3>
+        <p class="text-muted panel-sub">Money gave to, or got from, this driver.</p>
         ${settlementForm}
       </article>
       <article class="panel white">

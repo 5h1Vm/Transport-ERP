@@ -25,14 +25,14 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users         User[]
-  vehicles      Vehicle[]
-  drivers       Driver[]
-  transporters  Transporter[]
-  parties       Party[]
-  routes        Route[]
-  trips         Trip[]
-  documents     Document[]
+  users          User[]
+  vehicles       Vehicle[]
+  drivers        Driver[]
+  transporters   Transporter[]
+  parties        Party[]
+  routes         Route[]
+  trips          Trip[]
+  documents      Document[]
   ledgerAccounts LedgerAccount[]
 }
 
@@ -50,31 +50,31 @@ enum Role {
 }
 
 model User {
-  id             String       @id @default(cuid())
+  id             String   @id @default(cuid())
   organizationId String
-  email          String?      @unique
+  email          String?  @unique
   phone          String?
   name           String
   passwordHash   String
   role           Role
-  language       String       @default("hi")
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  language       String   @default("hi")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // For TRANSPORTER role — link to their transporter record
-  transporterId String?        @unique
+  transporterId String?      @unique
   transporter   Transporter? @relation(fields: [transporterId], references: [id])
 
   // For DRIVER role — link to their driver record
-  driverId String?             @unique
-  driver   Driver?   @relation(fields: [driverId], references: [id])
+  driverId String? @unique
+  driver   Driver? @relation(fields: [driverId], references: [id])
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
-  createdTrips      Trip[]        @relation("TripCreator")
-  createdPayments   Payment[]     @relation("PaymentCreator")
-  createdDocuments  Document[]    @relation("DocumentCreator")
+  createdTrips     Trip[]     @relation("TripCreator")
+  createdPayments  Payment[]  @relation("PaymentCreator")
+  createdDocuments Document[] @relation("DocumentCreator")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -91,30 +91,31 @@ enum CommissionType {
 }
 
 model Transporter {
-  id              String         @id @default(cuid())
-  organizationId  String
-  organization    Organization   @relation(fields: [organizationId], references: [id])
-  firmName        String
-  contactPerson   String?
-  phone           String?
-  email           String?
-  gstin           String?
-  pan             String?
-  address         String?
-  isActive        Boolean        @default(true)
-  notes           String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  firmName       String
+  contactPerson  String?
+  phone          String?
+  email          String?
+  gstin          String?
+  pan            String?
+  address        String?
+  isActive       Boolean      @default(true)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
-  user       User?              // for TRANSPORTER self-login
-  trips      Trip[]
-  rateCards  RateCard[]
-  ledger     TransporterLedgerEntry[]
-  payments   Payment[]
+  user      User? // for TRANSPORTER self-login
+  trips     Trip[]
+  rateCards RateCard[]
+  ledger    TransporterLedgerEntry[]
+  payments  Payment[]
+  tripLoads TripLoad[] // multi-stop legs billed to this transporter (Sprint 2B)
   // Removed vehicles relation as per sprint-1a
 
-  @@index([organizationId])
   @@unique([organizationId, firmName])
+  @@index([organizationId])
 }
 
 // ═════════════════════════════════════════════════
@@ -130,39 +131,39 @@ enum OwnershipStatus {
 }
 
 model Vehicle {
-  id               String          @id @default(cuid())
-  organizationId   String
-  organization     Organization    @relation(fields: [organizationId], references: [id])
-  vehicleNumber    String
-  make             String?
-  model            String?
-  year             Int?
-  ownershipStatus  OwnershipStatus @default(OWNED)
-  chassisNumber    String?
-  engineNumber     String?
-  insuranceExpiry  DateTime?
-  pucExpiry        DateTime?
-  fitnessExpiry    DateTime?
-  permitExpiry     DateTime?
+  id                   String          @id @default(cuid())
+  organizationId       String
+  organization         Organization    @relation(fields: [organizationId], references: [id])
+  vehicleNumber        String
+  make                 String?
+  model                String?
+  year                 Int?
+  ownershipStatus      OwnershipStatus @default(OWNED)
+  chassisNumber        String?
+  engineNumber         String?
+  insuranceExpiry      DateTime?
+  pucExpiry            DateTime?
+  fitnessExpiry        DateTime?
+  permitExpiry         DateTime?
   nationalPermitExpiry DateTime?
-  currentDriverId  String?         @unique
-  currentDriver    Driver?         @relation("CurrentVehicle", fields: [currentDriverId], references: [id])
-  isActive         Boolean         @default(true)
-  notes            String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  currentDriverId      String?         @unique
+  currentDriver        Driver?         @relation("CurrentVehicle", fields: [currentDriverId], references: [id])
+  isActive             Boolean         @default(true)
+  notes                String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 
   // REMOVED: transporterId and transporter relation
   // ADDED: vehicleSource for attached/rented/leased vehicles
   vehicleSourceId String?
-  vehicleSource   LedgerAccount? @relation("VehicleSource", fields: [vehicleSourceId], references: [id])
+  vehicleSource   LedgerAccount?   @relation("VehicleSource", fields: [vehicleSourceId], references: [id])
   loans           VehicleLoan[]
   trips           Trip[]
   expenses        VehicleExpense[]
+  // Removed index on transporterId
 
   @@unique([organizationId, vehicleNumber])
   @@index([organizationId])
-  // Removed index on transporterId
 }
 
 // ═════════════════════════════════════════════════
@@ -177,9 +178,9 @@ model Driver {
   phone            String?
   licenseNumber    String?
   licenseExpiry    DateTime?
-  aadhaarNumber    String?      // encrypted at rest
-  panNumber        String?      // encrypted at rest
-  bankAccount      String?      // encrypted at rest
+  aadhaarNumber    String? // encrypted at rest
+  panNumber        String? // encrypted at rest
+  bankAccount      String? // encrypted at rest
   bankIfsc         String?
   address          String?
   monthlySalary    Decimal      @default(0) @db.Decimal(12, 2)
@@ -189,11 +190,11 @@ model Driver {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
-  user             User?              // for DRIVER self-login
-  vehicle          Vehicle?           @relation("CurrentVehicle")
-  tripAssignments  TripDriver[]
-  expenses         TripExpense[]      @relation("DriverExpenses")
-  settlements      DriverSettlement[]
+  user            User? // for DRIVER self-login
+  vehicle         Vehicle?           @relation("CurrentVehicle")
+  tripAssignments TripDriver[]
+  expenses        TripExpense[]      @relation("DriverExpenses")
+  settlements     DriverSettlement[]
 
   @@index([organizationId])
 }
@@ -216,8 +217,8 @@ model Party {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  tripsConsignor Trip[]       @relation("Consignor")
-  tripsConsignee Trip[]       @relation("Consignee")
+  tripsConsignor Trip[] @relation("Consignor")
+  tripsConsignee Trip[] @relation("Consignee")
 
   @@index([organizationId])
 }
@@ -245,17 +246,17 @@ model Route {
 }
 
 model RateCard {
-  id             String      @id @default(cuid())
-  transporterId  String
-  transporter    Transporter @relation(fields: [transporterId], references: [id])
-  routeId        String
-  route          Route       @relation(fields: [routeId], references: [id])
-  ratePerTon     Decimal     @db.Decimal(12, 2)
-  validFrom      DateTime    @default(now())
-  validUntil     DateTime?
-  isActive       Boolean     @default(true)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id            String      @id @default(cuid())
+  transporterId String
+  transporter   Transporter @relation(fields: [transporterId], references: [id])
+  routeId       String
+  route         Route       @relation(fields: [routeId], references: [id])
+  ratePerTon    Decimal     @db.Decimal(12, 2)
+  validFrom     DateTime    @default(now())
+  validUntil    DateTime?
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@unique([transporterId, routeId])
 }
@@ -265,15 +266,15 @@ model RateCard {
 // ═════════════════════════════════════════════════
 
 enum LedgerAccountKind {
-  FINANCIER          // bank / financier a vehicle loan is owed to
-  VEHICLE_SUPPLIER   // external owner of an attached/rented/leased vehicle
-  VENDOR             // reserved for future (diesel pump, mechanic) — allowed but no UI/logic this sprint
-  PARTNER            // reserved for future (partnership vehicle co-owner)
+  FINANCIER // bank / financier a vehicle loan is owed to
+  VEHICLE_SUPPLIER // external owner of an attached/rented/leased vehicle
+  VENDOR // reserved for future (diesel pump, mechanic) — allowed but no UI/logic this sprint
+  PARTNER // reserved for future (partnership vehicle co-owner)
 }
 
 enum LedgerEntryType {
-  DEBIT   // increases what the fleet owner OWES this account (a charge: EMI due, hire charge due)
-  CREDIT  // decreases what is owed (a payment the fleet owner made to this account)
+  DEBIT // increases what the fleet owner OWES this account (a charge: EMI due, hire charge due)
+  CREDIT // decreases what is owed (a payment the fleet owner made to this account)
 }
 
 enum LoanStatus {
@@ -296,11 +297,11 @@ model LedgerAccount {
   updatedAt      DateTime          @updatedAt
 
   entries          LedgerEntry[]
-  vehicleLoans     VehicleLoan[]   @relation("LoanFinancier")
-  suppliedVehicles Vehicle[]       @relation("VehicleSource")
+  vehicleLoans     VehicleLoan[] @relation("LoanFinancier")
+  suppliedVehicles Vehicle[]     @relation("VehicleSource")
 
-  @@index([organizationId, kind])
   @@unique([organizationId, kind, name])
+  @@index([organizationId, kind])
 }
 
 // ═════════════════════════════════════════════════
@@ -317,7 +318,7 @@ model LedgerEntry {
   description    String?
   date           DateTime        @default(now())
   source         String          @default("MANUAL") // MANUAL | EMI_ACCRUAL | future values
-  relatedType    String?         // e.g. "VEHICLE_LOAN", "VEHICLE" — soft link, no FK
+  relatedType    String? // e.g. "VEHICLE_LOAN", "VEHICLE" — soft link, no FK
   relatedId      String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -339,7 +340,7 @@ model VehicleLoan {
   financierAccount   LedgerAccount @relation("LoanFinancier", fields: [financierAccountId], references: [id])
   principal          Decimal       @db.Decimal(12, 2)
   emiAmount          Decimal       @db.Decimal(12, 2)
-  emiDueDay          Int           // 1-31
+  emiDueDay          Int // 1-31
   tenureMonths       Int
   startDate          DateTime
   status             LoanStatus    @default(ACTIVE)
@@ -373,36 +374,36 @@ enum PaymentStatus {
 }
 
 model Trip {
-  id              String        @id @default(cuid())
-  organizationId  String
-  organization    Organization  @relation(fields: [organizationId], references: [id])
-  transporterId   String
-  transporter     Transporter   @relation(fields: [transporterId], references: [id])
-  vehicleId       String
-  vehicle         Vehicle       @relation(fields: [vehicleId], references: [id])
-  routeId         String?
-  route           Route?        @relation(fields: [routeId], references: [id])
-  consignorId     String?
-  consignor       Party?        @relation("Consignor", fields: [consignorId], references: [id])
-  consigneeId     String?
-  consignee       Party?        @relation("Consignee", fields: [consigneeId], references: [id])
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  transporterId  String
+  transporter    Transporter  @relation(fields: [transporterId], references: [id])
+  vehicleId      String
+  vehicle        Vehicle      @relation(fields: [vehicleId], references: [id])
+  routeId        String?
+  route          Route?       @relation(fields: [routeId], references: [id])
+  consignorId    String?
+  consignor      Party?       @relation("Consignor", fields: [consignorId], references: [id])
+  consigneeId    String?
+  consignee      Party?       @relation("Consignee", fields: [consigneeId], references: [id])
 
   // Trip details
-  tripDate        DateTime      @default(now())
+  tripDate        DateTime       @default(now())
   material        String?
-  weightTons       Decimal      @default(0) @db.Decimal(10, 3)
-  freightAmount    Decimal      @default(0) @db.Decimal(12, 2)
-  freightPerTon    Decimal?
-  advanceGiven    Decimal      @default(0) @db.Decimal(12, 2)
-  commissionType    CommissionType
-  commissionValue   Decimal      @db.Decimal(12, 2)
+  weightTons      Decimal        @default(0) @db.Decimal(10, 3)
+  freightAmount   Decimal        @default(0) @db.Decimal(12, 2)
+  freightPerTon   Decimal?
+  advanceGiven    Decimal        @default(0) @db.Decimal(12, 2)
+  commissionType  CommissionType
+  commissionValue Decimal        @db.Decimal(12, 2)
   notes           String?
-  internalRef     String?       // your handwritten bilty number
-  lrNumber        String?       // LR (Lorry Receipt) number
+  internalRef     String? // your handwritten bilty number
+  lrNumber        String? // LR (Lorry Receipt) number
 
   // Status
-  status          TripStatus    @default(DRAFT)
-  paymentStatus   PaymentStatus @default(UNPAID)
+  status        TripStatus    @default(DRAFT)
+  paymentStatus PaymentStatus @default(UNPAID)
 
   // Dates
   loadingDate     DateTime?
@@ -413,26 +414,31 @@ model Trip {
   settledDate     DateTime?
 
   // POD
-  podImageUrl     String?
-  podNotes        String?
+  podImageUrl String?
+  podNotes    String?
 
   // Audit
-  createdById     String
-  createdBy       User          @relation("TripCreator", fields: [createdById], references: [id])
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdById String
+  createdBy   User     @relation("TripCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  drivers         TripDriver[]
-  expenses        TripExpense[]
-  ledgerEntries   TransporterLedgerEntry[]
-  payments        Payment[]
+  drivers       TripDriver[]
+  expenses      TripExpense[]
+  ledgerEntries TransporterLedgerEntry[]
+  payments      Payment[]
+  // Multi-stop capability (Sprint 2B). Empty for legacy single-leg trips,
+  // which continue to use the transporterId/freightAmount/commission fields
+  // directly on the Trip above, exactly as before.
+  stops         TripStop[]
+  loads         TripLoad[]
 
+  @@unique([organizationId, internalRef])
   @@index([organizationId])
   @@index([transporterId])
   @@index([vehicleId])
   @@index([status])
   @@index([createdAt])
-  @@unique([organizationId, internalRef])
 }
 
 // ═════════════════════════════════════════════════
@@ -440,14 +446,14 @@ model Trip {
 // ═════════════════════════════════════════════════
 
 model TripDriver {
-  id        String   @id @default(cuid())
-  tripId    String
-  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  driverId  String
-  driver    Driver   @relation(fields: [driverId], references: [id])
-  role      String   @default("PRIMARY") // PRIMARY | RELIEF | CO_DRIVER
-  joinedAt  DateTime @default(now())
-  leftAt    DateTime?
+  id       String    @id @default(cuid())
+  tripId   String
+  trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  driverId String
+  driver   Driver    @relation(fields: [driverId], references: [id])
+  role     String    @default("PRIMARY") // PRIMARY | RELIEF | CO_DRIVER
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
 
   @@unique([tripId, driverId])
 }
@@ -472,7 +478,7 @@ model TripExpense {
   tripId         String
   trip           Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
   category       ExpenseCategory
-  amount         Decimal      @db.Decimal(12, 2)
+  amount         Decimal         @db.Decimal(12, 2)
   description    String?
   date           DateTime        @default(now())
   paidToDriverId String?
@@ -489,17 +495,17 @@ model TripExpense {
 // ═════════════════════════════════════════════════
 
 model TransporterLedgerEntry {
-  id                String    @id @default(cuid())
-  transporterId     String
-  transporter       Transporter @relation(fields: [transporterId], references: [id])
-  tripId            String
-  trip              Trip      @relation(fields: [tripId], references: [id])
-  freightCredited   Decimal    @default(0) @db.Decimal(12, 2)
-  commissionDeducted Decimal   @default(0) @db.Decimal(12, 2)
-  netReceivable     Decimal    @default(0) @db.Decimal(12, 2)  // freight - commission
-  outstandingBefore Decimal   @default(0) @db.Decimal(12, 2)
-  outstandingAfter  Decimal   @default(0) @db.Decimal(12, 2)
-  createdAt         DateTime  @default(now())
+  id                 String      @id @default(cuid())
+  transporterId      String
+  transporter        Transporter @relation(fields: [transporterId], references: [id])
+  tripId             String
+  trip               Trip        @relation(fields: [tripId], references: [id])
+  freightCredited    Decimal     @default(0) @db.Decimal(12, 2)
+  commissionDeducted Decimal     @default(0) @db.Decimal(12, 2)
+  netReceivable      Decimal     @default(0) @db.Decimal(12, 2) // freight - commission
+  outstandingBefore  Decimal     @default(0) @db.Decimal(12, 2)
+  outstandingAfter   Decimal     @default(0) @db.Decimal(12, 2)
+  createdAt          DateTime    @default(now())
 
   @@index([transporterId])
   @@index([tripId])
@@ -525,26 +531,85 @@ enum PaymentType {
 }
 
 model Payment {
-  id                String      @id @default(cuid())
-  transporterId     String
-  transporter       Transporter @relation(fields: [transporterId], references: [id])
-  tripId            String?
-  trip              Trip?       @relation(fields: [tripId], references: [id])
-  amount            Decimal      @db.Decimal(12, 2)
-  paymentType       PaymentType @default(OTHER)
-  mode              PaymentMode
-  referenceNumber   String?     // cheque number, UTR, UPI ref
-  bankAccount       String?     // which of your accounts it landed in
-  notes             String?
-  paymentDate       DateTime    @default(now())
-  createdById       String
-  createdBy         User        @relation("PaymentCreator", fields: [createdById], references: [id])
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id              String      @id @default(cuid())
+  transporterId   String
+  transporter     Transporter @relation(fields: [transporterId], references: [id])
+  tripId          String?
+  trip            Trip?       @relation(fields: [tripId], references: [id])
+  // Multi-stop billing (Sprint 2B). When a payment settles a specific leg of
+  // a multi-stop trip, loadId points at that TripLoad. Null for every legacy
+  // single-leg payment, where tripId alone means what it always has.
+  loadId          String?
+  load            TripLoad?   @relation(fields: [loadId], references: [id])
+  amount          Decimal     @db.Decimal(12, 2)
+  // 1% TDS withheld on non-cash payments. Recorded for the client's tax
+  // filing only — it is NOT subtracted from `amount` and does NOT affect
+  // outstanding/receivable math, which continues to use the gross `amount`.
+  tdsAmount       Decimal     @default(0) @db.Decimal(12, 2)
+  paymentType     PaymentType @default(OTHER)
+  mode            PaymentMode
+  referenceNumber String? // cheque number, UTR, UPI ref
+  bankAccount     String? // which of your accounts it landed in
+  notes           String?
+  paymentDate     DateTime    @default(now())
+  createdById     String
+  createdBy       User        @relation("PaymentCreator", fields: [createdById], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   @@index([transporterId])
   @@index([tripId])
+  @@index([loadId])
   @@index([paymentDate])
+}
+
+// ═════════════════════════════════════════════════
+// MULTI-STOP TRIPS (Sprint 2B) — additive, opt-in
+// ═════════════════════════════════════════════════
+// A single physical journey (one truck, one round) can pick up and drop at
+// several places, and different pickup→drop legs can belong to different
+// transporters. Legacy single-leg trips have no stops/loads and keep billing
+// off the fields directly on Trip. A trip is "multi-stop" purely by having
+// TripLoad rows — there is no flag column.
+
+model TripStop {
+  id          String    @id @default(cuid())
+  tripId      String
+  trip        Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  sequence    Int // 0-based order along the journey
+  location    String // free text, same convention as Route.origin/destination
+  arrivalDate DateTime?
+  createdAt   DateTime  @default(now())
+
+  loadsOriginating TripLoad[] @relation("LoadOrigin")
+  loadsDestined    TripLoad[] @relation("LoadDestination")
+
+  @@index([tripId, sequence])
+}
+
+model TripLoad {
+  id                String         @id @default(cuid())
+  tripId            String
+  trip              Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  originStopId      String
+  originStop        TripStop       @relation("LoadOrigin", fields: [originStopId], references: [id])
+  destinationStopId String
+  destinationStop   TripStop       @relation("LoadDestination", fields: [destinationStopId], references: [id])
+  transporterId     String
+  transporter       Transporter    @relation(fields: [transporterId], references: [id])
+  weightTons        Decimal        @default(0) @db.Decimal(10, 3)
+  freightAmount     Decimal        @default(0) @db.Decimal(12, 2)
+  freightPerTon     Decimal?
+  commissionType    CommissionType
+  commissionValue   Decimal        @db.Decimal(12, 2)
+  notes             String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  payments Payment[]
+
+  @@index([tripId])
+  @@index([transporterId])
 }
 
 // ═════════════════════════════════════════════════
@@ -568,7 +633,7 @@ model DriverSettlement {
   driver      Driver         @relation(fields: [driverId], references: [id])
   tripId      String?
   type        SettlementType
-  amount      Decimal      @db.Decimal(12, 2)
+  amount      Decimal        @db.Decimal(12, 2)
   description String?
   date        DateTime       @default(now())
   createdAt   DateTime       @default(now())
@@ -593,16 +658,16 @@ enum VehicleExpenseCategory {
 }
 
 model VehicleExpense {
-  id          String                @id @default(cuid())
+  id          String                 @id @default(cuid())
   vehicleId   String
-  vehicle     Vehicle               @relation(fields: [vehicleId], references: [id])
+  vehicle     Vehicle                @relation(fields: [vehicleId], references: [id])
   category    VehicleExpenseCategory
-  amount      Decimal      @db.Decimal(12, 2)
+  amount      Decimal                @db.Decimal(12, 2)
   description String?
-  date        DateTime              @default(now())
+  date        DateTime               @default(now())
   receiptUrl  String?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
 
   @@index([vehicleId])
 }
@@ -634,21 +699,21 @@ enum DocumentEntityType {
 }
 
 model Document {
-  id               String             @id @default(cuid())
-  organizationId   String
-  organization     Organization       @relation(fields: [organizationId], references: [id])
-  type             DocumentType
-  entityType       DocumentEntityType
-  entityId         String             // polymorphic FK
-  title            String
-  fileUrl          String?
-  expiryDate       DateTime?
-  reminderSent     Boolean            @default(false)
-  notes            String?
-  createdById      String
-  createdBy        User               @relation("DocumentCreator", fields: [createdById], references: [id])
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  id             String             @id @default(cuid())
+  organizationId String
+  organization   Organization       @relation(fields: [organizationId], references: [id])
+  type           DocumentType
+  entityType     DocumentEntityType
+  entityId       String // polymorphic FK
+  title          String
+  fileUrl        String?
+  expiryDate     DateTime?
+  reminderSent   Boolean            @default(false)
+  notes          String?
+  createdById    String
+  createdBy      User               @relation("DocumentCreator", fields: [createdById], references: [id])
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   @@index([organizationId])
   @@index([entityType, entityId])

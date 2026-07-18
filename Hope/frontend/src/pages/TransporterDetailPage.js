@@ -2,6 +2,7 @@
  * Transporter Detail Page
  */
 import { createRecordCard, createEmptyState } from '../components/CardComponents.js';
+import { createTransactionForm } from '../components/TransactionForm.js';
 import { createPageHeader } from '../components/Layout.js';
 import { currency, formatDate, formatStatus, getStatusChipClass, escapeHtml } from '../utils/helpers.js';
 import * as api from '../services/api.js';
@@ -52,45 +53,24 @@ async function renderTransporterDetail(id) {
     ? payments.map(p => createRecordCard({
         title: currency(p.amount),
         subtitle: escapeHtml(formatDate(p.paymentDate)),
-        meta: [escapeHtml(formatStatus(p.mode || 'CASH')), escapeHtml(formatStatus(p.paymentType || '')), escapeHtml(p.referenceNumber || ''), escapeHtml(p.notes || '')].filter(Boolean),
+        meta: [
+          escapeHtml(formatStatus(p.mode || 'CASH')),
+          escapeHtml(formatStatus(p.paymentType || '')),
+          p.tdsAmount > 0 ? `TDS ${currency(p.tdsAmount)}` : '',
+          escapeHtml(p.referenceNumber || ''),
+          escapeHtml(p.notes || '')
+        ].filter(Boolean),
         actions: ''
       })).join('')
     : createEmptyState('No payments recorded.');
 
-  // Posts to /payments (see createEntity 'transporter-payment' in main.js) —
-  // the exact same Payment record type as the trip-detail payment form, just
-  // not pre-scoped to one trip. Recording here leaves tripId empty (a general
-  // advance/payment); record from a specific trip's detail page to link it.
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  const nowLocal = now.toISOString().slice(0, 16);
-
-  const paymentForm = `
-    <form data-form="transporter-payment" class="form-grid white" style="margin-top: 16px;">
-      <input name="transporterId" type="hidden" value="${escapeHtml(id)}" />
-      <input name="amount" type="number" step="1" min="1" placeholder="Amount (₹)" required />
-      <select name="paymentType" required>
-        <option value="">Payment type…</option>
-        <option value="ADVANCE">Advance</option>
-        <option value="DIESEL_ADVANCE">Diesel Advance</option>
-        <option value="PART_PAYMENT">Part Payment</option>
-        <option value="FULL_SETTLEMENT">Full Settlement</option>
-        <option value="OTHER">Other</option>
-      </select>
-      <select name="mode" required>
-        <option value="">Payment mode…</option>
-        <option value="CASH">Cash</option>
-        <option value="BANK_TRANSFER">Bank Transfer</option>
-        <option value="UPI">UPI</option>
-        <option value="CHEQUE">Cheque</option>
-      </select>
-      <input name="paymentDate" type="datetime-local" value="${nowLocal}" required />
-      <input name="referenceNumber" placeholder="Reference / UTR" maxlength="60" />
-      <input name="notes" placeholder="Notes" maxlength="200" />
-      <button type="submit">Record payment</button>
-      <p class="page-copy" style="grid-column: 1 / -1; margin: 0;">Not linked to a specific trip. To record a payment against one trip, use "Record payment" on that trip's detail page instead.</p>
-    </form>
-  `;
+  // Posts to /payments — the same Payment record the trip-detail form writes,
+  // just not pre-scoped to one trip. Recording here leaves tripId empty (a
+  // general advance/payment); record from a trip's detail page to link it.
+  const paymentForm = createTransactionForm({
+    context: 'transporter',
+    transporterId: id
+  });
 
   const content = `
     ${createPageHeader({
@@ -106,7 +86,8 @@ async function renderTransporterDetail(id) {
 
     <section class="panel-grid white two-col">
       <article class="panel white form-panel">
-        <h3>Record payment</h3>
+        <h3>Record entry</h3>
+        <p class="text-muted panel-sub">Not linked to a specific trip. To record against one trip, use that trip's detail page.</p>
         ${paymentForm}
       </article>
       <article class="panel white">

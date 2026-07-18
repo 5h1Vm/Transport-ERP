@@ -88,6 +88,14 @@
   --color-text-secondary: #4a4a4a;
   --color-text-muted: #787878;
   --color-text-inverse: #ffffff;
+  /*
+   * Alias. `var(--color-muted)` is referenced across dropdowns, modals,
+   * tables, layout, reset and the .text-muted utility, but was never
+   * defined — so every one of those declarations was invalid and silently
+   * fell back to the inherited colour, rendering muted text at full
+   * contrast. Defined here so those usages resolve as designed.
+   */
+  --color-muted: var(--color-text-muted);
 
   /*
    * SUCCESS - Soft green

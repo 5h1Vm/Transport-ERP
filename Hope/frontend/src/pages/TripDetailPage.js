@@ -4,9 +4,11 @@
 import { createPageHeader } from '../components/Layout.js';
 import {
   createRecordCard, createEmptyState, createHeroStat, createKeyValueTable,
-  createPaymentForm, createPaymentHistory, createTripExpenses, createExpenseForm,
+  createPaymentHistory, createTripExpenses,
   createStatusActions, createStatusStepper, createPodForm, createPodMeta
 } from '../components/CardComponents.js';
+import { createTransactionForm } from '../components/TransactionForm.js';
+import { createMultiStopPanel, isMultiStopTrip } from '../components/MultiStopPanel.js';
 import { currency, formatDate, formatStatus, getStatusChipClass, escapeHtml } from '../utils/helpers.js';
 import * as api from '../services/api.js';
 
@@ -19,9 +21,18 @@ export async function renderTripDetail(id) {
   }
   if (!trip) return createEmptyState('Trip not found.');
 
+  const multiStop = isMultiStopTrip(trip);
   const summary = trip.financialSummary || {};
-  const totalPaid = summary.tripPaymentTotal || 0;
-  const outstanding = summary.outstanding || 0;
+  // For a multi-stop trip the trip-level summary is 0 (freight lives on the
+  // loads); aggregate the per-load figures instead so the hero row is truthful.
+  const loadAgg = (trip.loadSummaries || []).reduce((a, s) => ({
+    freight: a.freight + (s.freight || 0),
+    net: a.net + (s.netReceivable || 0),
+    paid: a.paid + (s.paid || 0),
+    outstanding: a.outstanding + (s.outstanding || 0)
+  }), { freight: 0, net: 0, paid: 0, outstanding: 0 });
+  const totalPaid = multiStop ? loadAgg.paid : (summary.tripPaymentTotal || 0);
+  const outstanding = multiStop ? loadAgg.outstanding : (summary.outstanding || 0);
   const isTerminal = trip.status === 'CANCELLED' || trip.status === 'SETTLED';
 
   // Outstanding is computed from (freight - transporter's commission), never
@@ -29,7 +40,14 @@ export async function renderTripDetail(id) {
   // gap between "Freight" and "Outstanding" is never a mystery.
   const commission = (trip.ledgerEntries || [])[0]?.commissionDeducted || 0;
 
-  const heroStats = `
+  const heroStats = multiStop ? `
+    <div class="hero-stats">
+      ${createHeroStat({ label: 'Freight', value: currency(loadAgg.freight), helper: `${trip.loads.length} loads` })}
+      ${createHeroStat({ label: 'Net receivable', value: currency(loadAgg.net), helper: 'After commission' })}
+      ${createHeroStat({ label: 'Paid', value: currency(totalPaid), helper: 'Received', className: 'success' })}
+      ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: 'Across all loads', className: `hero-stat-dominant ${outstanding > 0 ? 'warning' : 'success'}` })}
+    </div>
+  ` : `
     <div class="hero-stats">
       ${trip.freightPerTon && trip.weightTons
         ? createHeroStat({
@@ -83,7 +101,7 @@ export async function renderTripDetail(id) {
     </section>
   `;
 
-  const expensesHtml = createTripExpenses(trip.expenses || []) || createEmptyState('No expenses recorded yet.', '<span class="text-muted">Use the form to log fuel, toll, or other trip costs.</span>');
+  const expensesHtml = createTripExpenses(trip.expenses || []) || createEmptyState('No expenses recorded yet.', '<span class="text-muted">Record a "money gave" entry above to log fuel, toll, or other trip costs.</span>');
 
   const content = `
     ${createPageHeader({
@@ -93,33 +111,30 @@ export async function renderTripDetail(id) {
     })}
     ${heroStats}
     ${tripInfo}
+    ${multiStop ? createMultiStopPanel(trip, isTerminal) : `
     ${!isTerminal ? `
-    <section class="panel-grid white two-col">
-      <article class="panel white panel-accent-payment">
-        <h3>Record payment <span class="text-muted" style="font-weight:400;">— money in</span></h3>
-        ${createPaymentForm(trip.id, trip.transporterId, false)}
-      </article>
-      <article class="panel white">
-        <h3>Payment history (${(trip.payments || []).length})</h3>
-        ${createPaymentHistory(trip.payments || []) || createEmptyState('No payments recorded yet.', '<span class="text-muted">Use the form to record an advance or part payment.</span>')}
-      </article>
-    </section>` : (trip.payments || []).length ? `
-    <section class="panel-grid white two-col">
-      <article class="panel white">
-        <h3>Payment history (${(trip.payments || []).length})</h3>
-        ${createPaymentHistory(trip.payments || [])}
+    <section class="panel-grid white">
+      <article class="panel white full-width">
+        <h3>Record entry</h3>
+        <p class="text-muted panel-sub">Money that left or arrived against this trip.</p>
+        ${createTransactionForm({
+          context: 'trip',
+          tripId: trip.id,
+          transporterId: trip.transporterId,
+          drivers: trip.drivers || []
+        })}
       </article>
     </section>` : ''}
     <section class="panel-grid white two-col">
-      <article class="panel white panel-accent-expense">
-        <h3>Record expense <span class="text-muted" style="font-weight:400;">— money out</span></h3>
-        ${createExpenseForm(trip.id, trip.drivers || [])}
+      <article class="panel white">
+        <h3>Payment history (${(trip.payments || []).length})</h3>
+        ${createPaymentHistory(trip.payments || []) || createEmptyState('No payments recorded yet.', '<span class="text-muted">Record a "money got" entry above when the transporter pays.</span>')}
       </article>
       <article class="panel white">
         <h3>Expenses (${(trip.expenses || []).length})</h3>
         ${expensesHtml}
       </article>
-    </section>
+    </section>`}
     ${createPodForm(trip.id, trip.status, trip.podReceivedDate) ? `
     <section class="panel-grid white">
       <article class="panel white full-width">

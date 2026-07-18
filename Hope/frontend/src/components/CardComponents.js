@@ -200,6 +200,7 @@ export function createPaymentHistory(payments = []) {
           <span>${escapeHtml(p.paymentType ? formatStatus(p.paymentType) : 'Other')}</span>
           <span class="chip chip-sm chip-${getModeClass(p.mode)}">${escapeHtml(p.mode ? formatStatus(p.mode) : '—')}</span>
           <strong>${currency(p.amount)}</strong>
+          ${p.tdsAmount > 0 ? `<span class="payment-tds" title="TDS withheld — recorded for filing, not deducted from the amount above">TDS ${currency(p.tdsAmount)}</span>` : ''}
           ${p.notes ? ' - ' + escapeHtml(p.notes) : ''}
         </div>
       `).join('')}
@@ -225,37 +226,6 @@ export function createTripExpenses(expenses = [], showDriver = true) {
         </div>
       `).join('')}
     </div>
-  `;
-}
-
-/**
- * Create trip expense entry form (FUEL/TOLL/FOOD/etc — DAILY_EXPENSE is
- * server-generated only, on marking a trip DELIVERED, so it's excluded here).
- */
-export function createExpenseForm(tripId, drivers = []) {
-  const driverOptions = drivers.map((td) => {
-    const name = td.driver?.name ?? '';
-    return `<option value="${td.driver?.id ?? ''}">${escapeHtml(name)}</option>`;
-  }).join('');
-
-  return `
-    <form data-form="trip-expense" class="form-grid white" style="margin-top: 12px;">
-      <input name="tripId" value="${tripId}" type="hidden" />
-      <select name="category" required>
-        <option value="">Select category</option>
-        <option value="FUEL">Fuel</option>
-        <option value="TOLL">Toll</option>
-        <option value="FOOD">Food</option>
-        <option value="LOADING_UNLOADING">Loading / Unloading</option>
-        <option value="REPAIR_EN_ROUTE">Repair (en route)</option>
-        <option value="EMERGENCY">Emergency</option>
-        <option value="OTHER">Other</option>
-      </select>
-      <input name="amount" type="number" step="1" min="1" placeholder="Amount (₹)" required />
-      <input name="description" placeholder="Notes" maxlength="200" />
-      ${driverOptions ? `<select name="paidToDriverId"><option value="">Not paid to a driver</option>${driverOptions}</select>` : ''}
-      <button type="submit">Add expense</button>
-    </form>
   `;
 }
 
@@ -361,106 +331,3 @@ export function createPodMeta(trip) {
   return `<div class="record-meta">${parts.join('')}</div>`;
 }
 
-/**
- * Create payment form
- */
-export function createPaymentForm(tripId, transporterId, isCancelledOrSettled = false) {
-  if (isCancelledOrSettled) return '';
-
-  // Prefill "now" so the field is never left blank by omission. Use local
-  // time formatting, NOT UTC: toISOString() with tz offset correction was
-  // wrong for datetime-local inputs (which expect local time).
-  const __now = new Date();
-  const nowLocal = `${__now.getFullYear()}-${String(__now.getMonth() + 1).padStart(2, '0')}-${String(__now.getDate()).padStart(2, '0')}T${String(__now.getHours()).padStart(2, '0')}:${String(__now.getMinutes()).padStart(2, '0')}`;
-
-  return `
-    <form data-form="trip-payment" class="form-grid white" style="margin-top: 12px;">
-      <select name="paymentType" required>
-        <option value="">Select Payment Type</option>
-        <option value="ADVANCE">Advance</option>
-        <option value="DIESEL_ADVANCE">Diesel Advance</option>
-        <option value="PART_PAYMENT">Part Payment</option>
-        <option value="FULL_SETTLEMENT">Full Settlement</option>
-        <option value="OTHER">Other</option>
-      </select>
-      <select name="mode" required>
-        <option value="">Select Mode</option>
-        <option value="CASH">Cash</option>
-        <option value="BANK_TRANSFER">Bank Transfer</option>
-        <option value="UPI">UPI</option>
-        <option value="CHEQUE">Cheque</option>
-      </select>
-      <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount (₹)" required />
-      <input name="paymentDate" type="datetime-local" value="${nowLocal}" required />
-      <input name="referenceNumber" placeholder="Reference (UTR/Cheque #)" maxlength="60" />
-      <input name="notes" placeholder="Notes" maxlength="200" />
-      <input name="tripId" value="${tripId}" type="hidden" />
-      <input name="transporterId" value="${transporterId}" type="hidden" />
-      <button type="submit">Record Payment</button>
-    </form>
-  `;
-}
-
-/**
- * Create transporter payment form
- */
-export function createTransporterPaymentForm(transporterId) {
-  return `
-    <form data-form="transporter-payment" class="form-grid white">
-      <h3>Record Payment to Transporter</h3>
-      <input type="hidden" name="transporterId" value="${transporterId}" />
-      <select name="paymentType" required>
-        <option value="ADVANCE">Advance</option>
-        <option value="DIESEL_ADVANCE">Diesel Advance</option>
-        <option value="PART_PAYMENT">Part Payment</option>
-        <option value="FULL_SETTLEMENT">Full Settlement</option>
-        <option value="OTHER">Other</option>
-      </select>
-      <select name="mode" required>
-        <option value="">Select Mode</option>
-        <option value="CASH">Cash</option>
-        <option value="BANK_TRANSFER">Bank Transfer</option>
-        <option value="UPI">UPI</option>
-        <option value="CHEQUE">Cheque</option>
-      </select>
-      <input name="amount" type="number" step="0.01" placeholder="Amount" required />
-      <input name="referenceNumber" placeholder="Reference number (UTR, Cheque #, etc.)" />
-      <input name="notes" placeholder="Notes" />
-      <button type="submit">Record Payment</button>
-    </form>
-  `;
-}
-
-/**
- * Create driver settlement form
- */
-export function createDriverSettlementForm(drivers = [], trips = []) {
-  const driverOptions = drivers.map(d => {
-    const name = d.name ?? '';
-    return `<option value="${d.id}">${escapeHtml(name)}</option>`;
-  }).join('');
-  const tripOptions = trips.map(t => {
-    const ref = t.internalRef ?? t.id.slice(0, 8);
-    return `<option value="${t.id}">${escapeHtml(ref)}</option>`;
-  }).join('');
-
-  return `
-    <form data-form="driver-settlement" class="form-grid white trip-grid">
-      <h3>Record Settlement</h3>
-      <select name="driverId" required><option value="">Select driver</option>${driverOptions}</select>
-      <select name="type">
-        <option value="SALARY">Salary</option>
-        <option value="INCENTIVE">Incentive</option>
-        <option value="ADVANCE">Advance</option>
-        <option value="DEDUCTION">Deduction</option>
-        <option value="PENALTY">Penalty</option>
-        <option value="CASH_COLLECTED">Cash collected</option>
-        <option value="ALLOWANCE">Allowance</option>
-      </select>
-      <input name="amount" type="number" step="0.01" placeholder="Amount" required />
-      <input name="description" placeholder="Description" />
-      <select name="tripId"><option value="">Optional trip</option>${tripOptions}</select>
-      <button type="submit">Save entry</button>
-    </form>
-  `;
-}

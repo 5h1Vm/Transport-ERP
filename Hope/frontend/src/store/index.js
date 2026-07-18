@@ -54,15 +54,6 @@ export const state = reactive({
       dateTo: '',
       internalRef: ''
     }
-  },
-
-  // Driver settlement form data
-  driverSettlementFormData: {
-    driverId: '',
-    type: 'SALARY',
-    amount: '',
-    tripId: '',
-    description: ''
   }
 });
 
@@ -162,21 +153,6 @@ export const actions = {
       drivers: '',
       routes: '',
       trips: { transporter: '', status: '', dateFrom: '', dateTo: '', internalRef: '' }
-    };
-  },
-
-  // Driver settlement form
-  updateDriverSettlementForm(field, value) {
-    state.driverSettlementFormData[field] = value;
-  },
-
-  resetDriverSettlementForm() {
-    state.driverSettlementFormData = {
-      driverId: '',
-      type: 'SALARY',
-      amount: '',
-      tripId: '',
-      description: ''
     };
   }
 };

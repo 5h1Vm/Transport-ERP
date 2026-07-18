@@ -6,14 +6,40 @@ const { calculateTripPaymentSummary } = require('../services/calculations');
 const paymentSchema = z.object({
   transporterId: z.string().cuid(),
   tripId: z.string().cuid().optional().or(z.literal('')),
+  // Sprint 2B (multi-stop): when settling a specific leg of a multi-stop trip,
+  // the payment carries loadId (and the load's transporterId) and NO tripId —
+  // that way it reduces the right transporter's receivable via the bulk calc,
+  // and deliberately skips the trip-level overpayment guard (which is keyed on
+  // Trip.freightAmount and is meaningless for a multi-stop trip whose freight
+  // lives on its loads). Legacy single-leg payments leave loadId unset.
+  loadId: z.string().cuid().optional().or(z.literal('')),
   amount: z.coerce.number().positive(),
   mode: z.enum(['CASH', 'BANK_TRANSFER', 'UPI', 'CHEQUE']),
   paymentType: z.enum(['ADVANCE', 'DIESEL_ADVANCE', 'PART_PAYMENT', 'FULL_SETTLEMENT', 'OTHER']).default('OTHER'),
   referenceNumber: z.string().optional(),
   bankAccount: z.string().optional(),
   notes: z.string().optional(),
-  paymentDate: z.string().datetime().optional()
+  paymentDate: z.string().datetime().optional(),
+  // Optional manual override. When omitted, TDS is derived from mode+amount.
+  tdsAmount: z.coerce.number().min(0).optional()
 });
+
+const TDS_RATE = 0.01;
+
+/**
+ * TDS is withheld only on non-cash (online/banked) payments, at 1% of the
+ * gross amount. An explicit `tdsAmount` in the request always wins, so the
+ * user can correct the figure when reality differs from the default rate.
+ *
+ * This is a record-keeping figure for tax filing. It is deliberately NOT
+ * subtracted from the payment amount anywhere — the transporter's
+ * outstanding still moves by the full gross `amount`.
+ */
+function resolveTdsAmount(payload) {
+  if (payload.tdsAmount !== undefined) return payload.tdsAmount;
+  if (payload.mode === 'CASH') return 0;
+  return Math.round(payload.amount * TDS_RATE * 100) / 100;
+}
 
 module.exports = function paymentRoutes(ctx) {
   const { prisma, getOrganization, getSystemUser } = ctx;
@@ -84,7 +110,9 @@ module.exports = function paymentRoutes(ctx) {
         data: {
           transporterId: payload.transporterId,
           tripId: payload.tripId || null,
+          loadId: payload.loadId || null,
           amount: payload.amount,
+          tdsAmount: resolveTdsAmount(payload),
           paymentType: payload.paymentType,
           mode: payload.mode,
           referenceNumber: payload.referenceNumber,

@@ -77,6 +77,12 @@ const prisma = prismaBase.$extends({
         compute({ amount }) {
           return decimalToNumber(amount);
         }
+      },
+      tdsAmount: {
+        needs: { tdsAmount: true },
+        compute({ tdsAmount }) {
+          return decimalToNumber(tdsAmount);
+        }
       }
     },
 
@@ -178,6 +184,35 @@ const prisma = prismaBase.$extends({
         needs: { amount: true },
         compute({ amount }) {
           return decimalToNumber(amount);
+        }
+      }
+    },
+
+    // Sprint 2B — multi-stop load billing fields, same Decimal→number
+    // treatment as Trip's own money/weight fields above.
+    tripLoad: {
+      weightTons: {
+        needs: { weightTons: true },
+        compute({ weightTons }) {
+          return decimalToNumber(weightTons);
+        }
+      },
+      freightAmount: {
+        needs: { freightAmount: true },
+        compute({ freightAmount }) {
+          return decimalToNumber(freightAmount);
+        }
+      },
+      freightPerTon: {
+        needs: { freightPerTon: true },
+        compute({ freightPerTon }) {
+          return freightPerTon === null ? null : decimalToNumber(freightPerTon);
+        }
+      },
+      commissionValue: {
+        needs: { commissionValue: true },
+        compute({ commissionValue }) {
+          return decimalToNumber(commissionValue);
         }
       }
     },

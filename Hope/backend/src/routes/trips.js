@@ -21,8 +21,74 @@ const FULL_TRIP_INCLUDE = {
   drivers: { include: { driver: true } },
   expenses: { orderBy: { createdAt: 'desc' } },
   payments: { orderBy: { createdAt: 'desc' } },
-  ledgerEntries: { orderBy: { createdAt: 'desc' } }
+  ledgerEntries: { orderBy: { createdAt: 'desc' } },
+  // Sprint 2B: empty for legacy single-leg trips, so the response shape is
+  // unchanged for them (two empty arrays); populated only for multi-stop trips.
+  stops: { orderBy: { sequence: 'asc' } },
+  loads: {
+    orderBy: { createdAt: 'asc' },
+    include: {
+      transporter: true,
+      originStop: true,
+      destinationStop: true,
+      payments: { orderBy: { createdAt: 'desc' } }
+    }
+  }
 };
+
+/**
+ * Sprint 2B: per-load billing for a multi-stop trip. Returns [] for legacy
+ * single-leg trips (no loads), so callers can attach it unconditionally.
+ * Each load's outstanding = (freight − commission) − payments linked to it.
+ * @param {Object} trip - a trip loaded with FULL_TRIP_INCLUDE
+ * @returns {Array<Object>}
+ */
+function computeLoadSummaries(trip) {
+  if (!trip || !Array.isArray(trip.loads) || trip.loads.length === 0) return [];
+  return trip.loads.map(load => {
+    const freight = money(load.freightAmount);
+    const commission = money(
+      calculateCommission(load.commissionType, load.commissionValue, load.freightAmount, load.weightTons)
+    );
+    const netReceivable = sub(freight, commission);
+    const paid = (load.payments || []).reduce((acc, p) => add(acc, money(p.amount)), money(0));
+    const outstanding = sub(netReceivable, paid);
+    return {
+      loadId: load.id,
+      transporterId: load.transporterId,
+      transporterName: load.transporter ? load.transporter.firmName : null,
+      originStop: load.originStop ? load.originStop.location : null,
+      destinationStop: load.destinationStop ? load.destinationStop.location : null,
+      weightTons: Number(load.weightTons),
+      freight: toRupees(freight),
+      commission: toRupees(commission),
+      netReceivable: toRupees(netReceivable),
+      paid: toRupees(paid),
+      outstanding: toRupees(outstanding)
+    };
+  });
+}
+
+// Sprint 2B (multi-stop): optional stops + per-transporter loads. Loads point
+// at stops by array index (the client doesn't yet know the generated stop ids).
+// When `loads` is present and non-empty the trip is multi-stop; otherwise the
+// trip is a plain single-leg trip and these fields are simply absent.
+const tripStopInputSchema = z.object({
+  location: z.string().min(1),
+  arrivalDate: z.string().datetime().optional().or(z.literal(''))
+});
+
+const tripLoadInputSchema = z.object({
+  originIndex: z.coerce.number().int().min(0),
+  destinationIndex: z.coerce.number().int().min(0),
+  transporterId: z.string().cuid(),
+  weightTons: z.coerce.number().default(0),
+  freightAmount: z.coerce.number().default(0),
+  freightPerTon: z.coerce.number().optional(),
+  commissionType: z.nativeEnum(CommissionType),
+  commissionValue: z.coerce.number().default(0),
+  notes: z.string().optional()
+});
 
 const tripCreateSchema = z.object({
   transporterId: z.string().cuid(),
@@ -41,7 +107,9 @@ const tripCreateSchema = z.object({
   deliveryDate: z.string().datetime().optional(),
   internalRef: z.string().optional(),
   lrNumber: z.string().optional(),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  stops: z.array(tripStopInputSchema).optional(),
+  loads: z.array(tripLoadInputSchema).optional()
 });
 
 const tripUpdateSchema = z.object({
@@ -271,7 +339,8 @@ module.exports = function tripRoutes(ctx) {
 
     res.json({
       ...trip,
-      financialSummary: computeTripPaymentSummary(trip)
+      financialSummary: computeTripPaymentSummary(trip),
+      loadSummaries: computeLoadSummaries(trip)
     });
   }));
 
@@ -361,6 +430,29 @@ module.exports = function tripRoutes(ctx) {
       if (existing) return res.status(400).json({ message: `LR number '${payload.lrNumber}' is already used by trip ${existing.internalRef || existing.id}` });
     }
 
+    // Sprint 2B: a trip is multi-stop when it carries loads. Validate the
+    // stop/load graph up front so we never create a half-formed trip.
+    const isMultiStop = Array.isArray(payload.loads) && payload.loads.length > 0;
+    const stopsInput = payload.stops || [];
+    if (isMultiStop) {
+      if (stopsInput.length < 2) {
+        return res.status(400).json({ message: 'A multi-stop trip needs at least 2 stops.' });
+      }
+      for (const load of payload.loads) {
+        if (load.originIndex >= stopsInput.length || load.destinationIndex >= stopsInput.length) {
+          return res.status(400).json({ message: 'A load references a stop that does not exist.' });
+        }
+        if (load.originIndex === load.destinationIndex) {
+          return res.status(400).json({ message: "A load's origin and destination stops must be different." });
+        }
+      }
+      const loadTransporterIds = [...new Set(payload.loads.map(l => l.transporterId))];
+      const found = await prisma.transporter.findMany({ where: { id: { in: loadTransporterIds } }, select: { id: true } });
+      if (found.length !== loadTransporterIds.length) {
+        return res.status(400).json({ message: 'A load references an invalid transporter.' });
+      }
+    }
+
     const freightAmount = calculateFreightAmount(payload);
     const transportCommission = calculateCommission(payload.commissionType, payload.commissionValue, freightAmount, payload.weightTons);
     const freightNet = freightAmount - transportCommission;
@@ -395,35 +487,64 @@ module.exports = function tripRoutes(ctx) {
       await syncTripDrivers(prisma, trip.id, payload.driverIds, payload.driverRoles);
     }
 
-    await prisma.transporterLedgerEntry.create({
-      data: {
-        transporterId: transporter.id,
-        tripId: trip.id,
-        freightCredited: freightAmount,
-        commissionDeducted: transportCommission,
-        netReceivable: freightNet,
-        outstandingBefore: latestOutstanding,
-        outstandingAfter: latestOutstanding + freightNet
+    if (isMultiStop) {
+      // Multi-stop trips bill through their loads, not a single
+      // TransporterLedgerEntry — deliberately skip the legacy ledger row so
+      // the trip's nominal top-level transporterId adds nothing to anyone's
+      // receivable. Receivable comes entirely from the TripLoads below.
+      const stopIds = [];
+      for (let i = 0; i < stopsInput.length; i++) {
+        const s = stopsInput[i];
+        const created = await prisma.tripStop.create({
+          data: {
+            tripId: trip.id,
+            sequence: i,
+            location: s.location,
+            arrivalDate: s.arrivalDate ? new Date(s.arrivalDate) : null
+          }
+        });
+        stopIds.push(created.id);
       }
-    });
+      for (const load of payload.loads) {
+        const loadFreight = calculateFreightAmount(load);
+        await prisma.tripLoad.create({
+          data: {
+            tripId: trip.id,
+            originStopId: stopIds[load.originIndex],
+            destinationStopId: stopIds[load.destinationIndex],
+            transporterId: load.transporterId,
+            weightTons: load.weightTons,
+            freightAmount: loadFreight,
+            freightPerTon: load.freightPerTon ?? null,
+            commissionType: load.commissionType,
+            commissionValue: load.commissionValue,
+            notes: load.notes
+          }
+        });
+      }
+    } else {
+      await prisma.transporterLedgerEntry.create({
+        data: {
+          transporterId: transporter.id,
+          tripId: trip.id,
+          freightCredited: freightAmount,
+          commissionDeducted: transportCommission,
+          netReceivable: freightNet,
+          outstandingBefore: latestOutstanding,
+          outstandingAfter: latestOutstanding + freightNet
+        }
+      });
+    }
 
     const fullTrip = await prisma.trip.findUnique({
       where: { id: trip.id },
-      include: {
-        transporter: true,
-        vehicle: true,
-        route: true,
-        createdBy: true,
-        drivers: { include: { driver: true } },
-        expenses: true,
-        payments: true,
-        ledgerEntries: true
-      }
+      include: FULL_TRIP_INCLUDE
     });
 
     res.status(201).json({
       ...fullTrip,
-      financialSummary: computeTripPaymentSummary(fullTrip)
+      financialSummary: computeTripPaymentSummary(fullTrip),
+      loadSummaries: computeLoadSummaries(fullTrip)
     });
   }));
 

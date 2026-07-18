@@ -152,7 +152,7 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
     return result;
   }
 
-  const [ledgerGroups, paymentGroups] = await Promise.all([
+  const [ledgerGroups, paymentGroups, tripLoads] = await Promise.all([
     prisma.transporterLedgerEntry.groupBy({
       by: ['transporterId'],
       where: { transporterId: { in: transporterIds } },
@@ -162,14 +162,48 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
       by: ['transporterId'],
       where: { transporterId: { in: transporterIds } },
       _sum: { amount: true }
+    }),
+    // Sprint 2B (multi-stop): each TripLoad billed to a transporter is a
+    // receivable that lives OUTSIDE TransporterLedgerEntry. Commission is
+    // per-load and not a plain SQL sum, so we fetch the loads and reduce in
+    // JS. Legacy single-leg trips have no TripLoad rows, so this query returns
+    // nothing for them and the block below is a no-op — the existing path is
+    // provably unchanged for any transporter without multi-stop loads.
+    prisma.tripLoad.findMany({
+      where: { transporterId: { in: transporterIds } },
+      select: {
+        transporterId: true,
+        freightAmount: true,
+        weightTons: true,
+        commissionType: true,
+        commissionValue: true
+      }
     })
   ]);
 
   const ledgerMap = new Map(ledgerGroups.map(g => [g.transporterId, money(g._sum.netReceivable || 0)]));
   const paymentMap = new Map(paymentGroups.map(g => [g.transporterId, money(g._sum.amount || 0)]));
 
+  // Net receivable from multi-stop loads, per transporter: freight − commission.
+  // Payments against these loads carry the load's transporterId, so they are
+  // already captured by paymentMap above — only the receivable side is missing.
+  const loadReceivableMap = new Map();
+  for (const load of tripLoads) {
+    const commission = calculateCommission(
+      load.commissionType,
+      load.commissionValue,
+      load.freightAmount,
+      load.weightTons
+    );
+    const netReceivable = sub(money(load.freightAmount), money(commission));
+    const running = loadReceivableMap.get(load.transporterId) || new Prisma.Decimal(0);
+    loadReceivableMap.set(load.transporterId, add(running, netReceivable));
+  }
+
   for (const id of transporterIds) {
-    const receivable = ledgerMap.get(id) || new Prisma.Decimal(0);
+    const legacyReceivable = ledgerMap.get(id) || new Prisma.Decimal(0);
+    const loadReceivable = loadReceivableMap.get(id) || new Prisma.Decimal(0);
+    const receivable = add(legacyReceivable, loadReceivable);
     const paid = paymentMap.get(id) || new Prisma.Decimal(0);
     const outstanding = sub(receivable, paid);
     result.set(id, {

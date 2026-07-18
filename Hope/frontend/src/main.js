@@ -20,6 +20,8 @@ import { renderVehiclesPage } from './pages/VehiclesPage.js';
 import { renderDriversPage } from './pages/DriversPage.js';
 import { renderRoutesPage } from './pages/RoutesPage.js';
 import { renderTripsPage, renderTripFormPage, hydrateTripFormIfPending } from './pages/TripsPage.js';
+import { bindMultiStopEditor, collectMultiStopPayload } from './components/MultiStopEditor.js';
+import { bindLoadPaymentForms } from './components/MultiStopPanel.js';
 import { renderLedgersPage } from './pages/LedgersPage.js';
 import { renderTransporterDetail } from './pages/TransporterDetailPage.js';
 import { renderTripDetail } from './pages/TripDetailPage.js';
@@ -30,6 +32,7 @@ import { renderVehicleDetail } from './pages/VehicleDetailPage.js';
 // Components
 import { createMainLayout } from './components/Layout.js';
 import { createSkeletonLoader } from './components/CardComponents.js';
+import { bindTransactionForm } from './components/TransactionForm.js';
 import { showStateMessages } from './components/Toast.js';
 import { confirmDialog } from './components/Dialog.js';
 
@@ -249,6 +252,8 @@ function bindEventHandlers() {
   bindCancelEditButtons(handleCancelEdit);
   bindTripStatusButtons(handleTripStatusChange);
   bindExpenseDeleteButtons(handleExpenseDelete);
+  bindTransactionForm();
+  bindLoadPaymentForms();
 
   bindNavigation(
     (hash) => { window.location.hash = hash; },
@@ -301,6 +306,13 @@ function bindEventHandlers() {
   // Re-queried on every call — the trip form is a fresh DOM node after each
   // render() innerHTML swap, so this can't be hoisted to module scope.
   const tripForm = document.querySelector('form[data-form="trip"]');
+
+  // Sprint 2B: wire the opt-in multi-stop editor (no-op if the section isn't
+  // present, e.g. on the edit form). Kept fully separate from the single-leg
+  // wiring below so that path is unchanged.
+  if (tripForm) {
+    bindMultiStopEditor(tripForm, state.refs.transporters || []);
+  }
 
   // Handle From/To location selection in trip form to auto-set routeId
   const fromSelect = tripForm ? tripForm.querySelector('#fromLocation') : null;
@@ -569,9 +581,6 @@ async function handleFormSubmit(type, rawBody, form) {
     }
 
     form.reset();
-    if (type === 'driver-settlement') {
-      actions.resetDriverSettlementForm();
-    }
     if (state.editing && state.editing.entity === type) {
       actions.clearEditing();
     }
@@ -830,7 +839,83 @@ function normalizeFormBody(form, type, rawBody) {
 
     body[key] = value;
   }
+
+  // Sprint 2B: fold the opt-in multi-stop editor into the trip body. When on,
+  // stops/loads become the source of truth and the top-level single-leg fields
+  // are replaced with nominal values (the trip's own transporterId is just a
+  // reference — receivable comes from the loads, not a TransporterLedgerEntry).
+  if (type === 'trip') {
+    const ms = collectMultiStopPayload(form); // throws if on-but-incomplete
+    if (ms.isMultiStop) {
+      body.stops = ms.stops;
+      body.loads = ms.loads;
+      body.transporterId = ms.loads[0].transporterId;
+      body.commissionType = 'FIXED_PER_TRIP';
+      body.commissionValue = 0;
+      body.freightAmount = 0;
+      body.weightTons = 0;
+      delete body.freightPerTon;
+      delete body.ratePerKm;
+      delete body.fromLocation;
+      delete body.toLocation;
+      delete body.routeId;
+      delete body.distanceKm;
+    }
+  }
+
   return body;
+}
+
+/**
+ * Route a unified transaction-form submission to the endpoint that actually
+ * stores it. The form's category option carries a `CHANNEL:TYPE` value (see
+ * TransactionForm.js) — CHANNEL picks the record type, TYPE is its enum value.
+ *
+ * The form deliberately speaks one vocabulary (amount / date / note) while the
+ * three endpoints underneath each want their own field names, so the mapping
+ * happens here rather than leaking three shapes into the UI.
+ */
+async function createTransaction(body) {
+  const [channel, entryType] = String(body.category || '').split(':');
+
+  switch (channel) {
+    case 'PAYMENT':
+      return api.trip.addPayment({
+        transporterId: body.transporterId,
+        tripId: body.tripId || undefined,
+        amount: body.amount,
+        paymentType: entryType,
+        mode: body.mode,
+        referenceNumber: body.referenceNumber || undefined,
+        notes: body.note || undefined,
+        paymentDate: body.date || undefined
+      });
+
+    case 'SETTLEMENT':
+      return api.driver.addSettlement(body.driverId, {
+        type: entryType,
+        amount: body.amount,
+        tripId: body.tripId || undefined,
+        description: body.note || undefined,
+        date: body.date || undefined
+      });
+
+    case 'EXPENSE':
+      // TripExpense has no date column — it stamps createdAt itself, so `date`
+      // is intentionally not forwarded here.
+      return api.request(`/trips/${body.tripId}/expenses`, {
+        method: 'POST',
+        body: JSON.stringify({
+          category: entryType,
+          amount: body.amount,
+          description: body.note || undefined,
+          paidToDriverId: body.paidToDriverId || undefined
+        })
+      });
+
+    default:
+      throw new Error('Pick what this entry is for before saving.');
+  }
 }
 
 async function createEntity(type, body) {
@@ -840,13 +925,10 @@ async function createEntity(type, body) {
     case 'driver': return api.driver.create(body);
     case 'route': return api.route.create(body);
     case 'trip': return api.trip.create(body);
-    case 'driver-settlement': return api.driver.addSettlement(body.driverId, body);
-    // Both trip and transporter payments post to /payments (transporterId
-    // required, tripId optional). There is no /transporters/:id/payments route.
-    case 'trip-payment': return api.trip.addPayment(body);
-    case 'transporter-payment': return api.trip.addPayment(body);
+    // Money in/out of every kind now comes through the unified transaction
+    // form; the old per-shape form types it replaced are gone.
+    case 'transaction': return createTransaction(body);
     case 'pod': return api.trip.addPod(body.tripId, body);
-    case 'trip-expense': return api.request(`/trips/${body.tripId}/expenses`, { method: 'POST', body: JSON.stringify(body) });
     default: throw new Error(`Unknown form type: ${type}`);
   }
 }

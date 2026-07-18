@@ -7,6 +7,18 @@
       "runtimeArgs": ["run", "dev"],
       "cwd": "Hope/frontend",
       "port": 5173
+    },
+    {
+      "name": "dealofday-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "D:/Bhata/dealofday/apps/web"],
+      "port": 5173
+    },
+    {
+      "name": "dealofday-backoffice",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "D:/Bhata/dealofday/apps/backoffice"],
+      "port": 5174
     }
   ]
 }

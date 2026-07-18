@@ -7,6 +7,7 @@ import { currency, formatDate, formatStatus, getStatusChipClass, editButton, del
 import { state } from '../store/index.js';
 import * as api from '../services/api.js';
 import { populateForm, populateDriverMultiSelect } from '../utils/binding.js';
+import { createMultiStopSection } from '../components/MultiStopEditor.js';
 
 // The real trip lifecycle the backend enforces.
 const TRIP_STATUSES = ['DRAFT', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'POD_RECEIVED', 'BILLED', 'SETTLED', 'CANCELLED'];
@@ -223,6 +224,7 @@ export async function renderTripFormPage(mode, tripId) {
       ${formField({ label: 'LR Number', type: 'text', id: 'lrNumber', name: 'lrNumber', placeholder: 'LR number (optional)', maxlength: 40 })}
       ${formField({ label: 'Transporter', type: 'select', id: 'transporterId', name: 'transporterId', required: true, options: transporterOptions })}
       ${formField({ label: 'Vehicle', type: 'select', id: 'vehicleId', name: 'vehicleId', required: true, options: vehicleOptions })}
+      ${mode === 'new' ? createMultiStopSection() : ''}
       <div class="form-field full-width">
         <label>From</label>
         ${formField({ label: '', type: 'select', id: 'fromLocation', name: 'fromLocation', options: originOptions })}

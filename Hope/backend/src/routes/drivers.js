@@ -22,8 +22,12 @@ const driverSchema = z.object({
   notes: z.string().optional()
 });
 
+// SALARY is deliberately absent: driver pay is tracked as khata entries
+// (advances, allowances, incentives netted off against what's owed), not as
+// a fixed monthly salary line. The Prisma `SettlementType` enum still has
+// SALARY so historical rows stay readable — this blocks new ones only.
 const settlementSchema = z.object({
-  type: z.enum(['SALARY', 'INCENTIVE', 'ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'ALLOWANCE', 'EXPENSE_REIMBURSEMENT']),
+  type: z.enum(['INCENTIVE', 'ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'ALLOWANCE', 'EXPENSE_REIMBURSEMENT']),
   amount: z.coerce.number().positive(),
   tripId: z.string().cuid().optional().or(z.literal('')),
   description: z.string().optional(),
