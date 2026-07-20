@@ -14,6 +14,7 @@
  * saw it. The vercel.json rewrite beside this file is what actually routes
  * every depth here.
  */
+require('../src/lib/timezone'); // must be first — pins TZ before any Date is built
 const prisma = require('../src/lib/prisma');
 const { createApp } = require('../src/app');
 

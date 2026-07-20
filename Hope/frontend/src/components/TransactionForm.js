@@ -370,3 +370,72 @@ export function bindTransactionForm() {
 
   renderCategories();
 }
+
+/**
+ * Put a rejected submission back on screen, exactly as the user left it.
+ *
+ * The generic populateForm() cannot do this alone. This form builds itself in
+ * two dependent steps — the direction radio decides which options exist in the
+ * category select, and the category decides which of mode / reference / TDS
+ * are visible at all (hidden ones are disabled, so they neither post nor keep
+ * a value). Writing values in isolation therefore lands them on a form that
+ * has already snapped back to its default "we paid → expense" shape: the
+ * payment category has no matching option so it silently falls back to the
+ * first expense one, and mode, reference, TDS and amount are wiped.
+ *
+ * So replay the interaction in the same order a person would, letting each
+ * change event rebuild the next step before writing into it. An operator who
+ * mistypes an amount now gets the error and their entry back, instead of
+ * retyping every field on a phone with one bar of signal.
+ *
+ * @param {HTMLFormElement} form - the freshly rendered transaction form
+ * @param {Object} body - the normalized body that was rejected
+ */
+export function restoreTransactionForm(form, body) {
+  if (!form || !body) return;
+
+  const fire = (el, type) => el && el.dispatchEvent(new Event(type, { bubbles: true }));
+
+  // 1. Direction first — it repopulates the category options.
+  if (body.direction) {
+    const radio = form.querySelector(`input[name="direction"][value="${body.direction}"]`);
+    if (radio) { radio.checked = true; fire(radio, 'change'); }
+  }
+
+  // 2. Category next — it decides which fields are shown and enabled.
+  const category = form.querySelector('select[name="category"]');
+  if (category && body.category) {
+    const exists = [...category.options].some((o) => o.value === body.category);
+    if (exists) { category.value = body.category; fire(category, 'change'); }
+  }
+
+  // 3. Only now are the dependent fields present to write into.
+  const setValue = (name, value) => {
+    if (value === undefined || value === null || value === '') return;
+    const el = form.querySelector(`[name="${name}"]`);
+    if (el && !el.disabled) el.value = value;
+  };
+  setValue('amount', body.amount);
+  setValue('mode', body.mode);
+  setValue('referenceNumber', body.referenceNumber);
+  setValue('note', body.note);
+  setValue('paidToDriverId', body.paidToDriverId);
+  setValue('fundedByTransporterId', body.fundedByTransporterId);
+
+  // `date` is a datetime-local input but the body carries a full ISO string,
+  // which the browser rejects outright and leaves blank.
+  if (body.date) {
+    const dateEl = form.querySelector('[name="date"]');
+    const parsed = new Date(body.date);
+    if (dateEl && !Number.isNaN(parsed.getTime())) dateEl.value = toLocalDatetimeValue(parsed);
+  }
+
+  const tds = form.querySelector('input[name="applyTds"]');
+  if (tds && !tds.disabled) {
+    tds.checked = body.applyTds === 'on' || body.applyTds === true;
+    fire(tds, 'change');
+  }
+
+  // Refresh the TDS preview against the restored amount.
+  fire(form.querySelector('input[name="amount"]'), 'input');
+}

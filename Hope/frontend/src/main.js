@@ -33,7 +33,7 @@ import { renderProfitLossPage } from './pages/ProfitLossPage.js';
 // Components
 import { createMainLayout } from './components/Layout.js';
 import { createSkeletonLoader, createPageLoader } from './components/CardComponents.js';
-import { bindTransactionForm } from './components/TransactionForm.js';
+import { bindTransactionForm, restoreTransactionForm } from './components/TransactionForm.js';
 import { showStateMessages } from './components/Toast.js';
 import { confirmDialog } from './components/Dialog.js';
 
@@ -456,8 +456,16 @@ function bindEventHandlers() {
         const isWeightRateMode = Array.from(freightModeRadios).find(radio =>
           radio.checked && radio.value === 'weight_rate');
 
+        // Rate per ton only means anything when the freight is calculated from
+        // it. Shown in Fixed mode it was an unexplained empty field sitting
+        // above the mode chooser that decides whether it applies at all.
+        // Hidden via its wrapper so the label goes with it; disabled too, so a
+        // value typed before switching modes cannot post invisibly.
+        const perTonField = freightPerTonInput.closest('.form-field') || freightPerTonInput;
+
         if (isWeightRateMode) {
           // Weight × Rate mode: show weightTons and freightPerTon, calculate freightAmount
+          perTonField.hidden = false;
           weightTonsInput.disabled = false;
           freightPerTonInput.disabled = false;
           // readOnly, not disabled — a disabled input is excluded from
@@ -488,9 +496,10 @@ function bindEventHandlers() {
           // Initial calculation
           calculateFreightAmount();
         } else {
-          // Fixed mode: hide calculation, allow manual freight amount entry
+          // Fixed mode: hide the per-ton rate, allow manual freight entry
+          perTonField.hidden = true;
           weightTonsInput.disabled = false;
-          freightPerTonInput.disabled = false;
+          freightPerTonInput.disabled = true;
           freightAmountInput.readOnly = false;
           // Kept short so it isn't clipped mid-word in a 375px field.
           freightAmountInput.placeholder = 'Enter amount';
@@ -684,13 +693,25 @@ async function handleFormSubmit(type, rawBody, form) {
     } else {
       actions.clearValidationErrors();
     }
-    render();
+    // Must be awaited. render() is async — it can refetch page data before it
+    // swaps innerHTML — so the un-awaited call left the restore below writing
+    // into a DOM that was about to be thrown away. That is why a rejected
+    // entry always came back blank despite this code having existed to
+    // prevent exactly that.
+    await render();
 
     // Populate form with failed data to retain user input
     if (state.failedFormData && state.failedFormData.type === type) {
       const form = document.querySelector(`form[data-form="${type}"]`);
       if (form) {
-        populateForm(form, state.failedFormData.body);
+        // The transaction form rebuilds its own fields from the direction and
+        // category, so it needs the interaction replayed rather than values
+        // written into a form that has snapped back to its defaults.
+        if (type === 'transaction') {
+          restoreTransactionForm(form, state.failedFormData.body);
+        } else {
+          populateForm(form, state.failedFormData.body, { relabelSubmit: false });
+        }
 
         // Special handling for trip driver multi-select
         if (type === 'trip') {

@@ -116,10 +116,11 @@ export function renderTripsPage() {
     // some cards and not others with nothing to explain the difference.
     const statusChip = `<span class="chip chip-sm ${getStatusChipClass(trip.status) || 'chip-muted'}">${formatStatus(trip.status)}</span>`;
 
-    // A draft has no receivable yet and a settled trip has nothing left to
-    // collect, so "Due" is meaningful only in between — and there it now
-    // appears on every card, always labelled.
-    const dueChip = (isDraft || isSettled)
+    // A draft has no receivable yet, and a settled or cancelled trip has
+    // nothing left to collect, so "Due" is meaningful only in between — and
+    // there it now appears on every card, always labelled. A cancelled trip
+    // would otherwise show a green "Due ₹0", which reads as collected in full.
+    const dueChip = (isDraft || isSettled || trip.status === 'CANCELLED')
       ? ''
       : `<span class="chip chip-sm ${outstanding > 0 ? 'chip-warning' : 'chip-success'}">Due ${currency(outstanding)}</span>`;
 
@@ -246,7 +247,6 @@ export async function renderTripFormPage(mode, tripId) {
       <input type="hidden" id="routeId" name="routeId" />
       ${formField({ label: 'Material', type: 'text', id: 'material', name: 'material', placeholder: 'e.g. Cement', maxlength: 80 })}
       ${formField({ label: 'Weight (tons)', type: 'number', id: 'weightTons', name: 'weightTons', placeholder: '0', min: 0, step: 0.1 })}
-      ${formField({ label: 'Freight per ton (₹)', type: 'number', id: 'freightPerTon', name: 'freightPerTon', placeholder: 'e.g. 1500', min: 0, step: 1 })}
       ${formField({ label: 'Departure date', type: 'date', id: 'departureDate', name: 'departureDate' })}
       <div class="form-field full-width">
         <label>Freight mode</label>
@@ -263,6 +263,13 @@ export async function renderTripFormPage(mode, tripId) {
           </label>
         </div>
       </div>
+      <!-- Rate per ton belongs to the Weight × rate mode and means nothing in
+           Fixed amount mode, so it sits directly under the mode chooser and is
+           hidden unless that mode is picked (bindEventHandlers in main.js).
+           It used to sit above the chooser, always visible, which read as a
+           field every trip had to fill in. Weight stays visible in both modes
+           — it is a fact about the load, not part of the pricing method. -->
+      ${formField({ label: 'Freight per ton (₹)', type: 'number', id: 'freightPerTon', name: 'freightPerTon', placeholder: 'e.g. 1500', min: 0, step: 1 })}
       ${formField({ label: 'Freight Amount (₹)', type: 'number', id: 'freightAmount', name: 'freightAmount', placeholder: 'Auto-calculated', min: 0, step: 1 })}
       ${formField({ label: 'Rate per km (₹)', type: 'number', id: 'ratePerKm', name: 'ratePerKm', placeholder: 'Optional: manual rate', min: 0, step: 1 })}
       <!-- Commission is optional: most trips carry none. Both fields used to

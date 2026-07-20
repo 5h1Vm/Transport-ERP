@@ -39,6 +39,12 @@ module.exports = function reportRoutes(ctx) {
    * because revenue is recognised when the goods actually arrive — billing is
    * a paperwork step that can lag or lead the physical delivery.
    *
+   * Cancelled trips are excluded explicitly. Most are cancelled before they
+   * deliver and so have no `deliveryDate` to match on, which made this look
+   * safe — but a trip can be cancelled from DELIVERED, POD_RECEIVED, or
+   * BILLED too, and one of those kept its delivery date and was booked as
+   * revenue that will never be invoiced.
+   *
    * Costs = TripExpense (by category) + net driver settlement cost
    * (owed-to-driver types minus already-paid-out types, entries whose own
    * `date` falls in range) + VehicleExpense (by category) + vehicle-loan EMI
@@ -54,7 +60,7 @@ module.exports = function reportRoutes(ctx) {
     const [legacyEntries, tripLoads, tripExpenseGroups, tripExpensesForVehicle, settlements, vehicleExpenseGroups, vehicleExpensesRaw, emiEntries] = await Promise.all([
       // Revenue — legacy single-leg trips, via their materialized ledger entry.
       prisma.transporterLedgerEntry.findMany({
-        where: { trip: { deliveryDate: dateInRange } },
+        where: { trip: { deliveryDate: dateInRange, status: { not: 'CANCELLED' } } },
         select: {
           netReceivable: true,
           transporterId: true,
@@ -64,7 +70,7 @@ module.exports = function reportRoutes(ctx) {
       }),
       // Revenue — Sprint 2B multi-stop loads (no ledger entry; compute net here).
       prisma.tripLoad.findMany({
-        where: { trip: { deliveryDate: dateInRange } },
+        where: { trip: { deliveryDate: dateInRange, status: { not: 'CANCELLED' } } },
         select: {
           freightAmount: true,
           weightTons: true,

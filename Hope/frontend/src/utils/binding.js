@@ -566,7 +566,7 @@ export function clearValidationErrors() {
  * @param {HTMLFormElement} form - Form element
  * @param {Object} data - Data to populate
  */
-export function populateForm(form, data) {
+export function populateForm(form, data, options = {}) {
   Object.keys(data).forEach(key => {
     const input = form.elements.namedItem(key);
     if (!input) return;
@@ -590,10 +590,15 @@ export function populateForm(form, data) {
     }
   });
 
-  // Update submit button text
-  const submitBtn = form.querySelector('button[type="submit"]');
-  if (submitBtn) {
-    submitBtn.textContent = 'Update';
+  // Only an edit turns the button into "Update". This is also called to put a
+  // rejected submission back on screen, where relabelling a create form
+  // "Update" tells the user they are about to change a record that was never
+  // saved in the first place.
+  if (options.relabelSubmit !== false) {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.textContent = 'Update';
+    }
   }
 
   // Scroll to form

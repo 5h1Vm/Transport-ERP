@@ -1,3 +1,4 @@
+require('./lib/timezone'); // must be first — pins TZ before any Date is built
 const prisma = require('./lib/prisma');
 const { createApp } = require('./app');
 

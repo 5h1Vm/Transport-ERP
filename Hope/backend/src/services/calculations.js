@@ -2,6 +2,19 @@ const { Prisma } = require('@prisma/client');
 const { money, add, sub, mul, sumBy, toRupees } = require('../utils/money');
 
 /**
+ * Prisma `where` fragment restricting a trip-linked row to trips that are still
+ * real money. A cancelled trip's freight will never be billed, so counting its
+ * ledger entry or its loads inflates receivables and shows an operator a
+ * balance to chase that does not exist.
+ *
+ * Spread into a where clause: `where: { transporterId, ...LIVE_TRIP }`.
+ * Payments are deliberately NOT filtered this way — cash received against a
+ * trip that was later cancelled is still cash in hand, and dropping it would
+ * silently overstate what a transporter still owes.
+ */
+const LIVE_TRIP = { trip: { status: { not: 'CANCELLED' } } };
+
+/**
  * Convert a value to a Number safely (kept for compatibility where needed).
  * @param {*} value
  * @returns {number}
@@ -60,7 +73,7 @@ function calculateCommission(commissionType, commissionValue, freightAmount, wei
  */
 async function calculateTransporterOutstanding(prisma, transporterId) {
   const ledger = await prisma.transporterLedgerEntry.aggregate({
-    where: { transporterId },
+    where: { transporterId, ...LIVE_TRIP },
     _sum: { netReceivable: true }
   });
   const payments = await prisma.payment.aggregate({
@@ -85,8 +98,20 @@ function computeTripPaymentSummary(trip) {
   const tripExpenseTotal = money(sumBy(trip.expenses || [], e => e.amount));
   const tripPaymentTotal = money(sumBy(trip.payments || [], p => p.amount));
   const ledgerReceivableTotal = money(sumBy(trip.ledgerEntries || [], e => e.netReceivable));
+
+  // A cancelled trip is void: the freight will never be billed, so it charges
+  // nothing and owes nothing. Its ledger entry stays on file as a record of
+  // what was raised, but it must not read as money anyone can still collect —
+  // an operator chasing a transporter for a cancelled load is the whole reason
+  // this branch exists. Any payment already taken against it is deliberately
+  // still counted, which drives outstanding negative: that money really did
+  // change hands and is now owed back, and hiding it would lose it.
+  const isCancelled = trip.status === 'CANCELLED';
+
   // chargeTotal = ledgerReceivableIf > 0 else freightAmount
-  const chargeTotal = ledgerReceivableTotal.greaterThan(0) ? ledgerReceivableTotal : money(trip.freightAmount);
+  const chargeTotal = isCancelled
+    ? money(0)
+    : (ledgerReceivableTotal.greaterThan(0) ? ledgerReceivableTotal : money(trip.freightAmount));
   const outstanding = sub(chargeTotal, tripPaymentTotal);
 
   let paymentStatus = 'UNPAID';
@@ -101,7 +126,10 @@ function computeTripPaymentSummary(trip) {
     tripPaymentTotal: toRupees(tripPaymentTotal),
     chargeTotal: toRupees(chargeTotal),
     outstanding: toRupees(outstanding),
-    paymentStatus
+    paymentStatus,
+    // Lets the UI label a ₹0 outstanding as "Cancelled" rather than as a
+    // trip that was collected in full — the two mean opposite things.
+    isCancelled
   };
 }
 
@@ -155,7 +183,7 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
   const [ledgerGroups, paymentGroups, tripLoads, fundedAdvanceGroups] = await Promise.all([
     prisma.transporterLedgerEntry.groupBy({
       by: ['transporterId'],
-      where: { transporterId: { in: transporterIds } },
+      where: { transporterId: { in: transporterIds }, ...LIVE_TRIP },
       // freightCredited and commissionDeducted are summed alongside the net so
       // callers can show WHY net differs from gross. Without them the detail
       // page could only print the net figure, and a trip billed at ₹36,000
@@ -174,7 +202,7 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
     // nothing for them and the block below is a no-op — the existing path is
     // provably unchanged for any transporter without multi-stop loads.
     prisma.tripLoad.findMany({
-      where: { transporterId: { in: transporterIds } },
+      where: { transporterId: { in: transporterIds }, ...LIVE_TRIP },
       select: {
         transporterId: true,
         freightAmount: true,

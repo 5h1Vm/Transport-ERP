@@ -39,7 +39,8 @@ export async function renderTripDetail(id) {
   const freightTotal = legacyFreight + loadAgg.freight;
   const totalPaid = (summary.tripPaymentTotal || 0) + loadAgg.paid;
   const outstanding = (hasLegacy ? (summary.outstanding || 0) : 0) + loadAgg.outstanding;
-  const isTerminal = trip.status === 'CANCELLED' || trip.status === 'SETTLED';
+  const isCancelled = trip.status === 'CANCELLED';
+  const isTerminal = isCancelled || trip.status === 'SETTLED';
 
   // Outstanding is computed from (freight - transporter's commission), never
   // from gross freight directly — surface the commission explicitly so the
@@ -57,7 +58,15 @@ export async function renderTripDetail(id) {
         : createHeroStat({ label: 'Freight', value: currency(freightTotal), helper: hasLoads ? `${trip.loads.length} load(s)${hasLegacy ? ' + base' : ''}` : 'Gross freight' })}
       ${(commission > 0 && !hasLoads) ? createHeroStat({ label: 'Commission', value: currency(commission), helper: 'Deducted from freight' }) : ''}
       ${createHeroStat({ label: 'Paid', value: currency(totalPaid), helper: 'Received', className: 'success' })}
-      ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: 'Due from transporter(s)', className: `hero-stat-dominant ${outstanding > 0 ? 'warning' : 'success'}` })}
+      ${createHeroStat({
+        label: 'Outstanding',
+        value: currency(outstanding),
+        // A cancelled trip reads ₹0 for the same reason a fully-paid one does,
+        // and the two mean opposite things — say which this is. Neutral, not
+        // green: nothing was collected here, the debt was voided.
+        helper: isCancelled ? 'Cancelled — nothing to collect' : 'Due from transporter(s)',
+        className: `hero-stat-dominant ${isCancelled ? '' : (outstanding > 0 ? 'warning' : 'success')}`
+      })}
       ${!hasLoads ? createHeroStat({ label: 'Expenses', value: currency(summary.tripExpenseTotal || 0), helper: 'Trip expenses' }) : ''}
     </div>
   `;
