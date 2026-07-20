@@ -99,7 +99,7 @@ export async function renderDriverDetail(id) {
     <section class="panel-grid white two-col">
       <article class="panel white form-panel">
         <h3>Record entry</h3>
-        <p class="text-muted panel-sub">Money gave to, or got from, this driver.</p>
+        <p class="text-muted panel-sub">What you paid this driver, or received back from them.</p>
         ${settlementForm}
       </article>
       <article class="panel white">

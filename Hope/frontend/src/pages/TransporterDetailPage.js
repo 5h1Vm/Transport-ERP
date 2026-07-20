@@ -33,6 +33,13 @@ async function renderTransporterDetail(id) {
   // Sprint 2B multi-stop TripLoad revenue. Fall back to the page's own sum
   // only if the server field is somehow missing.
   const totalFreight = typeof transporter.freightTotal === 'number' ? transporter.freightTotal : legacyTotalFreight;
+  // Gross and commission are shown only when a deduction actually happened.
+  // Commission is set per trip (or per multi-stop load), NOT on the
+  // transporter record, so a transporter whose own commission fields are
+  // empty can still have freight reduced by a trip-level rate — which read as
+  // money silently going missing when only the net figure was displayed.
+  const grossFreightTotal = typeof transporter.grossFreightTotal === 'number' ? transporter.grossFreightTotal : 0;
+  const commissionTotal = typeof transporter.commissionTotal === 'number' ? transporter.commissionTotal : 0;
   const outstanding = typeof transporter.outstanding === 'number' ? transporter.outstanding : totalFreight - totalPaid;
 
   const tripsHtml = trips.length
@@ -105,7 +112,10 @@ async function renderTransporterDetail(id) {
     })}
     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
       <span class="chip chip-warning">Outstanding: ${currency(outstanding)}</span>
-      <span class="chip chip-primary">Net freight (after commission): ${currency(totalFreight)}</span>
+      ${commissionTotal > 0 ? `
+      <span class="chip">Gross freight: ${currency(grossFreightTotal)}</span>
+      <span class="chip">Commission: −${currency(commissionTotal)}</span>` : ''}
+      <span class="chip chip-primary">Net freight${commissionTotal > 0 ? '' : ' (after commission)'}: ${currency(totalFreight)}</span>
       <span class="chip chip-success">Paid: ${currency(totalPaid)}</span>
     </div>
 

@@ -66,9 +66,12 @@ const CATALOG = {
   }
 };
 
+// "Money gave" / "Money got" was not grammatical, and neither said who gave
+// or got. These name the direction from the business's side, which is how the
+// user thinks about it when recording the entry.
 const DIRECTION_LABELS = {
-  GAVE: 'Money gave',
-  GOT: 'Money got',
+  GAVE: 'We paid',
+  GOT: 'We received',
   ADJUST: 'Adjustment'
 };
 

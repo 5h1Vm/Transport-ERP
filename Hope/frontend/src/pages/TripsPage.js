@@ -62,34 +62,37 @@ export function renderTripsPage() {
       placeholder: 'TRP-001',
       value: filters.internalRef || ''
     },
+    // Origin/destination and the date range both used to be labelled plain
+    // "From" and "To", so the drawer showed each label twice with no way to
+    // tell which pair was the route and which was the dates.
     {
       id: 'trip-fromlocation-filter',
-      label: 'From',
+      label: 'Origin city',
       type: 'select',
       options: [
-        { value: '', label: 'From (optional)' },
+        { value: '', label: 'Any origin' },
         ...origins.map(o => ({ value: o, label: o }))
       ]
     },
     {
       id: 'trip-tolocation-filter',
-      label: 'To',
+      label: 'Destination city',
       type: 'select',
       options: [
-        { value: '', label: 'To (optional)' },
+        { value: '', label: 'Any destination' },
         ...destinations.map(d => ({ value: d, label: d }))
       ]
     },
     {
       id: 'trip-datefrom-filter',
-      label: 'From',
+      label: 'Date from',
       type: 'text',
       inputType: 'date',
       value: filters.dateFrom || ''
     },
     {
       id: 'trip-dateto-filter',
-      label: 'To',
+      label: 'Date to',
       type: 'text',
       inputType: 'date',
       value: filters.dateTo || ''

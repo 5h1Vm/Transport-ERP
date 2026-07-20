@@ -156,7 +156,11 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
     prisma.transporterLedgerEntry.groupBy({
       by: ['transporterId'],
       where: { transporterId: { in: transporterIds } },
-      _sum: { netReceivable: true }
+      // freightCredited and commissionDeducted are summed alongside the net so
+      // callers can show WHY net differs from gross. Without them the detail
+      // page could only print the net figure, and a trip billed at ₹36,000
+      // showing ₹34,920 receivable looked like ₹1,080 had gone missing.
+      _sum: { netReceivable: true, freightCredited: true, commissionDeducted: true }
     }),
     prisma.payment.groupBy({
       by: ['transporterId'],
@@ -192,6 +196,8 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
   ]);
 
   const ledgerMap = new Map(ledgerGroups.map(g => [g.transporterId, money(g._sum.netReceivable || 0)]));
+  const ledgerGrossMap = new Map(ledgerGroups.map(g => [g.transporterId, money(g._sum.freightCredited || 0)]));
+  const ledgerCommissionMap = new Map(ledgerGroups.map(g => [g.transporterId, money(g._sum.commissionDeducted || 0)]));
   const paymentMap = new Map(paymentGroups.map(g => [g.transporterId, money(g._sum.amount || 0)]));
   const fundedAdvanceMap = new Map(fundedAdvanceGroups.map(g => [g.fundedByTransporterId, money(g._sum.amount || 0)]));
 
@@ -199,6 +205,8 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
   // Payments against these loads carry the load's transporterId, so they are
   // already captured by paymentMap above — only the receivable side is missing.
   const loadReceivableMap = new Map();
+  const loadGrossMap = new Map();
+  const loadCommissionMap = new Map();
   for (const load of tripLoads) {
     const commission = calculateCommission(
       load.commissionType,
@@ -209,6 +217,11 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
     const netReceivable = sub(money(load.freightAmount), money(commission));
     const running = loadReceivableMap.get(load.transporterId) || new Prisma.Decimal(0);
     loadReceivableMap.set(load.transporterId, add(running, netReceivable));
+
+    const gross = loadGrossMap.get(load.transporterId) || new Prisma.Decimal(0);
+    loadGrossMap.set(load.transporterId, add(gross, money(load.freightAmount)));
+    const comm = loadCommissionMap.get(load.transporterId) || new Prisma.Decimal(0);
+    loadCommissionMap.set(load.transporterId, add(comm, money(commission)));
   }
 
   for (const id of transporterIds) {
@@ -220,8 +233,22 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
     // Treated as equivalent to a payment for outstanding purposes only — it
     // stays a DriverSettlement row, never a duplicate Payment row.
     const outstanding = sub(sub(receivable, paid), fundedAdvances);
+    const grossFreight = add(
+      ledgerGrossMap.get(id) || new Prisma.Decimal(0),
+      loadGrossMap.get(id) || new Prisma.Decimal(0)
+    );
+    const commission = add(
+      ledgerCommissionMap.get(id) || new Prisma.Decimal(0),
+      loadCommissionMap.get(id) || new Prisma.Decimal(0)
+    );
     result.set(id, {
+      // freightTotal stays the NET figure every existing caller already
+      // expects. grossFreightTotal and commissionTotal are additive, so
+      // gross − commission === freightTotal, and the detail page can show
+      // the deduction instead of leaving it to be inferred.
       freightTotal: toRupees(receivable),
+      grossFreightTotal: toRupees(grossFreight),
+      commissionTotal: toRupees(commission),
       paidTotal: toRupees(paid),
       fundedAdvancesTotal: toRupees(fundedAdvances),
       outstanding: toRupees(outstanding)

@@ -82,12 +82,14 @@ module.exports = function transporterRoutes(ctx) {
     // figure includes Sprint 2B multi-stop loads and Sprint 2C
     // transporter-funded driver advances, same as the transporter list page.
     const totals = (await calculateTransporterTotalsBulk(prisma, [transporter.id])).get(transporter.id)
-      || { freightTotal: 0, paidTotal: 0, fundedAdvancesTotal: 0, outstanding: 0 };
+      || { freightTotal: 0, grossFreightTotal: 0, commissionTotal: 0, paidTotal: 0, fundedAdvancesTotal: 0, outstanding: 0 };
 
     res.json({
       ...transporter,
       outstanding: totals.outstanding,
       freightTotal: totals.freightTotal,
+      grossFreightTotal: totals.grossFreightTotal,
+      commissionTotal: totals.commissionTotal,
       paidTotal: totals.paidTotal,
       fundedAdvancesTotal: totals.fundedAdvancesTotal
     });

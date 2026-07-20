@@ -8,7 +8,7 @@
  */
 import { createPageHeader } from '../components/Layout.js';
 import { createHeroStat } from '../components/CardComponents.js';
-import { currency, escapeHtml, formatDate } from '../utils/helpers.js';
+import { currency, escapeHtml } from '../utils/helpers.js';
 import * as api from '../services/api.js';
 
 const EXPENSE_CATEGORY_LABELS = {
@@ -19,6 +19,21 @@ const EXPENSE_CATEGORY_LABELS = {
 
 function toDateInputValue(iso) {
   return new Date(iso).toISOString().slice(0, 10);
+}
+
+/**
+ * Format a YYYY-MM-DD string for display without going through Date parsing.
+ *
+ * The range label used to be formatDate(report.range.to) on the raw ISO
+ * timestamp. The server ends a range at 23:59:59.999 UTC, which is 05:29 the
+ * NEXT morning in IST, so a range ending 20 Jul rendered as "21 Jul" — one day
+ * past what the date picker beside it showed. Formatting the same date-only
+ * string the picker is bound to keeps the two in agreement in every timezone.
+ */
+function formatDateOnly(ymd) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${d} ${months[m - 1]} ${y}`;
 }
 
 function categoryRows(byCategory) {
@@ -82,7 +97,7 @@ export async function renderProfitLossPage(params = {}) {
             <button type="submit" class="btn btn-primary">Update</button>
           </div>
         </form>
-        <p class="text-muted panel-sub">${formatDate(report.range.from)} – ${formatDate(report.range.to)}</p>
+        <p class="text-muted panel-sub">${formatDateOnly(fromValue)} – ${formatDateOnly(toValue)}</p>
       </article>
     </section>
 

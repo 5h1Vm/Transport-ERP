@@ -818,6 +818,24 @@ function handleCancelEdit(entity) {
 }
 
 async function handleTripStatusChange(tripId, status) {
+  // Cancelling is terminal — a cancelled trip can't be moved back along the
+  // status flow — and its button sits directly beside the ordinary "advance
+  // to next status" button on the trip detail. Deleting a trip or an expense
+  // has always asked for confirmation; this had none, so one stray tap ended
+  // a live trip silently.
+  if (status === 'CANCELLED') {
+    const trip = (state.data.trips || []).find((t) => t.id === tripId);
+    const ref = trip?.internalRef || 'this trip';
+    const confirmed = await confirmDialog({
+      title: 'Cancel trip?',
+      message: `Are you sure you want to cancel ${ref}? A cancelled trip cannot be reopened.`,
+      confirmText: 'Cancel trip',
+      cancelText: 'Keep trip',
+      danger: true
+    });
+    if (!confirmed) return;
+  }
+
   actions.setError('');
   try {
     await api.trip.updateStatus(tripId, status);
