@@ -53,6 +53,7 @@ function loadCardHtml(load, summary, isTerminal) {
         <option value="UPI">UPI</option>
         <option value="CHEQUE">Cheque</option>
       </select>
+      <label class="ms-tds-toggle"><input type="checkbox" name="applyTds" /> 1% TDS</label>
       <button type="submit" class="btn btn-primary btn-sm">Record payment</button>
     </form>`;
 
@@ -98,6 +99,99 @@ export function createMultiStopPanel(trip, isTerminal) {
   `;
 }
 
+const COMMISSION_TYPE_OPTS = [
+  { value: 'PERCENTAGE', label: '% of freight' },
+  { value: 'FIXED_PER_TRIP', label: 'Fixed ₹' },
+  { value: 'FIXED_PER_TON', label: 'Fixed ₹/ton' }
+];
+
+function formatPodWhen(pod) {
+  try { return new Date(pod.receivedDate).toLocaleDateString('en-IN'); } catch { return ''; }
+}
+
+/**
+ * Management panel shown on the trip detail page for any non-terminal trip:
+ * grow the journey (add stop), add a billed leg (add load), and record extra
+ * PODs — without ever ending the trip. For terminal trips it still lists PODs
+ * read-only. Returns '' when there is nothing to show.
+ *
+ * @param {Object} trip
+ * @param {boolean} isTerminal - SETTLED/CANCELLED → no add forms
+ * @param {Array<{id:string, firmName:string}>} transporters
+ */
+export function createTripManagementPanel(trip, isTerminal, transporters = []) {
+  const stops = (trip.stops || []).slice().sort((a, b) => a.sequence - b.sequence);
+  const pods = trip.pods || [];
+
+  const stopOptions = stops.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.location)}</option>`).join('');
+  const transporterOptions = ['<option value="">Transporter…</option>']
+    .concat(transporters.map(t => `<option value="${t.id}">${escapeHtml(t.firmName)}</option>`)).join('');
+  const commissionOptions = COMMISSION_TYPE_OPTS.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+
+  const podList = pods.length
+    ? `<ul class="ms-pod-list">${pods.map(p => `
+        <li>
+          <strong>${escapeHtml(p.stop?.location || p.location || 'Whole trip')}</strong>
+          <span class="text-muted">${formatPodWhen(p)}</span>
+          ${p.note ? `<span class="ms-pod-note">${escapeHtml(p.note)}</span>` : ''}
+          ${p.imageUrl ? `<a href="${escapeHtml(p.imageUrl)}" target="_blank" rel="noopener" class="text-link">Image</a>` : ''}
+        </li>`).join('')}</ul>`
+    : '<p class="text-muted ms-load-empty">No extra PODs recorded.</p>';
+
+  const addStopForm = isTerminal ? '' : `
+    <form class="ms-inline-form" data-add-stop data-trip-id="${escapeHtml(trip.id)}">
+      <input type="text" name="location" placeholder="Next stop / place" maxlength="120" required />
+      <input type="datetime-local" name="arrivalDate" />
+      <button type="submit" class="btn btn-ghost btn-sm">Add stop</button>
+    </form>`;
+
+  const addLoadForm = isTerminal ? '' : (stops.length >= 2 ? `
+    <form class="ms-inline-form ms-add-load" data-add-load data-trip-id="${escapeHtml(trip.id)}">
+      <select name="originStopId" required>${stopOptions}</select>
+      <span class="ms-arrow">→</span>
+      <select name="destinationStopId" required>${stopOptions}</select>
+      <select name="transporterId" required>${transporterOptions}</select>
+      <input type="number" name="freightAmount" placeholder="Freight ₹" min="0" step="1" required />
+      <select name="commissionType">${commissionOptions}</select>
+      <input type="number" name="commissionValue" placeholder="Comm." min="0" step="0.01" value="0" />
+      <button type="submit" class="btn btn-ghost btn-sm">Add load</button>
+    </form>`
+    : '<p class="text-muted ms-load-empty">Add at least 2 stops to bill a load between them.</p>');
+
+  const addPodForm = isTerminal ? '' : `
+    <form class="ms-inline-form" data-add-pod data-trip-id="${escapeHtml(trip.id)}">
+      <select name="stopId"><option value="">Whole trip</option>${stopOptions}</select>
+      <input type="text" name="note" placeholder="POD note (optional)" maxlength="200" />
+      <input type="url" name="imageUrl" placeholder="Image URL (optional)" />
+      <input type="datetime-local" name="receivedDate" />
+      <button type="submit" class="btn btn-ghost btn-sm">Add POD</button>
+    </form>`;
+
+  return `
+    <section class="panel-grid white">
+      <article class="panel white full-width">
+        <h3>Extend this trip</h3>
+        <p class="text-muted panel-sub">Send the truck on to the next place, or bill another leg — the trip stays open.</p>
+        <div class="multistop-block">
+          <div class="panel-sub">Add a stop</div>
+          ${addStopForm}
+        </div>
+        <div class="multistop-block">
+          <div class="panel-sub">Add a load (bill a leg to a transporter)</div>
+          ${addLoadForm}
+        </div>
+      </article>
+    </section>
+    <section class="panel-grid white">
+      <article class="panel white full-width">
+        <h3>Proof of delivery (${pods.length})</h3>
+        ${podList}
+        ${addPodForm}
+      </article>
+    </section>
+  `;
+}
+
 /**
  * Bind the per-load payment forms. Idempotent — safe to call after every
  * render. Delegates from document so it survives DOM swaps.
@@ -115,6 +209,7 @@ export function bindLoadPaymentForms() {
     const transporterId = form.dataset.transporterId;
     const amount = Number(form.querySelector('[name="amount"]').value);
     const mode = form.querySelector('[name="mode"]').value;
+    const applyTds = form.querySelector('[name="applyTds"]').checked;
     if (!(amount > 0)) { actions.setError('Enter a payment amount.'); return; }
 
     const btn = form.querySelector('button[type="submit"]');
@@ -124,12 +219,67 @@ export function bindLoadPaymentForms() {
     try {
       // loadId set, NO tripId — reduces only this load's transporter (the
       // trip-level overpayment guard is intentionally bypassed for loads).
-      await api.trip.addPayment({ transporterId, loadId, amount, mode, paymentType: 'PART_PAYMENT' });
+      await api.trip.addPayment({ transporterId, loadId, amount, mode, paymentType: 'PART_PAYMENT', applyTds });
       actions.setMessage('Payment recorded.');
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     } catch (err) {
       if (btn) { btn.disabled = false; btn.textContent = label; }
       actions.setError(err.message || 'Failed to record payment.');
+    }
+  });
+}
+
+const readForm = (form, names) => {
+  const out = {};
+  names.forEach(n => {
+    const el = form.querySelector(`[name="${n}"]`);
+    if (el && el.value !== '') out[n] = el.value;
+  });
+  return out;
+};
+
+/**
+ * Bind the "extend this trip" forms (add stop / add load / add POD).
+ * Idempotent document-level delegation, same pattern as the load-pay forms.
+ */
+export function bindTripManagementForms() {
+  if (document._msManageBound) return;
+  document._msManageBound = true;
+
+  document.addEventListener('submit', async (e) => {
+    const stopForm = e.target.closest('form[data-add-stop]');
+    const loadForm = e.target.closest('form[data-add-load]');
+    const podForm = e.target.closest('form[data-add-pod]');
+    const form = stopForm || loadForm || podForm;
+    if (!form) return;
+    e.preventDefault();
+
+    const tripId = form.dataset.tripId;
+    const btn = form.querySelector('button[type="submit"]');
+    const label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    actions.setError('');
+    try {
+      if (stopForm) {
+        const data = readForm(form, ['location', 'arrivalDate']);
+        if (data.arrivalDate) data.arrivalDate = new Date(data.arrivalDate).toISOString();
+        await api.trip.addStop(tripId, data);
+        actions.setMessage('Stop added.');
+      } else if (loadForm) {
+        const data = readForm(form, ['originStopId', 'destinationStopId', 'transporterId', 'freightAmount', 'commissionType', 'commissionValue']);
+        if (data.originStopId === data.destinationStopId) throw new Error('Pickup and drop stops must differ.');
+        await api.trip.addLoad(tripId, data);
+        actions.setMessage('Load added.');
+      } else {
+        const data = readForm(form, ['stopId', 'note', 'imageUrl', 'receivedDate']);
+        if (data.receivedDate) data.receivedDate = new Date(data.receivedDate).toISOString();
+        await api.trip.addAnotherPod(tripId, data);
+        actions.setMessage('POD added.');
+      }
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    } catch (err) {
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+      actions.setError(err.message || 'Failed to save.');
     }
   });
 }

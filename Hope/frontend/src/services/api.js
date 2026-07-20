@@ -104,6 +104,10 @@ export const tripApi = {
   updateStatus: (id, status) => request(`/trips/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   addPayment: (data) => request('/payments', { method: 'POST', body: JSON.stringify(data) }),
   addPod: (id, data) => request(`/trips/${id}/pod`, { method: 'POST', body: JSON.stringify(data) }),
+  // Sprint 2B follow-up: grow an ongoing trip in place.
+  addStop: (id, data) => request(`/trips/${id}/stops`, { method: 'POST', body: JSON.stringify(data) }),
+  addLoad: (id, data) => request(`/trips/${id}/loads`, { method: 'POST', body: JSON.stringify(data) }),
+  addAnotherPod: (id, data) => request(`/trips/${id}/pods`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // Dashboard API
@@ -122,6 +126,11 @@ export const ledgerApi = {
   getPayments: (params) => request('/payments' + qs(params)),
 };
 
+// Reports API
+export const reportsApi = {
+  profitLoss: (params) => request('/reports/profit-loss' + qs(params)),
+};
+
 // Aliases for convenience (matches what main.js expects)
 export const transporter = transporterApi;
 export const vehicle = vehicleApi;
@@ -131,6 +140,7 @@ export const trip = tripApi;
 export const dashboard = dashboardApi;
 export const reference = referenceApi;
 export const ledger = ledgerApi;
+export const reports = reportsApi;
 
 export { request, ApiError };
 export default {
@@ -142,4 +152,5 @@ export default {
   dashboard: dashboardApi,
   reference: referenceApi,
   ledger: ledgerApi,
+  reports: reportsApi,
 };

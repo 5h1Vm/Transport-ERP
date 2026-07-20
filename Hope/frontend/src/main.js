@@ -21,17 +21,18 @@ import { renderDriversPage } from './pages/DriversPage.js';
 import { renderRoutesPage } from './pages/RoutesPage.js';
 import { renderTripsPage, renderTripFormPage, hydrateTripFormIfPending } from './pages/TripsPage.js';
 import { bindMultiStopEditor, collectMultiStopPayload } from './components/MultiStopEditor.js';
-import { bindLoadPaymentForms } from './components/MultiStopPanel.js';
+import { bindLoadPaymentForms, bindTripManagementForms } from './components/MultiStopPanel.js';
 import { renderLedgersPage } from './pages/LedgersPage.js';
 import { renderTransporterDetail } from './pages/TransporterDetailPage.js';
 import { renderTripDetail } from './pages/TripDetailPage.js';
 import { renderDriverDetail } from './pages/DriverDetailPage.js';
 import { renderRouteDetail } from './pages/RouteDetailPage.js';
 import { renderVehicleDetail } from './pages/VehicleDetailPage.js';
+import { renderProfitLossPage } from './pages/ProfitLossPage.js';
 
 // Components
 import { createMainLayout } from './components/Layout.js';
-import { createSkeletonLoader } from './components/CardComponents.js';
+import { createSkeletonLoader, createPageLoader } from './components/CardComponents.js';
 import { bindTransactionForm } from './components/TransactionForm.js';
 import { showStateMessages } from './components/Toast.js';
 import { confirmDialog } from './components/Dialog.js';
@@ -164,10 +165,24 @@ async function refreshAfterMutation() {
 // loading, the stale render aborts instead of overwriting fresh content.
 let renderSeq = 0;
 
+// Pages that fetch inside their render function. While one of these awaits,
+// the previous page would otherwise sit frozen with zero feedback — so after
+// a short grace period (fast responses never flicker) we paint a spinner.
+const ASYNC_PAGE_RE = /^(transporter|trip|driver|route|vehicle)\/|^reports\//;
+
 async function render() {
   const token = ++renderSeq;
   const page = currentPage.value;
   let contentHtml;
+
+  let loaderTimer = null;
+  if (ASYNC_PAGE_RE.test(page) || page === 'trips/new') {
+    loaderTimer = setTimeout(() => {
+      if (token !== renderSeq) return; // a newer render took over
+      app.innerHTML = createMainLayout(page, createPageLoader());
+      bindEventHandlers(); // nav must stay usable while loading
+    }, 180);
+  }
 
   try {
     // Detail pages fetch their own data (async)
@@ -181,6 +196,9 @@ async function render() {
       contentHtml = await renderRouteDetail(page.split('/')[1]);
     } else if (page.startsWith('vehicle/')) {
       contentHtml = await renderVehicleDetail(page.split('/')[1]);
+    } else if (page.startsWith('reports/profit-loss')) {
+      const q = window.location.hash.includes('?') ? Object.fromEntries(new URLSearchParams(window.location.hash.split('?')[1])) : {};
+      contentHtml = await renderProfitLossPage(q);
     } else if (page === 'trips/new') {
       contentHtml = await renderTripFormPage('new');
     } else if (/^trips\/.+\/edit$/.test(page)) {
@@ -209,6 +227,7 @@ async function render() {
     contentHtml = `<div class="error-card">Failed to load page: ${escapeHtml(error.message)}</div>`;
   }
 
+  if (loaderTimer) clearTimeout(loaderTimer);
   if (token !== renderSeq) return; // superseded by a newer render
 
   // Preserve focus + caret across the innerHTML swap (search/filter inputs).
@@ -254,6 +273,8 @@ function bindEventHandlers() {
   bindExpenseDeleteButtons(handleExpenseDelete);
   bindTransactionForm();
   bindLoadPaymentForms();
+  bindTripManagementForms();
+  bindProfitLossRangeForm();
 
   bindNavigation(
     (hash) => { window.location.hash = hash; },
@@ -542,6 +563,28 @@ function bindEventHandlers() {
   }
 
   applyValidationErrors(state.validationErrors);
+}
+
+// Sprint 2D: the P&L date-range form just re-navigates with new query params
+// (the page re-fetches on hashchange) — it's not an entity save, so it stays
+// out of bindForms()/handleFormSubmit() entirely.
+function bindProfitLossRangeForm() {
+  const form = document.querySelector('form[data-pl-range-form]');
+  if (!form) return;
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const from = form.querySelector('[name="from"]').value;
+    const to = form.querySelector('[name="to"]').value;
+    const qs = new URLSearchParams();
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    const hash = `#reports/profit-loss${qs.toString() ? '?' + qs.toString() : ''}`;
+    if (window.location.hash === hash) {
+      render();
+    } else {
+      window.location.hash = hash;
+    }
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -888,7 +931,9 @@ async function createTransaction(body) {
         mode: body.mode,
         referenceNumber: body.referenceNumber || undefined,
         notes: body.note || undefined,
-        paymentDate: body.date || undefined
+        paymentDate: body.date || undefined,
+        // Opt-in 1% TDS — the checkbox serialises as 'on' only when ticked.
+        applyTds: body.applyTds === 'on' || body.applyTds === true
       });
 
     case 'SETTLEMENT':
@@ -897,7 +942,10 @@ async function createTransaction(body) {
         amount: body.amount,
         tripId: body.tripId || undefined,
         description: body.note || undefined,
-        date: body.date || undefined
+        date: body.date || undefined,
+        // Sprint 2C: only meaningful for type=ADVANCE — the select is empty/
+        // disabled otherwise, so this is undefined for every other type.
+        fundedByTransporterId: body.fundedByTransporterId || undefined
       });
 
     case 'EXPENSE':

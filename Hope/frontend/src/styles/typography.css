@@ -34,9 +34,9 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--color-text);
 }
 
-h1 { font-size: var(--font-size-3xl); font-weight: 800; letter-spacing: -0.01em; }
-h2 { font-size: var(--font-size-2xl); font-weight: 700; letter-spacing: -0.01em; }
-h3 { font-size: var(--font-size-lg); font-weight: 600; }
+h1 { font-size: var(--font-size-3xl); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: var(--font-size-2xl); font-weight: 700; letter-spacing: -0.02em; }
+h3 { font-size: var(--font-size-lg); font-weight: 600; letter-spacing: -0.01em; }
 h4 { font-size: var(--font-size-base); font-weight: 500; color: var(--color-text-secondary); }
 h5 { font-size: var(--font-size-sm); font-weight: 600; }
 h6 { font-size: var(--font-size-xs); font-weight: 600; }
@@ -76,6 +76,16 @@ h6 { font-size: var(--font-size-xs); font-weight: 600; }
 /* Muted text */
 .text-muted {
   color: var(--color-text-muted);
+}
+
+/* Money figures line up digit-for-digit everywhere they appear */
+.record-card h4,
+.metric-value,
+.kv-row dd,
+.pl-amount,
+.payment-entry strong,
+.expense-amount {
+  font-variant-numeric: tabular-nums;
 }
 
 .text-secondary {

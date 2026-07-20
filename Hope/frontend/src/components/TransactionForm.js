@@ -99,7 +99,8 @@ export function createTransactionForm({
   transporterId = '',
   driverId = '',
   drivers = [],
-  trips = []
+  trips = [],
+  transporters = []
 }) {
   const catalog = CATALOG[context];
   if (!catalog) return '';
@@ -138,6 +139,10 @@ export function createTransactionForm({
     .map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.internalRef || t.id.slice(0, 8))}</option>`)
     .join('');
 
+  const transporterOptions = context === 'driver'
+    ? transporters.map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.firmName)}</option>`).join('')
+    : '';
+
   return `
     <form data-form="transaction" class="form-grid two-col txn-form" data-context="${escapeHtml(context)}">
       ${tripId ? `<input type="hidden" name="tripId" value="${escapeHtml(tripId)}" />` : ''}
@@ -175,12 +180,19 @@ export function createTransactionForm({
           <option value="UPI">UPI</option>
           <option value="CHEQUE">Cheque</option>
         </select>
-        <p class="txn-hint" data-txn-tds hidden></p>
       </div>
 
       <div class="form-field" data-txn-field="reference" hidden>
         <label for="txn-reference">Reference (UTR / cheque no.)</label>
         <input id="txn-reference" name="referenceNumber" maxlength="60" />
+      </div>
+
+      <div class="form-field full-width txn-tds-field" data-txn-field="tds" hidden>
+        <label class="form-field-option txn-tds-toggle">
+          <input type="checkbox" id="txn-apply-tds" name="applyTds" value="on" />
+          <span>Deduct 1% TDS</span>
+        </label>
+        <p class="txn-hint" data-txn-tds hidden></p>
       </div>
 
       ${driverOptions ? `
@@ -198,6 +210,18 @@ export function createTransactionForm({
         <select id="txn-trip" name="tripId">
           <option value="">No trip</option>
           ${tripOptions}
+        </select>
+      </div>` : ''}
+
+      ${transporterOptions ? `
+      <div class="form-field full-width" data-txn-field="fundedBy" hidden>
+        <label class="form-field-option txn-funded-toggle">
+          <input type="checkbox" id="txn-funded-toggle" />
+          <span>Funded by a transporter (they handed the driver cash directly)</span>
+        </label>
+        <select id="txn-funded-transporter" name="fundedByTransporterId" hidden disabled>
+          <option value="">Select transporter…</option>
+          ${transporterOptions}
         </select>
       </div>` : ''}
 
@@ -237,6 +261,7 @@ export function bindTransactionForm() {
   const tdsHint = form.querySelector('[data-txn-tds]');
   const amountInput = form.querySelector('input[name="amount"]');
   const modeSelect = form.querySelector('select[name="mode"]');
+  const applyTdsCheckbox = form.querySelector('input[name="applyTds"]');
 
   const fieldEl = (name) => form.querySelector(`[data-txn-field="${name}"]`);
   const setShown = (name, shown) => {
@@ -264,10 +289,11 @@ export function bindTransactionForm() {
   function renderTds() {
     if (!tdsHint) return;
     const isPayment = currentChannel() === 'PAYMENT';
-    const mode = modeSelect ? modeSelect.value : '';
+    const applyTds = applyTdsCheckbox ? applyTdsCheckbox.checked : false;
     const amount = Number(amountInput.value);
 
-    if (!isPayment || mode === 'CASH' || !amount || amount <= 0) {
+    // Preview only when the user has opted in — TDS is never automatic now.
+    if (!isPayment || !applyTds || !amount || amount <= 0) {
       tdsHint.hidden = true;
       return;
     }
@@ -302,10 +328,25 @@ export function bindTransactionForm() {
     renderChannelFields();
   }
 
+  const fundedByToggle = form.querySelector('#txn-funded-toggle');
+  const fundedByTransporterSelect = form.querySelector('select[name="fundedByTransporterId"]');
+
+  function renderFundedBy() {
+    if (!fundedByToggle || !fundedByTransporterSelect) return;
+    const isAdvance = categorySelect.value === 'SETTLEMENT:ADVANCE';
+    setShown('fundedBy', isAdvance);
+    if (!isAdvance) fundedByToggle.checked = false;
+    const on = isAdvance && fundedByToggle.checked;
+    fundedByTransporterSelect.hidden = !on;
+    fundedByTransporterSelect.disabled = !on;
+    if (!on) fundedByTransporterSelect.value = '';
+  }
+
   function renderChannelFields() {
     const channel = currentChannel();
     setShown('mode', channel === 'PAYMENT');
     setShown('reference', channel === 'PAYMENT');
+    setShown('tds', channel === 'PAYMENT');
     setShown('paidToDriver', channel === 'EXPENSE');
     setShown('tripLink', channel === 'SETTLEMENT');
 
@@ -313,14 +354,16 @@ export function bindTransactionForm() {
     if (submit) submit.disabled = !channel;
 
     renderTds();
+    renderFundedBy();
   }
 
   form.querySelectorAll('input[name="direction"]').forEach((radio) => {
     radio.addEventListener('change', renderCategories);
   });
   categorySelect.addEventListener('change', renderChannelFields);
-  if (modeSelect) modeSelect.addEventListener('change', renderTds);
+  if (applyTdsCheckbox) applyTdsCheckbox.addEventListener('change', renderTds);
   if (amountInput) amountInput.addEventListener('input', renderTds);
+  if (fundedByToggle) fundedByToggle.addEventListener('change', renderFundedBy);
 
   renderCategories();
 }

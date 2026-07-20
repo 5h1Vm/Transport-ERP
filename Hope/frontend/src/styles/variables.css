@@ -1,6 +1,8 @@
 /**
  * CSS Variables - Design Tokens
- * Clean, white-first design with subtle contrast
+ * White-first design: a barely-gray canvas with pure-white cards for depth,
+ * one strong modern blue accent, and khata-green/red money semantics.
+ * All motion is limited to color/shadow/transform — nothing that forces layout.
  */
 
 :root {
@@ -29,8 +31,8 @@
 
   /* Layout */
   --sidebar-width: 240px;
-  --header-height: 56px;
-  --bottom-nav-height: 72px;
+  --header-height: 52px;
+  --bottom-nav-height: 64px;
   --max-width: 1400px;
   --max-content-width: 1600px;
 
@@ -46,67 +48,63 @@
   --z-toast: 200;
   --z-modal: 300;
 
-  /* Transitions */
+  /* Transitions — deliberately short; UI must never feel laggy */
   --transition-fast: 80ms ease;
   --transition-base: 120ms ease;
-  --transition-slow: 200ms ease;
+  --transition-slow: 180ms ease;
 
-  /* Shadows - Soft, subtle for white theme */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-base: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.12);
-
-  /*
-   * PRIMARY COLORS - Warm navy (professional but approachable)
-   */
-  --color-primary: #2c4a6e;
-  --color-primary_hover: #1e3a5a;
-  --color-primary_light: #e8f0f7;
-  --color-primary-focus: #3d648a;
+  /* Shadows — soft and layered, tinted with the ink color, never heavy */
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-base: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-md: 0 4px 10px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.05);
+  --shadow-lg: 0 8px 24px rgba(16, 24, 40, 0.08);
+  --shadow-xl: 0 16px 40px rgba(16, 24, 40, 0.1);
 
   /*
-   * BACKGROUNDS - Pure white everywhere
+   * PRIMARY — modern SaaS blue (the accent used across leading fleet/ledger
+   * apps). One accent only; everything else stays neutral.
    */
-  --color-bg: #ffffff;
-  --color-bg-elevated: #ffffff;
+  --color-primary: #2563eb;
+  --color-primary_hover: #1d4ed8;
+  --color-primary_light: #eef4ff;
+  --color-primary-focus: #3b82f6;
+
+  /*
+   * BACKGROUNDS — whitish canvas, pure white surfaces. The faint gray canvas
+   * is what makes white cards read as cards without needing heavy borders.
+   */
+  --color-bg: #f6f7f9;
+  --color-bg-elevated: #fbfbfc;
   --color-panel: #ffffff;
-  --color-panel-hover: #fafafa;
+  --color-panel-hover: #f8f9fb;
 
   /*
-   * BORDERS - Light but visible (12% contrast minimum)
+   * BORDERS — soft but visible
    */
-  --color-border: #e5e5e5;
-  --color-border-strong: #cccccc;
+  --color-border: #e7e9ee;
+  --color-border-strong: #d4d8df;
   --color-border-focus: var(--color-primary);
 
   /*
-   * TEXT - Soft black, never harsh
+   * TEXT — near-black ink, comfortable secondary tones
    */
-  --color-text: #1a1a1a;
-  --color-text-secondary: #4a4a4a;
-  --color-text-muted: #787878;
+  --color-text: #16181d;
+  --color-text-secondary: #4b5563;
+  --color-text-muted: #6b7280;
   --color-text-inverse: #ffffff;
-  /*
-   * Alias. `var(--color-muted)` is referenced across dropdowns, modals,
-   * tables, layout, reset and the .text-muted utility, but was never
-   * defined — so every one of those declarations was invalid and silently
-   * fell back to the inherited colour, rendering muted text at full
-   * contrast. Defined here so those usages resolve as designed.
-   */
+  /* Alias kept for legacy var(--color-muted) usages across older files. */
   --color-muted: var(--color-text-muted);
 
   /*
-   * SUCCESS - Soft green
+   * SUCCESS — khata green: "money coming to you"
    */
-  --color-success: #16a34a;
-  --color-success-bg: #f0fdf4;
-  --color-success-border: #86efac;
-  --color-success-light: #f5fef8;
+  --color-success: #059669;
+  --color-success-bg: #ecfdf5;
+  --color-success-border: #a7f3d0;
+  --color-success-light: #f2fdf8;
 
   /*
-   * WARNING - Warm amber
+   * WARNING — warm amber
    */
   --color-warning: #b45309;
   --color-warning-bg: #fffbeb;
@@ -114,7 +112,7 @@
   --color-warning-light: #fffaeb;
 
   /*
-   * DANGER - Soft red
+   * DANGER — khata red: "money you owe"
    */
   --color-danger: #dc2626;
   --color-danger-bg: #fef2f2;
@@ -122,7 +120,7 @@
   --color-danger-light: #fff5f5;
 
   /*
-   * INFO - Calm blue
+   * INFO — calm blue
    */
   --color-info: #0284c7;
   --color-info-bg: #f0f9ff;
@@ -130,10 +128,10 @@
   --color-info-light: #f8fbff;
 
   /*
-   * FOCUS RING - Accessible blue
+   * FOCUS RING — accessible blue
    */
   --color-focus: #2563eb;
-  --color-focus-ring: rgba(37, 99, 235, 0.25);
+  --color-focus-ring: rgba(37, 99, 235, 0.22);
 
   /*
    * CHIP/BADGE COLORS
@@ -146,8 +144,8 @@
   --chip-warning-text: #ffffff;
   --chip-danger-bg: var(--color-danger);
   --chip-danger-text: #ffffff;
-  --chip-muted-bg: #f5f5f5;
-  --chip-muted-text: #525252;
+  --chip-muted-bg: #f1f2f5;
+  --chip-muted-text: #52565e;
 
   /*
    * FORM ELEMENTS
@@ -156,7 +154,7 @@
   --input-border: var(--color-border);
   --input-border-focus: var(--color-primary);
   --input-error: var(--color-danger);
-  --input-placeholder: #a3a3a3;
+  --input-placeholder: #9aa0aa;
 
   /*
    * BUTTON VARIANTS
@@ -168,13 +166,4 @@
   --btn-secondary-border: var(--color-border);
   --btn-ghost-bg: transparent;
   --btn-ghost-text: var(--color-text);
-}
-
-/* Dark mode - Keep it optional, light by default */
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Let users who prefer dark mode have it, but keep defaults light */
-    --color-bg: #fafafa;
-    --color-panel: #ffffff;
-  }
 }

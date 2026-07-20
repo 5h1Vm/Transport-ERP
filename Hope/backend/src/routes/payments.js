@@ -20,16 +20,19 @@ const paymentSchema = z.object({
   bankAccount: z.string().optional(),
   notes: z.string().optional(),
   paymentDate: z.string().datetime().optional(),
-  // Optional manual override. When omitted, TDS is derived from mode+amount.
+  // TDS is opt-in per payment via an explicit checkbox — never automatic.
+  // `applyTds` true → 1% of amount is recorded. `tdsAmount` is still honoured
+  // as a manual override when the user needs a figure other than the default.
+  applyTds: z.coerce.boolean().optional(),
   tdsAmount: z.coerce.number().min(0).optional()
 });
 
 const TDS_RATE = 0.01;
 
 /**
- * TDS is withheld only on non-cash (online/banked) payments, at 1% of the
- * gross amount. An explicit `tdsAmount` in the request always wins, so the
- * user can correct the figure when reality differs from the default rate.
+ * TDS is opt-in: it is recorded only when the user ticks the "1% TDS" box
+ * (`applyTds`), never derived automatically from the payment mode. An explicit
+ * `tdsAmount` still wins as a manual override.
  *
  * This is a record-keeping figure for tax filing. It is deliberately NOT
  * subtracted from the payment amount anywhere — the transporter's
@@ -37,8 +40,8 @@ const TDS_RATE = 0.01;
  */
 function resolveTdsAmount(payload) {
   if (payload.tdsAmount !== undefined) return payload.tdsAmount;
-  if (payload.mode === 'CASH') return 0;
-  return Math.round(payload.amount * TDS_RATE * 100) / 100;
+  if (payload.applyTds) return Math.round(payload.amount * TDS_RATE * 100) / 100;
+  return 0;
 }
 
 module.exports = function paymentRoutes(ctx) {

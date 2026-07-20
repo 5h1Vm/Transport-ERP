@@ -31,7 +31,11 @@ const settlementSchema = z.object({
   amount: z.coerce.number().positive(),
   tripId: z.string().cuid().optional().or(z.literal('')),
   description: z.string().optional(),
-  date: z.string().datetime().optional()
+  date: z.string().datetime().optional(),
+  // Sprint 2C: only meaningful for type=ADVANCE. Marks this as cash a
+  // transporter handed the driver directly rather than a company-funded
+  // advance — see calculateTransporterTotalsBulk for the reconciliation.
+  fundedByTransporterId: z.string().cuid().optional().or(z.literal(''))
 });
 
 function driverData(payload) {
@@ -84,7 +88,10 @@ module.exports = function driverRoutes(ctx) {
     const driver = await prisma.driver.findUnique({
       where: { id: req.params.driverId },
       include: {
-        settlements: { orderBy: { createdAt: 'desc' } },
+        settlements: {
+          orderBy: { createdAt: 'desc' },
+          include: { fundedByTransporter: { select: { id: true, firmName: true } } }
+        },
         expenses: { where: { paidToDriverId: { not: null } }, orderBy: { createdAt: 'desc' } }
       }
     });
@@ -147,6 +154,17 @@ module.exports = function driverRoutes(ctx) {
 
   router.post('/drivers/:driverId/settlements', asyncHandler(async (req, res) => {
     const payload = settlementSchema.parse(req.body);
+
+    // fundedByTransporterId only means something for an ADVANCE — silently
+    // dropping it elsewhere keeps every other settlement type's behavior
+    // exactly as it was before this sprint.
+    let fundedByTransporterId = null;
+    if (payload.type === 'ADVANCE' && payload.fundedByTransporterId) {
+      const transporter = await prisma.transporter.findUnique({ where: { id: payload.fundedByTransporterId }, select: { id: true } });
+      if (!transporter) return res.status(400).json({ message: 'Invalid funding transporter.' });
+      fundedByTransporterId = transporter.id;
+    }
+
     const settlement = await prisma.driverSettlement.create({
       data: {
         driverId: req.params.driverId,
@@ -154,7 +172,8 @@ module.exports = function driverRoutes(ctx) {
         type: payload.type,
         amount: payload.amount,
         description: payload.description,
-        date: payload.date ? new Date(payload.date) : new Date()
+        date: payload.date ? new Date(payload.date) : new Date(),
+        fundedByTransporterId
       }
     });
 

@@ -112,6 +112,7 @@ model Transporter {
   ledger    TransporterLedgerEntry[]
   payments  Payment[]
   tripLoads TripLoad[] // multi-stop legs billed to this transporter (Sprint 2B)
+  fundedDriverAdvances DriverSettlement[] @relation("FundedDriverAdvances") // Sprint 2C
   // Removed vehicles relation as per sprint-1a
 
   @@unique([organizationId, firmName])
@@ -432,6 +433,10 @@ model Trip {
   // directly on the Trip above, exactly as before.
   stops         TripStop[]
   loads         TripLoad[]
+  // Multiple PODs — one journey can be delivered at several stops, each with
+  // its own proof. The legacy single podImageUrl/podReceivedDate fields above
+  // are untouched; this is additive.
+  pods          TripPod[]
 
   @@unique([organizationId, internalRef])
   @@index([organizationId])
@@ -583,6 +588,7 @@ model TripStop {
 
   loadsOriginating TripLoad[] @relation("LoadOrigin")
   loadsDestined    TripLoad[] @relation("LoadDestination")
+  pods             TripPod[]
 
   @@index([tripId, sequence])
 }
@@ -612,6 +618,23 @@ model TripLoad {
   @@index([transporterId])
 }
 
+// One proof-of-delivery per delivered stop. Additive to the legacy single POD
+// on Trip — a multi-stop journey drops at several places and needs one each.
+model TripPod {
+  id           String    @id @default(cuid())
+  tripId       String
+  trip         Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  stopId       String?
+  stop         TripStop? @relation(fields: [stopId], references: [id])
+  location     String? // free-text place if not tied to a specific stop
+  note         String?
+  imageUrl     String?
+  receivedDate DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+
+  @@index([tripId])
+}
+
 // ═════════════════════════════════════════════════
 // DRIVER SETTLEMENTS
 // ═════════════════════════════════════════════════
@@ -639,8 +662,16 @@ model DriverSettlement {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  // Sprint 2C: when set, this ADVANCE was cash a specific transporter handed
+  // the driver directly (not company money) — it reduces both the driver's
+  // owed balance AND that transporter's outstanding. Null (default) means a
+  // normal company-funded advance/settlement — zero change to that path.
+  fundedByTransporterId String?
+  fundedByTransporter   Transporter? @relation("FundedDriverAdvances", fields: [fundedByTransporterId], references: [id])
+
   @@index([driverId])
   @@index([date])
+  @@index([fundedByTransporterId])
 }
 
 // ═════════════════════════════════════════════════

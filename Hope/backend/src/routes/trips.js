@@ -3,7 +3,7 @@ const { z } = require('zod');
 const asyncHandler = require('../middleware/asyncHandler');
 const { parseLimit, parseOffset } = require('../utils/pagination');
 const { Prisma, CommissionType } = require('@prisma/client');
-const { money, add, sub, mul, toRupees } = require('../utils/money');
+const { money, add, sub, mul, toRupees, sumBy } = require('../utils/money');
 const {
   calculateCommission,
   calculateFreightAmount,
@@ -33,7 +33,8 @@ const FULL_TRIP_INCLUDE = {
       destinationStop: true,
       payments: { orderBy: { createdAt: 'desc' } }
     }
-  }
+  },
+  pods: { orderBy: { receivedDate: 'desc' }, include: { stop: true } }
 };
 
 /**
@@ -144,6 +145,33 @@ const podSchema = z.object({
   podReceivedDate: z.string().datetime().optional()
 });
 
+// Sprint 2B follow-up: grow an ongoing trip one stop / one load / one POD at a
+// time from its detail page, instead of ending the trip and starting a new one.
+const addStopSchema = z.object({
+  location: z.string().min(1),
+  arrivalDate: z.string().datetime().optional().or(z.literal(''))
+});
+
+const addLoadSchema = z.object({
+  originStopId: z.string().cuid(),
+  destinationStopId: z.string().cuid(),
+  transporterId: z.string().cuid(),
+  weightTons: z.coerce.number().default(0),
+  freightAmount: z.coerce.number().default(0),
+  freightPerTon: z.coerce.number().optional(),
+  commissionType: z.nativeEnum(CommissionType),
+  commissionValue: z.coerce.number().default(0),
+  notes: z.string().optional()
+});
+
+const addPodSchema = z.object({
+  stopId: z.string().cuid().optional().or(z.literal('')),
+  location: z.string().optional(),
+  note: z.string().optional(),
+  imageUrl: z.string().url().optional().or(z.literal('')),
+  receivedDate: z.string().datetime().optional()
+});
+
 // Valid trip-status transitions. Empty array = final state.
 const STATUS_TRANSITIONS = {
   DRAFT: ['LOADING', 'CANCELLED'],
@@ -155,44 +183,6 @@ const STATUS_TRANSITIONS = {
   SETTLED: [],
   CANCELLED: []
 };
-
-// When a trip is delivered, accrue each driver's daily expense across the trip's
-// duration as a DAILY_EXPENSE trip expense.
-async function createDailyExpensesForTrip(prisma, tripId) {
-  const trip = await prisma.trip.findUnique({
-    where: { id: tripId },
-    include: { drivers: { include: { driver: true } } }
-  });
-
-  if (!trip || !trip.departureDate || !trip.deliveryDate) return;
-
-  // Normalise both dates to calendar-date midnight (UTC) so the day-count
-  // is immune to the time-of-day component on deliveryDate (set as new Date()
-  // in the status-transition handler, not a midnight date-only value).
-  const dep = new Date(trip.departureDate);
-  const del = new Date(trip.deliveryDate);
-  const start = Date.UTC(dep.getFullYear(), dep.getMonth(), dep.getDate());
-  const end = Date.UTC(del.getFullYear(), del.getMonth(), del.getDate());
-  const days = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1; // inclusive
-
-  for (const td of trip.drivers) {
-    const driver = td.driver;
-    if (!driver || !driver.dailyExpenseRate || driver.dailyExpenseRate <= 0) continue;
-
-    const amount = money(driver.dailyExpenseRate).times(new Prisma.Decimal(days));
-    const description = 'Daily expense: ' + days + ' days x ' + driver.dailyExpenseRate + '/day';
-
-    await prisma.tripExpense.create({
-      data: {
-        tripId: trip.id,
-        category: 'DAILY_EXPENSE',
-        amount,
-        description,
-        paidToDriverId: driver.id
-      }
-    });
-  }
-}
 
 // Replace a trip's driver assignments with the given driverIds/roles.
 async function syncTripDrivers(prisma, tripId, driverIds, driverRoles) {
@@ -250,16 +240,23 @@ module.exports = function tripRoutes(ctx) {
         // Amount-only relations feed the summary and are stripped before sending.
         expenses: { select: { amount: true } },
         payments: { select: { amount: true } },
-        ledgerEntries: { select: { netReceivable: true } }
+        ledgerEntries: { select: { netReceivable: true } },
+        // Sprint 2B multi-stop loads bill their own freight outside
+        // freightAmount — folded into displayFreightTotal below so list/card
+        // views (Dashboard, Trips list, driver/route/vehicle detail) don't
+        // show a stale, load-less figure for hybrid or multi-stop trips.
+        loads: { select: { freightAmount: true } }
       }
     });
 
     const slim = trips.map((trip) => {
-      const { expenses, payments, ledgerEntries, ...rest } = trip;
+      const { expenses, payments, ledgerEntries, loads, ...rest } = trip;
+      const loadsFreightTotal = sumBy(loads, (l) => l.freightAmount);
       return {
         ...rest,
         paymentCount: payments.length,
-        financialSummary: computeTripPaymentSummary(trip)
+        financialSummary: computeTripPaymentSummary(trip),
+        displayFreightTotal: toRupees(add(money(trip.freightAmount), money(loadsFreightTotal)))
       };
     });
 
@@ -393,10 +390,6 @@ module.exports = function tripRoutes(ctx) {
 
     if (status === 'POD_RECEIVED' && !trip.podReceivedDate) {
       await prisma.trip.update({ where: { id: tripId }, data: { podReceivedDate: new Date() } });
-    }
-
-    if (status === 'DELIVERED') {
-      await createDailyExpensesForTrip(prisma, tripId);
     }
 
     res.json(updatedTrip);
@@ -650,6 +643,100 @@ module.exports = function tripRoutes(ctx) {
     });
 
     res.json(trip);
+  }));
+
+  // ── Sprint 2B follow-up: incrementally extend an ongoing trip ──────────
+
+  const assertTripEditable = async (tripId, res) => {
+    const trip = await prisma.trip.findUnique({ where: { id: tripId }, select: { id: true, status: true } });
+    if (!trip) { res.status(404).json({ message: 'Trip not found' }); return null; }
+    if (trip.status === 'CANCELLED' || trip.status === 'SETTLED') {
+      res.status(400).json({ message: `Cannot change a ${trip.status.toLowerCase()} trip.` });
+      return null;
+    }
+    return trip;
+  };
+
+  // Append a stop to the journey. Sequence continues after the last stop, so
+  // "send the truck to the next place" is one call — the trip is never ended.
+  router.post('/trips/:tripId/stops', asyncHandler(async (req, res) => {
+    const payload = addStopSchema.parse(req.body);
+    if (!(await assertTripEditable(req.params.tripId, res))) return;
+
+    const last = await prisma.tripStop.findFirst({
+      where: { tripId: req.params.tripId },
+      orderBy: { sequence: 'desc' },
+      select: { sequence: true }
+    });
+    const stop = await prisma.tripStop.create({
+      data: {
+        tripId: req.params.tripId,
+        sequence: last ? last.sequence + 1 : 0,
+        location: payload.location,
+        arrivalDate: payload.arrivalDate ? new Date(payload.arrivalDate) : null
+      }
+    });
+    res.status(201).json(stop);
+  }));
+
+  // Add a load (a pickup→drop leg billed to a transporter) to an existing trip.
+  // Works on a plain single-leg trip too — its own freight stays as-is and the
+  // new load's receivable is simply added on top (see calculateTransporter…).
+  router.post('/trips/:tripId/loads', asyncHandler(async (req, res) => {
+    const payload = addLoadSchema.parse(req.body);
+    if (!(await assertTripEditable(req.params.tripId, res))) return;
+
+    if (payload.originStopId === payload.destinationStopId) {
+      return res.status(400).json({ message: "A load's origin and destination stops must be different." });
+    }
+    const stops = await prisma.tripStop.findMany({
+      where: { id: { in: [payload.originStopId, payload.destinationStopId] }, tripId: req.params.tripId },
+      select: { id: true }
+    });
+    if (stops.length !== 2) {
+      return res.status(400).json({ message: 'Both stops must belong to this trip.' });
+    }
+    const transporter = await prisma.transporter.findUnique({ where: { id: payload.transporterId }, select: { id: true } });
+    if (!transporter) return res.status(400).json({ message: 'Invalid transporter.' });
+
+    const load = await prisma.tripLoad.create({
+      data: {
+        tripId: req.params.tripId,
+        originStopId: payload.originStopId,
+        destinationStopId: payload.destinationStopId,
+        transporterId: payload.transporterId,
+        weightTons: payload.weightTons,
+        freightAmount: calculateFreightAmount(payload),
+        freightPerTon: payload.freightPerTon ?? null,
+        commissionType: payload.commissionType,
+        commissionValue: payload.commissionValue,
+        notes: payload.notes
+      }
+    });
+    res.status(201).json(load);
+  }));
+
+  // Add another proof-of-delivery. Independent of the legacy single-POD flow —
+  // a multi-drop journey records one per delivered stop.
+  router.post('/trips/:tripId/pods', asyncHandler(async (req, res) => {
+    const payload = addPodSchema.parse(req.body);
+    if (!(await assertTripEditable(req.params.tripId, res))) return;
+
+    if (payload.stopId) {
+      const stop = await prisma.tripStop.findFirst({ where: { id: payload.stopId, tripId: req.params.tripId }, select: { id: true } });
+      if (!stop) return res.status(400).json({ message: 'That stop does not belong to this trip.' });
+    }
+    const pod = await prisma.tripPod.create({
+      data: {
+        tripId: req.params.tripId,
+        stopId: payload.stopId || null,
+        location: payload.location || null,
+        note: payload.note || null,
+        imageUrl: payload.imageUrl || null,
+        receivedDate: payload.receivedDate ? new Date(payload.receivedDate) : new Date()
+      }
+    });
+    res.status(201).json(pod);
   }));
 
   return router;

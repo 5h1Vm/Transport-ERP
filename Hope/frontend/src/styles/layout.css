@@ -3,11 +3,16 @@
  */
 
 /* Main shell */
+/* minmax(0, 1fr), not 1fr: at tablet widths the sidebar turns into a static
+   horizontal nav bar, and a bare 1fr track takes its automatic minimum from
+   that nav's min-content — the track resolved to 896px inside a 726px shell
+   and scrolled the whole document sideways. Capping the track at 0 lets the
+   nav wrap instead of forcing the page wider. */
 .shell {
   max-width: var(--max-content-width);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   align-items: start;
 }
@@ -39,7 +44,7 @@
 .metrics-grid.white {
   display: grid;
   gap: var(--space-2);
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .panel-grid.white,
@@ -47,7 +52,7 @@
 .panel-grid.white.one-col {
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .full-width {
@@ -112,7 +117,7 @@
   .panel-grid.white,
   .panel-grid.white.two-col,
   .panel-grid.white.one-col {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -128,7 +133,7 @@
   }
 
   .metrics-grid.white {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 
   .panel-grid.white,

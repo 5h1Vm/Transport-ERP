@@ -1,14 +1,14 @@
 /**
  * Navigation - Mobile Header, Sidebar, Bottom Nav
- * Desktop-first approach with mobile overrides
+ * Desktop-first with mobile overrides. Motion limited to color/shadow.
  */
 
 /* ========== DESKTOP DEFAULTS (1024px+) ========== */
 .sidebar {
   position: sticky;
-  top: var(--space-5);
+  top: var(--space-4);
   left: 0;
-  height: calc(100vh - calc(var(--space-5) * 2));
+  height: calc(100vh - calc(var(--space-4) * 2));
   width: var(--sidebar-width);
   max-width: 280px;
   display: flex;
@@ -16,10 +16,10 @@
   align-items: stretch;
   gap: var(--space-4);
   border-radius: var(--radius-xl);
-  padding: var(--space-5);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   background: var(--color-panel);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-sm);
   overflow-y: auto;
 }
 
@@ -27,35 +27,43 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
 }
 
-.sidebar .brand-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-md);
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-lg);
   display: grid;
   place-items: center;
-  background: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary_hover));
   color: white;
   font-weight: 800;
   font-size: 14px;
+  letter-spacing: 0.02em;
   flex-shrink: 0;
 }
 
 .sidebar .sidebar-brand-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .sidebar .sidebar-title {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
 }
 
 .sidebar .eyebrow {
   display: block;
-  font-size: 0.7rem;
-  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 .sidebar .sidebar-card {
@@ -64,33 +72,33 @@
   border-radius: var(--radius-lg);
   padding: var(--space-3);
   border: 1px solid var(--color-border);
-  background: var(--color-panel);
+  background: var(--color-bg-elevated);
   font-size: 0.78rem;
 }
 
 .nav {
   display: grid;
-  gap: 4px;
-  margin: var(--space-4) 0;
+  gap: 2px;
+  margin: var(--space-2) 0;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: var(--space-2);
+  gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-lg);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 500;
   min-height: 40px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  border: 1px solid transparent;
+  border: none;
   background: transparent;
-  color: var(--color-text);
-  transition: all var(--transition-fast);
+  color: var(--color-text-secondary);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .nav-item-icon {
@@ -101,25 +109,24 @@
   transition: color var(--transition-fast);
 }
 
+.nav-item:hover {
+  background: var(--color-panel-hover);
+  color: var(--color-text);
+}
+
 .nav-item:hover .nav-item-icon {
+  color: var(--color-text);
+}
+
+/* Active = soft accent pill (modern SaaS pattern), not a solid dark block */
+.nav-item.active {
+  background: var(--color-primary_light);
   color: var(--color-primary);
+  font-weight: 600;
 }
 
 .nav-item.active .nav-item-icon {
-  color: white;
-}
-
-.nav-item:hover {
-  background: var(--color-primary_light);
-  border-color: var(--color-border);
-}
-
-.nav-item.active {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-  font-weight: 600;
-  box-shadow: var(--shadow-md);
+  color: var(--color-primary);
 }
 
 /* Mobile elements hidden on desktop */
@@ -130,7 +137,7 @@
 }
 
 /* The FAB is a mobile pattern (re-enabled at <=639px below); desktop/tablet
-   get a normal "+ Add trip" button in the panel header instead. */
+   get a normal "+ Add" button in the panel header instead. */
 @media (min-width: 640px) {
   .fab-btn {
     display: none;
@@ -144,7 +151,7 @@
   }
 
   .shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .white-shell .content {
@@ -157,12 +164,12 @@
     width: auto;
     max-width: none;
     border-radius: var(--radius-xl);
-    padding: var(--space-4);
+    padding: var(--space-3) var(--space-4);
     border: 1px solid var(--color-border);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-sm);
   }
 
-  .sidebar .eyebrow,
+  .sidebar .sidebar-title,
   .sidebar .sidebar-card {
     display: none;
   }
@@ -190,25 +197,23 @@
   }
 
   .shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  /* Slim mobile header (MOB-005) — 44px instead of 56px, no tagline */
+  /* Full-width app bar — cleaner and more "product" than a floating card */
   .mobile-header {
     display: flex !important;
     position: fixed;
-    top: var(--space-3);
-    left: var(--space-3);
-    right: var(--space-3);
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
     z-index: var(--z-mobile-header);
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-1) var(--space-2);
+    padding: 0 var(--space-4);
     background: var(--color-panel);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    min-height: 44px;
+    border-bottom: 1px solid var(--color-border);
   }
 
   .mobile-header-brand {
@@ -227,7 +232,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     color: var(--color-text);
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
   }
 
   .mobile-menu-btn:hover,
@@ -243,16 +248,10 @@
   }
 
   .mobile-header .brand-mark {
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
     border-radius: var(--radius-md);
-    display: grid;
-    place-items: center;
-    background: var(--color-primary);
-    color: white;
-    font-weight: 800;
     font-size: 12px;
-    flex-shrink: 0;
   }
 
   .mobile-header-text {
@@ -262,33 +261,32 @@
   }
 
   .mobile-header h1 {
-    font-size: 0.95rem;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
     margin: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* Hide the FLEET OPERATING SYSTEM tagline (MOB-005) */
   .mobile-header .eyebrow {
     display: none;
   }
 
-  /* Sidebar becomes off-canvas drawer on mobile. The floating mobile-header
-     sits inset by --space-3 on all sides (rounded corners, gap from the
-     edges) — the drawer must start below its full outer edge (height +
-     top offset + bottom margin), not just pad its own content down, or its
-     background peeks out from behind the header through that margin gap. */
+  /* Sidebar becomes off-canvas drawer below the full-width app bar. */
   .sidebar {
     position: fixed;
-    top: calc(var(--header-height) + var(--space-3) * 2);
+    top: var(--header-height);
     left: 0;
-    height: calc(100vh - var(--header-height) - var(--space-3) * 2);
+    height: calc(100dvh - var(--header-height));
     width: var(--sidebar-width);
     max-width: 280px;
     padding: var(--space-4);
     border-radius: 0;
+    border: none;
     border-right: 1px solid var(--color-border);
+    box-shadow: var(--shadow-xl);
     transform: translateX(-100%);
     transition: transform var(--transition-slow);
     z-index: var(--z-sidebar);
@@ -318,7 +316,7 @@
     color: var(--color-text);
   }
 
-  .sidebar .eyebrow,
+  .sidebar .sidebar-title,
   .sidebar .sidebar-card {
     display: none;
   }
@@ -337,6 +335,7 @@
   .nav-item {
     min-height: 48px;
     padding: var(--space-3) var(--space-4);
+    font-size: 0.9rem;
   }
 
   /* Sidebar overlay */
@@ -344,7 +343,7 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(44, 74, 110, 0.4);
+    background: rgba(22, 24, 29, 0.4);
     z-index: var(--z-overlay);
     opacity: 0;
     transition: opacity var(--transition-base);
@@ -355,44 +354,52 @@
     opacity: 1;
   }
 
-  /* Bottom navigation (MOB-001) — full 72px touch height, no-subtitle label only */
+  /* Bottom navigation — respects iPhone home-indicator safe area */
   .bottom-nav {
     display: block !important;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 72px;
+    height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     background: var(--color-panel);
     border-top: 1px solid var(--color-border);
-    box-shadow: 0 -4px 20px rgba(44, 74, 110, 0.08);
+    box-shadow: 0 -2px 12px rgba(16, 24, 40, 0.05);
     z-index: var(--z-bottom-nav);
   }
 
   .bottom-nav-list {
     display: flex;
     justify-content: space-around;
-    align-items: center;
-    height: 100%;
+    align-items: stretch;
+    height: var(--bottom-nav-height);
     margin: 0;
-    padding: 0 0 var(--space-1);
+    padding: var(--space-1) var(--space-1) 0;
     list-style: none;
   }
 
+  .bottom-nav-list li {
+    flex: 1;
+    display: flex;
+  }
+
   .bottom-nav-item {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 2px;
-    padding: var(--space-1) var(--space-2);
+    padding: var(--space-1);
     color: var(--color-text-muted);
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 500;
-    transition: all var(--transition-fast);
+    background: transparent;
+    border: none;
+    transition: color var(--transition-fast);
     cursor: pointer;
-    min-width: 56px;
-    min-height: 56px;
+    min-height: 52px;
     border-radius: var(--radius-lg);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
@@ -403,40 +410,42 @@
     color: var(--color-primary);
   }
 
-  /* Active tab styling (MOB-006) */
-  .bottom-nav-item.active .bottom-nav-icon {
-    color: var(--color-primary);
-    stroke-width: 2.5px;
-  }
-
-  .bottom-nav-item.active span {
-    font-weight: 700;
-    font-size: 0.72rem;
-  }
-
   .bottom-nav-icon {
-    width: 24px;
-    height: 24px;
+    width: 23px;
+    height: 23px;
+    stroke-width: 1.8px;
+  }
+
+  /* Active tab: filled icon pill — the pattern users know from every
+     polished consumer app. Pure background-color change, zero layout work. */
+  .bottom-nav-item .bottom-nav-icon-wrap {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 26px;
+    border-radius: var(--radius-full);
+    transition: background-color var(--transition-fast);
+  }
+
+  .bottom-nav-item.active .bottom-nav-icon-wrap {
+    background: var(--color-primary_light);
+  }
+
+  .bottom-nav-item.active .bottom-nav-icon {
+    stroke-width: 2.4px;
+  }
+
+  .bottom-nav-item.active span:last-child {
+    font-weight: 700;
   }
 
   .bottom-nav-item.menu-item {
     color: var(--color-text-muted);
   }
 
-  /* Tap target area indicator — underline for active */
-  .bottom-nav-item.active::after {
-    content: '';
-    display: block;
-    width: 20px;
-    height: 3px;
-    border-radius: 2px;
-    background: var(--color-primary);
-    margin-top: 1px;
-  }
-
-  /* MOB-015: compress page header on mobile */
+  /* Compress page header on mobile */
   .page-header h2 {
-    font-size: 1.15rem;
+    font-size: 1.2rem;
     margin: var(--space-1) 0;
   }
 
@@ -448,20 +457,20 @@
     font-size: 0.65rem;
   }
 
-  /* MOB-019: "Open page" / CTA link styled as outline button */
+  /* "Open page" / CTA link styled as outline button */
   a.text-link.cta-button,
   .cta-button {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
-    border: 2px solid var(--color-primary);
+    border: 1.5px solid var(--color-primary);
     border-radius: var(--radius-lg);
     color: var(--color-primary);
     font-weight: 600;
     font-size: 0.8rem;
     background: transparent;
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
     min-height: 44px;
     margin-top: var(--space-1);
   }
@@ -472,7 +481,7 @@
     text-decoration: none;
   }
 
-  /* MOB-003: Collapsible filter drawer — toggle button visible on mobile */
+  /* Collapsible filter drawer — toggle button visible on mobile */
   .filter-drawer {
     margin-bottom: var(--space-3);
   }
@@ -526,7 +535,7 @@
     margin-bottom: 0 !important;
   }
 
-  /* MOB-020: Dashboard empty state — slim dismissible banner at top */
+  /* Dashboard empty state — slim dismissible banner at top */
   .dashboard {
     position: relative;
   }
@@ -565,42 +574,40 @@
     display: none !important;
   }
 
-  /* FAB — floating add button */
+  /* FAB — floating add button, above the bottom nav + safe area */
   .fab-btn {
     position: fixed;
-    bottom: calc(var(--bottom-nav-height) + 24px);
-    right: 20px;
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 20px);
+    right: 18px;
     z-index: var(--z-fab, 900);
     width: 56px;
     height: 56px;
-    border-radius: 50%;
+    border-radius: var(--radius-xl);
     border: none;
     background: var(--color-primary);
     color: white;
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 300;
     line-height: 1;
     cursor: pointer;
-    box-shadow: 0 4px 16px rgba(44, 74, 110, 0.3);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.32);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
 
-  .fab-btn:hover,
-  .fab-btn:active {
-    background: var(--color-primary-dark, #1a3a5c);
-    transform: scale(1.08);
-    box-shadow: 0 6px 20px rgba(44, 74, 110, 0.4);
+  .fab-btn:hover {
+    background: var(--color-primary_hover);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
   }
 
   .fab-btn:active {
-    transform: scale(0.95);
+    transform: scale(0.94);
   }
-  }
+}
 
 /* ========== FOCUS STATES ========== */
 :focus-visible {

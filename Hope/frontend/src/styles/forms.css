@@ -10,18 +10,17 @@
   margin-top: var(--space-3);
 }
 
+/* minmax(0, …) on every track: a bare 1fr takes its minimum from the widest
+   thing inside it, and a native <select> reports its longest option as its
+   min-content — so one long option name ("Expense reimbursement") could widen
+   its column and squeeze every sibling field into a strip too narrow to read
+   its own label. */
 .form-grid.two-col {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .form-grid.three-col {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-@media (min-width: 1200px) {
-  .form-grid.three-col {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 /* Form field */
@@ -32,9 +31,9 @@
 }
 
 .form-field label {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -44,12 +43,29 @@ input, select, textarea {
   width: 100%;
   padding: var(--space-3) var(--space-4);
   font-size: 16px; /* Prevents zoom on iOS */
-  border: 2px solid var(--color-border);
+  border: 1.5px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--input-bg);
   color: var(--color-text);
   min-height: 48px;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* Checkboxes and radios must opt OUT of the text-input sizing above, which
+   would otherwise stretch them to 100% width and a 48px min-height — the
+   "1% TDS" toggle rendered as an 80x48px empty box next to its label. Scoped
+   globally rather than per-wrapper so any new checkbox is correct by default;
+   the previous fix only covered .checkbox-field. */
+input[type="checkbox"],
+input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  flex: 0 0 auto;
+  padding: 0;
+  margin: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
 }
 
 input:hover, select:hover, textarea:hover {
@@ -202,9 +218,13 @@ select:hover {
   background: var(--color-primary_light);
 }
 
+/* Sized to match the checkbox box above, so a radio row and a checkbox row in
+   the same form don't sit at visibly different sizes (13px UA default vs 18px). */
 .form-field-option input[type="radio"] {
-  width: auto;
-  min-height: auto;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  flex: 0 0 18px;
   margin: 0;
   accent-color: var(--color-primary);
 }
@@ -357,3 +377,6 @@ select:hover {
   padding: var(--space-1);
 }
 .multistop-editor .ms-error:empty { display: none; }
+
+.txn-funded-toggle { margin-bottom: var(--space-2); }
+#txn-funded-transporter { margin-top: var(--space-1); }

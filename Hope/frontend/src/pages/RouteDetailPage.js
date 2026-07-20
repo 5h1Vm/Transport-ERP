@@ -23,7 +23,7 @@ export async function renderRouteDetail(id) {
   const totalTrips = trips.length;
   const deliveredTrips = trips.filter(t => ['DELIVERED', 'POD_RECEIVED', 'BILLED', 'SETTLED'].includes(t.status)).length;
   const activeTrips = trips.filter(t => ['LOADING', 'IN_TRANSIT'].includes(t.status)).length;
-  const totalFreight = trips.reduce((sum, t) => sum + (t.freightAmount || 0), 0);
+  const totalFreight = trips.reduce((sum, t) => sum + (t.displayFreightTotal ?? t.freightAmount ?? 0), 0);
 
   const tripsHtml = trips.length ? trips.map(trip => createRecordCard({
     title: trip.internalRef || trip.id.slice(0, 8),
@@ -31,7 +31,7 @@ export async function renderRouteDetail(id) {
     chip: formatStatus(trip.status),
     chipClass: getStatusChipClass(trip.status),
     meta: [
-      currency(trip.freightAmount || 0),
+      currency(trip.displayFreightTotal ?? trip.freightAmount ?? 0),
       formatDate(trip.departureDate || trip.loadingDate || trip.createdAt),
       trip.lrNumber ? `LR: ${trip.lrNumber}` : ''
     ].filter(Boolean),
