@@ -26,9 +26,13 @@ async function renderTransporterDetail(id) {
     return '<div class="error-card">Transporter not found</div>';
   }
 
-  const totalFreight = trips.reduce((sum, t) => sum + (t.financialSummary?.chargeTotal || t.freightAmount || 0), 0);
+  const legacyTotalFreight = trips.reduce((sum, t) => sum + (t.financialSummary?.chargeTotal || t.freightAmount || 0), 0);
   const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  // Server-authoritative outstanding (transporters.js: ledger receivable − payments).
+  // Server-authoritative figures (transporters.js: calculateTransporterTotalsBulk),
+  // which — unlike summing this page's own trip list — correctly folds in
+  // Sprint 2B multi-stop TripLoad revenue. Fall back to the page's own sum
+  // only if the server field is somehow missing.
+  const totalFreight = typeof transporter.freightTotal === 'number' ? transporter.freightTotal : legacyTotalFreight;
   const outstanding = typeof transporter.outstanding === 'number' ? transporter.outstanding : totalFreight - totalPaid;
 
   const tripsHtml = trips.length
@@ -41,6 +45,10 @@ async function renderTransporterDetail(id) {
           chipClass: getStatusChipClass(trip.status),
           meta: [
             trip.route ? `${escapeHtml(trip.route.origin)} → ${escapeHtml(trip.route.destination)}` : 'No route',
+            // Deliberately trip.freightAmount, not displayFreightTotal — a
+            // trip can carry a Sprint 2B load billed to a DIFFERENT
+            // transporter than the one this page is for, and that freight
+            // isn't this transporter's to show here.
             currency(trip.freightAmount || 0),
             escapeHtml(formatDate(trip.departureDate || trip.loadingDate || trip.createdAt))
           ],
@@ -63,6 +71,23 @@ async function renderTransporterDetail(id) {
         actions: ''
       })).join('')
     : createEmptyState('No payments recorded.');
+
+  // Sprint 2C: advances this transporter handed a driver directly. These are
+  // DriverSettlement rows, not Payment rows — shown in their own section so
+  // they're never confused with a normal payment, even though both reduce
+  // this transporter's outstanding.
+  const fundedAdvances = transporter.fundedDriverAdvances || [];
+  const fundedAdvancesHtml = fundedAdvances.length
+    ? fundedAdvances.map(a => createRecordCard({
+        title: currency(a.amount),
+        subtitle: `Advance paid to driver ${escapeHtml(a.driver?.name || 'Unknown')}`,
+        meta: [
+          escapeHtml(formatDate(a.date || a.createdAt)),
+          escapeHtml(a.description || ''),
+          a.driver?.id ? `<a href="#driver/${escapeHtml(a.driver.id)}" class="text-link">Driver</a>` : ''
+        ].filter(Boolean)
+      })).join('')
+    : '';
 
   // Posts to /payments — the same Payment record the trip-detail form writes,
   // just not pre-scoped to one trip. Recording here leaves tripId empty (a
@@ -95,6 +120,15 @@ async function renderTransporterDetail(id) {
         <div class="stack">${paymentsHtml}</div>
       </article>
     </section>
+
+    ${fundedAdvances.length ? `
+    <section class="panel-grid white">
+      <article class="panel white full-width">
+        <h3>Advances paid directly to drivers (${fundedAdvances.length})</h3>
+        <p class="text-muted panel-sub">Cash this transporter handed a driver mid-trip — reduces this transporter's outstanding, same as a payment, but recorded on the driver's ledger.</p>
+        <div class="stack">${fundedAdvancesHtml}</div>
+      </article>
+    </section>` : ''}
 
     <section class="panel-grid white">
       <article class="panel white full-width">

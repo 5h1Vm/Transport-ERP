@@ -96,6 +96,19 @@ export function createLoadingCard(message = 'Preparing workspace...') {
 }
 
 /**
+ * Full-page loading indicator — a lightweight spinner shown while an async
+ * detail page fetches, so a slow network never looks like a broken app.
+ */
+export function createPageLoader(message = 'Loading…') {
+  return `
+    <div class="page-loader" role="status" aria-live="polite">
+      <span class="spinner" aria-hidden="true"></span>
+      <span>${escapeHtml(message)}</span>
+    </div>
+  `;
+}
+
+/**
  * Create skeleton loader for mobile (MOB-002)
  * Renders shimmer placeholder cards while data loads
  * @param {number} count - Number of skeleton cards to render

@@ -8,8 +8,9 @@ import {
   createStatusActions, createStatusStepper, createPodForm, createPodMeta
 } from '../components/CardComponents.js';
 import { createTransactionForm } from '../components/TransactionForm.js';
-import { createMultiStopPanel, isMultiStopTrip } from '../components/MultiStopPanel.js';
+import { createMultiStopPanel, createTripManagementPanel, isMultiStopTrip } from '../components/MultiStopPanel.js';
 import { currency, formatDate, formatStatus, getStatusChipClass, escapeHtml } from '../utils/helpers.js';
+import { state } from '../store/index.js';
 import * as api from '../services/api.js';
 
 export async function renderTripDetail(id) {
@@ -21,18 +22,23 @@ export async function renderTripDetail(id) {
   }
   if (!trip) return createEmptyState('Trip not found.');
 
-  const multiStop = isMultiStopTrip(trip);
+  const hasLoads = isMultiStopTrip(trip);
   const summary = trip.financialSummary || {};
-  // For a multi-stop trip the trip-level summary is 0 (freight lives on the
-  // loads); aggregate the per-load figures instead so the hero row is truthful.
+  // A trip can carry legacy single-leg freight (on the Trip itself) AND added
+  // loads at the same time — a plain trip that later grew extra legs. Show the
+  // combined picture so neither half is hidden.
+  const hasLegacy = (trip.freightAmount || 0) > 0 || (trip.ledgerEntries || []).length > 0;
   const loadAgg = (trip.loadSummaries || []).reduce((a, s) => ({
     freight: a.freight + (s.freight || 0),
     net: a.net + (s.netReceivable || 0),
     paid: a.paid + (s.paid || 0),
     outstanding: a.outstanding + (s.outstanding || 0)
   }), { freight: 0, net: 0, paid: 0, outstanding: 0 });
-  const totalPaid = multiStop ? loadAgg.paid : (summary.tripPaymentTotal || 0);
-  const outstanding = multiStop ? loadAgg.outstanding : (summary.outstanding || 0);
+
+  const legacyFreight = hasLegacy ? (trip.freightAmount || 0) : 0;
+  const freightTotal = legacyFreight + loadAgg.freight;
+  const totalPaid = (summary.tripPaymentTotal || 0) + loadAgg.paid;
+  const outstanding = (hasLegacy ? (summary.outstanding || 0) : 0) + loadAgg.outstanding;
   const isTerminal = trip.status === 'CANCELLED' || trip.status === 'SETTLED';
 
   // Outstanding is computed from (freight - transporter's commission), never
@@ -40,26 +46,19 @@ export async function renderTripDetail(id) {
   // gap between "Freight" and "Outstanding" is never a mystery.
   const commission = (trip.ledgerEntries || [])[0]?.commissionDeducted || 0;
 
-  const heroStats = multiStop ? `
+  const heroStats = `
     <div class="hero-stats">
-      ${createHeroStat({ label: 'Freight', value: currency(loadAgg.freight), helper: `${trip.loads.length} loads` })}
-      ${createHeroStat({ label: 'Net receivable', value: currency(loadAgg.net), helper: 'After commission' })}
-      ${createHeroStat({ label: 'Paid', value: currency(totalPaid), helper: 'Received', className: 'success' })}
-      ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: 'Across all loads', className: `hero-stat-dominant ${outstanding > 0 ? 'warning' : 'success'}` })}
-    </div>
-  ` : `
-    <div class="hero-stats">
-      ${trip.freightPerTon && trip.weightTons
+      ${(hasLegacy && trip.freightPerTon && trip.weightTons && !hasLoads)
         ? createHeroStat({
             label: 'Freight',
-            value: currency(trip.freightAmount || 0),
+            value: currency(freightTotal),
             helper: `${trip.weightTons}t × ₹${trip.freightPerTon}/ton`
           })
-        : createHeroStat({ label: 'Freight', value: currency(trip.freightAmount || 0), helper: 'Gross freight' })}
-      ${commission > 0 ? createHeroStat({ label: 'Commission', value: currency(commission), helper: 'Deducted from freight' }) : ''}
+        : createHeroStat({ label: 'Freight', value: currency(freightTotal), helper: hasLoads ? `${trip.loads.length} load(s)${hasLegacy ? ' + base' : ''}` : 'Gross freight' })}
+      ${(commission > 0 && !hasLoads) ? createHeroStat({ label: 'Commission', value: currency(commission), helper: 'Deducted from freight' }) : ''}
       ${createHeroStat({ label: 'Paid', value: currency(totalPaid), helper: 'Received', className: 'success' })}
-      ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: 'Due from transporter', className: `hero-stat-dominant ${outstanding > 0 ? 'warning' : 'success'}` })}
-      ${createHeroStat({ label: 'Expenses', value: currency(summary.tripExpenseTotal || 0), helper: 'Trip expenses' })}
+      ${createHeroStat({ label: 'Outstanding', value: currency(outstanding), helper: 'Due from transporter(s)', className: `hero-stat-dominant ${outstanding > 0 ? 'warning' : 'success'}` })}
+      ${!hasLoads ? createHeroStat({ label: 'Expenses', value: currency(summary.tripExpenseTotal || 0), helper: 'Trip expenses' }) : ''}
     </div>
   `;
 
@@ -67,7 +66,7 @@ export async function renderTripDetail(id) {
     ? trip.drivers.map(td => createRecordCard({
         title: escapeHtml(td.driver?.name || 'Unknown driver'),
         subtitle: escapeHtml(td.driver?.phone || ''),
-        meta: [`Role: ${escapeHtml(td.role)}`, td.driver?.dailyExpenseRate ? `Daily rate: ${currency(td.driver.dailyExpenseRate)}` : ''].filter(Boolean),
+        meta: [`Role: ${escapeHtml(td.role)}`].filter(Boolean),
         actions: td.driver ? `<a href="#driver/${escapeHtml(td.driver.id)}" class="text-link">Details</a>` : ''
       })).join('')
     : createEmptyState('No drivers assigned.');
@@ -111,11 +110,12 @@ export async function renderTripDetail(id) {
     })}
     ${heroStats}
     ${tripInfo}
-    ${multiStop ? createMultiStopPanel(trip, isTerminal) : `
+    ${hasLoads ? createMultiStopPanel(trip, isTerminal) : ''}
+    ${hasLegacy ? `
     ${!isTerminal ? `
     <section class="panel-grid white">
       <article class="panel white full-width">
-        <h3>Record entry</h3>
+        <h3>Record entry${hasLoads ? ' (base trip)' : ''}</h3>
         <p class="text-muted panel-sub">Money that left or arrived against this trip.</p>
         ${createTransactionForm({
           context: 'trip',
@@ -134,7 +134,7 @@ export async function renderTripDetail(id) {
         <h3>Expenses (${(trip.expenses || []).length})</h3>
         ${expensesHtml}
       </article>
-    </section>`}
+    </section>` : ''}
     ${createPodForm(trip.id, trip.status, trip.podReceivedDate) ? `
     <section class="panel-grid white">
       <article class="panel white full-width">
@@ -142,6 +142,7 @@ export async function renderTripDetail(id) {
         ${createPodForm(trip.id, trip.status, trip.podReceivedDate)}
       </article>
     </section>` : ''}
+    ${createTripManagementPanel(trip, isTerminal, state.refs.transporters || [])}
   `;
 
   return content;

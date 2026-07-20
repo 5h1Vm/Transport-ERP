@@ -3,7 +3,6 @@ const { z } = require('zod');
 const asyncHandler = require('../middleware/asyncHandler');
 const { parseLimit, parseOffset } = require('../utils/pagination');
 const {
-  calculateTransporterOutstanding,
   calculateTransporterTotalsBulk
 } = require('../services/calculations');
 
@@ -44,12 +43,13 @@ module.exports = function transporterRoutes(ctx) {
     // Bulk-compute totals for all transporters in this page (2 queries total).
     const totalsMap = await calculateTransporterTotalsBulk(prisma, items.map((t) => t.id));
     const result = items.map(({ _count, ...transporter }) => {
-      const totals = totalsMap.get(transporter.id) || { freightTotal: 0, paidTotal: 0, outstanding: 0 };
+      const totals = totalsMap.get(transporter.id) || { freightTotal: 0, paidTotal: 0, fundedAdvancesTotal: 0, outstanding: 0 };
       return {
         ...transporter,
         tripCount: _count.trips,
         freightTotal: totals.freightTotal,
         paidTotal: totals.paidTotal,
+        fundedAdvancesTotal: totals.fundedAdvancesTotal,
         outstanding: totals.outstanding
       };
     });
@@ -62,7 +62,15 @@ module.exports = function transporterRoutes(ctx) {
       where: { id: req.params.transporterId },
       include: {
         trips: { orderBy: { createdAt: 'desc' }, take: 5 },
-        payments: { orderBy: { paymentDate: 'desc' }, take: 5 }
+        payments: { orderBy: { paymentDate: 'desc' }, take: 5 },
+        // Sprint 2C: advances this transporter funded directly for a driver —
+        // shown distinctly from `payments` since they're a DriverSettlement,
+        // not a Payment, even though both reduce this transporter's outstanding.
+        fundedDriverAdvances: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          include: { driver: { select: { id: true, name: true } } }
+        }
       }
     });
 
@@ -70,9 +78,18 @@ module.exports = function transporterRoutes(ctx) {
       return res.status(404).json({ message: 'Transporter not found' });
     }
 
+    // Bulk totals (not the legacy-only single-transporter helper) so this
+    // figure includes Sprint 2B multi-stop loads and Sprint 2C
+    // transporter-funded driver advances, same as the transporter list page.
+    const totals = (await calculateTransporterTotalsBulk(prisma, [transporter.id])).get(transporter.id)
+      || { freightTotal: 0, paidTotal: 0, fundedAdvancesTotal: 0, outstanding: 0 };
+
     res.json({
       ...transporter,
-      outstanding: await calculateTransporterOutstanding(prisma, transporter.id)
+      outstanding: totals.outstanding,
+      freightTotal: totals.freightTotal,
+      paidTotal: totals.paidTotal,
+      fundedAdvancesTotal: totals.fundedAdvancesTotal
     });
   }));
 

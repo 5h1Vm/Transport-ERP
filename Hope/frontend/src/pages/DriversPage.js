@@ -26,7 +26,6 @@ export function renderDriversPage() {
       ${formField({ label: 'License Number', type: 'text', id: 'licenseNumber', name: 'licenseNumber', placeholder: 'DL-XXXXXXXXX', maxlength: 30 })}
       ${formField({ label: 'License Expiry', type: 'date', id: 'licenseExpiry', name: 'licenseExpiry' })}
       ${formField({ label: 'Monthly Salary (₹)', type: 'number', id: 'monthlySalary', name: 'monthlySalary', placeholder: '0', min: 0, step: 1 })}
-      ${formField({ label: 'Daily Expense Rate (₹)', type: 'number', id: 'dailyExpenseRate', name: 'dailyExpenseRate', placeholder: 'e.g., 500 (bhatta per day on trip)', min: 0, step: 1 })}
       <div class="form-field full-width form-actions-row">
         ${formSubmit('driver', isEditing ? 'editing' : 'active')}
         ${isEditing ? '<button type="button" class="btn btn-ghost" data-cancel-edit="driver">Cancel</button>' : ''}
@@ -43,8 +42,7 @@ export function renderDriversPage() {
     subtitle: driver.phone || 'No phone',
     meta: [
       driver.licenseNumber ? `DL: ${driver.licenseNumber}` : '',
-      `Trips: ${driver.tripCount ?? 0}`,
-      driver.dailyExpenseRate ? `${currency(driver.dailyExpenseRate)}/day` : ''
+      `Trips: ${driver.tripCount ?? 0}`
     ].filter(Boolean),
     chip: driver.outstandingBalance < 0 ? '⚠ ' + currency(driver.outstandingBalance) : currency(driver.outstandingBalance || 0),
     chipClass: driver.outstandingBalance < 0 ? 'danger' : driver.outstandingBalance > 0 ? 'warning' : 'success',
@@ -55,7 +53,7 @@ export function renderDriversPage() {
     ${createPageHeader({
       eyebrow: 'Drivers',
       title: 'Driver master & salary config',
-      copy: 'Drivers with daily bhatta rate, salary, and outstanding balance.'
+      copy: 'Drivers with salary and outstanding balance.'
     })}
     <section class="panel-grid white two-col">
       <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}${!showForm ? ' form-panel-mobile-hidden' : ''}"><h3>${isEditing ? 'Edit driver' : 'Add driver'}</h3>${formHtml}</article>

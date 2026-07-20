@@ -14,7 +14,8 @@ export function createSidebar(currentRoute = '#dashboard', loading = false) {
     { hash: '#drivers', label: 'Drivers', bottomNavDup: true, icon: `<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>` },
     { hash: '#routes', label: 'Routes', icon: `<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>` },
     { hash: '#trips', label: 'Trips', bottomNavDup: true, icon: `<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>` },
-    { hash: '#ledgers', label: 'Ledgers', bottomNavDup: true, icon: `<path d="M3 3h18"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M3 21h18"/>` }
+    { hash: '#ledgers', label: 'Ledgers', bottomNavDup: true, icon: `<path d="M3 3h18"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M3 21h18"/>` },
+    { hash: '#reports/profit-loss', label: 'Profit & Loss', icon: `<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>` }
   ];
 
   return `
@@ -22,20 +23,29 @@ export function createSidebar(currentRoute = '#dashboard', loading = false) {
       <div class="sidebar-brand-row">
         <div class="brand-mark">TL</div>
         <div class="sidebar-brand-text">
-          <div class="eyebrow dark">Transit Ledger</div>
-          <h1 class="sidebar-title">Indian transport ERP</h1>
+          <div class="eyebrow">Transit Ledger</div>
+          <h1 class="sidebar-title">Fleet & khata OS</h1>
         </div>
+        <!-- Mobile only. Below 640px this aside is the "More" drawer and it
+             opens directly beneath the fixed app bar, which already shows the
+             TL mark and "Transit Ledger" — repeating the brand here rendered
+             it twice, stacked. CSS swaps the brand out for this title at that
+             width; on desktop the brand is the only one on screen and stays. -->
+        <span class="sidebar-drawer-title">More</span>
         <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close menu" style="display:none;">&times;</button>
       </div>
       <nav class="nav white-nav">
-        ${navItems.map(item => `
-          <a class="nav-item ${item.hash === currentRoute ? 'active' : ''}${item.bottomNavDup ? ' nav-item-bottom-dup' : ''}"
+        ${navItems.map(item => {
+          const isActive = currentRoute === item.hash || currentRoute.startsWith(item.hash + '?');
+          return `
+          <a class="nav-item ${isActive ? 'active' : ''}${item.bottomNavDup ? ' nav-item-bottom-dup' : ''}"
              href="${item.hash}"
-             aria-current="${item.hash === currentRoute ? 'page' : 'false'}">
+             aria-current="${isActive ? 'page' : 'false'}">
             <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${item.icon}</svg>
             <span>${item.label}</span>
           </a>
-        `).join('')}
+        `;
+        }).join('')}
       </nav>
       ${loading ? `<div class="sidebar-card white"><span class="eyebrow dark">Loading</span><strong>Fetching latest data…</strong></div>` : ''}
     </aside>

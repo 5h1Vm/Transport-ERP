@@ -1,6 +1,7 @@
 const express = require('express');
 const asyncHandler = require('../middleware/asyncHandler');
 const { calculateTransporterOutstandingBulk, toNumber } = require('../services/calculations');
+const { money, add, toRupees, sumBy } = require('../utils/money');
 
 /**
  * Dashboard summary: headline metrics, recent/pending trips, transporter
@@ -49,7 +50,12 @@ module.exports = function dashboardRoutes(ctx) {
           transporter: true,
           vehicle: true,
           route: true,
-          drivers: { include: { driver: true } }
+          drivers: { include: { driver: true } },
+          // Sprint 2B multi-stop loads bill freight outside freightAmount —
+          // folded into displayFreightTotal below so this card doesn't show
+          // a stale, load-less figure (see routes/trips.js for the same fix
+          // on the main trips list).
+          loads: { select: { freightAmount: true } }
         },
         orderBy: { createdAt: 'desc' },
         take: 5
@@ -79,6 +85,11 @@ module.exports = function dashboardRoutes(ctx) {
       outstanding: outstandingMap.get(transporter.id) || 0
     }));
 
+    const recentTripsSlim = recentTrips.map(({ loads, ...trip }) => ({
+      ...trip,
+      displayFreightTotal: toRupees(add(money(trip.freightAmount), money(sumBy(loads, (l) => l.freightAmount))))
+    }));
+
     res.json({
       organization,
       metrics: [
@@ -90,7 +101,7 @@ module.exports = function dashboardRoutes(ctx) {
       ],
       activeTripCount,
       pendingPodCount: pendingPodTrips.length,
-      recentTrips,
+      recentTrips: recentTripsSlim,
       pendingPodTrips,
       transporterBalances,
       paymentTotals: {

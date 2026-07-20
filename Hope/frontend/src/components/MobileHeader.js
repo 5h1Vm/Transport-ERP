@@ -48,7 +48,7 @@ export function createBottomNav(currentRoute = '#dashboard') {
                aria-current="${isActive ? 'page' : 'false'}"
                aria-label="${item.label}"
                type="button">
-              <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${item.icon}</svg>
+              <span class="bottom-nav-icon-wrap"><svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${item.icon}</svg></span>
               <span>${item.label}</span>
             </button>
           </li>`;

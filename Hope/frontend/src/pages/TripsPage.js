@@ -133,7 +133,7 @@ export function renderTripsPage() {
         formatDate(tripDate),
         paymentInfo
       ],
-      chip: currency(trip.freightAmount || 0),
+      chip: currency(trip.displayFreightTotal ?? trip.freightAmount ?? 0),
       chipClass: getStatusChipClass(trip.status) || 'primary',
       actions: `${editLink}${deleteBtn} <a href="#trip/${trip.id}" class="text-link">Detail</a>`
     });

@@ -152,7 +152,7 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
     return result;
   }
 
-  const [ledgerGroups, paymentGroups, tripLoads] = await Promise.all([
+  const [ledgerGroups, paymentGroups, tripLoads, fundedAdvanceGroups] = await Promise.all([
     prisma.transporterLedgerEntry.groupBy({
       by: ['transporterId'],
       where: { transporterId: { in: transporterIds } },
@@ -178,11 +178,22 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
         commissionType: true,
         commissionValue: true
       }
+    }),
+    // Sprint 2C: a DriverSettlement(type=ADVANCE) that a transporter funded
+    // directly reduces that transporter's outstanding, same as a Payment
+    // would — the transporter already handed the driver cash meant for us.
+    // Only rows with fundedByTransporterId set are touched; a normal
+    // company-funded advance (the default, null) is invisible to this query.
+    prisma.driverSettlement.groupBy({
+      by: ['fundedByTransporterId'],
+      where: { fundedByTransporterId: { in: transporterIds } },
+      _sum: { amount: true }
     })
   ]);
 
   const ledgerMap = new Map(ledgerGroups.map(g => [g.transporterId, money(g._sum.netReceivable || 0)]));
   const paymentMap = new Map(paymentGroups.map(g => [g.transporterId, money(g._sum.amount || 0)]));
+  const fundedAdvanceMap = new Map(fundedAdvanceGroups.map(g => [g.fundedByTransporterId, money(g._sum.amount || 0)]));
 
   // Net receivable from multi-stop loads, per transporter: freight − commission.
   // Payments against these loads carry the load's transporterId, so they are
@@ -205,10 +216,14 @@ async function calculateTransporterTotalsBulk(prisma, transporterIds) {
     const loadReceivable = loadReceivableMap.get(id) || new Prisma.Decimal(0);
     const receivable = add(legacyReceivable, loadReceivable);
     const paid = paymentMap.get(id) || new Prisma.Decimal(0);
-    const outstanding = sub(receivable, paid);
+    const fundedAdvances = fundedAdvanceMap.get(id) || new Prisma.Decimal(0);
+    // Treated as equivalent to a payment for outstanding purposes only — it
+    // stays a DriverSettlement row, never a duplicate Payment row.
+    const outstanding = sub(sub(receivable, paid), fundedAdvances);
     result.set(id, {
       freightTotal: toRupees(receivable),
       paidTotal: toRupees(paid),
+      fundedAdvancesTotal: toRupees(fundedAdvances),
       outstanding: toRupees(outstanding)
     });
   }
@@ -307,10 +322,9 @@ async function calculateDriverOutstanding(prisma, driverId) {
     s => (['ADVANCE', 'DEDUCTION', 'PENALTY', 'CASH_COLLECTED', 'EXPENSE_REIMBURSEMENT'].includes(s.type) ? s.amount : 0)
   ));
 
-  // driver.expenses already includes DAILY_EXPENSE rows created when a trip is
-  // marked Delivered (see createDailyExpensesForTrip in routes/trips.js), so
-  // bhatta is NOT re-added separately here — doing so double-counted it
-  // (once as a materialized TripExpense, once as a recomputed accrual).
+  // Historical DAILY_EXPENSE trip-expense rows (auto-accrual on trip delivery
+  // was removed — daily rate is no longer a live feature) still count here so
+  // past figures don't shift; do not re-add bhatta separately or it double-counts.
   const tripExpensesPaid = money(sumBy(driver.expenses || [], e => e.amount));
   const dailyExpenses = money(sumBy(
     (driver.expenses || []).filter(e => e.category === 'DAILY_EXPENSE'),

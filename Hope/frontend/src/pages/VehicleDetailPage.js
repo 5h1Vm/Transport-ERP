@@ -18,7 +18,7 @@ export async function renderVehicleDetail(id) {
   }
   if (!vehicle) return '<div class="error-card">Vehicle not found</div>';
 
-  const totalFreight = trips.reduce((sum, t) => sum + (t.freightAmount || 0), 0);
+  const totalFreight = trips.reduce((sum, t) => sum + (t.displayFreightTotal ?? t.freightAmount ?? 0), 0);
 
   const docExpiry = [
     vehicle.insuranceExpiry ? `Insurance: ${formatDate(vehicle.insuranceExpiry)}` : '',
@@ -34,7 +34,7 @@ export async function renderVehicleDetail(id) {
     chip: escapeHtml(formatStatus(trip.status)),
     chipClass: getStatusChipClass(trip.status),
     meta: [
-      currency(trip.freightAmount || 0),
+      currency(trip.displayFreightTotal ?? trip.freightAmount ?? 0),
       formatDate(trip.departureDate || trip.loadingDate || trip.createdAt)
     ],
     actions: `<a href="#trip/${escapeHtml(trip.id)}" class="text-link">View</a>`

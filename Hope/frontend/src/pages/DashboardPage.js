@@ -47,7 +47,7 @@ export function renderDashboardPage() {
         chipClass: getStatusChipClass(trip.status),
         meta: [
           `${trip.route ? `${trip.route.origin} → ${trip.route.destination}` : 'No route'}`,
-          currency(trip.freightAmount),
+          currency(trip.displayFreightTotal ?? trip.freightAmount),
           formatDate(trip.departureDate || trip.createdAt)
         ],
         actions: `<a href="#trip/${trip.id}" class="text-link">View</a>`

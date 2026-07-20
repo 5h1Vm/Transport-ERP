@@ -40,10 +40,20 @@
 }
 
 .metric-value {
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
   font-size: 1.5rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
 }
 
 .record-card h4 {
@@ -59,19 +69,30 @@
   color: var(--color-text-secondary);
 }
 
-/* Panel grid */
+/* Panel grid.
+
+   Tracks are minmax(0, 1fr), not 1fr. A bare 1fr track has an automatic
+   minimum of min-content, so a long unbroken string (a ₹ figure, a vehicle
+   number, an email) cannot shrink its column and instead pushes the content
+   past the panel's padding. minmax(0, …) lets the track actually reach zero
+   and hand the overflow back to the text-wrapping rules.
+
+   NOTE: layout.css also defines .panel-grid.white / .metrics-grid.white with
+   the responsive column counts. Those carry an extra class so they win on
+   specificity — these bare rules are the unqualified fallback, and the two
+   files must be kept in agreement. */
 .panel-grid {
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .panel-grid.two-col {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .panel-grid.one-col {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .panel-head, .row {
@@ -86,11 +107,17 @@
   grid-column: 1 / -1;
 }
 
-/* One-line explanation under a panel heading */
+/* One-line explanation under a panel heading. The margin-top used to be
+   NEGATIVE (-space-2) on the assumption that the h3 above carried a bottom
+   margin to cancel out — but panel headings reset to margin:0, so the
+   subtitle was pulled 8px UP and rendered on top of the heading text on
+   every panel that has one (trip detail "Record entry" / "Extend this
+   trip"), at both mobile and desktop widths. */
 .panel-sub {
-  margin: calc(-1 * var(--space-2)) 0 0;
+  margin: var(--space-1) 0 0;
   font-size: 0.78rem;
   line-height: 1.4;
+  color: var(--color-text-muted);
 }
 
 /* TDS withheld on a payment. Deliberately quiet — it is a note for filing,
@@ -251,16 +278,17 @@
   margin-top: var(--space-3);
 }
 
-/* Metric grid */
+/* Metric grid. auto-fit rather than a fixed 4 columns: the dashboard renders
+   7 tiles, and repeat(4, …) stranded the last three in a ragged part-row. */
 .metrics-grid {
   display: grid;
   gap: var(--space-2);
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @media (min-width: 1024px) {
   .metrics-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 }
 
@@ -269,8 +297,20 @@
    forced 5 cards into ~120px each on desktop). */
 .hero-stats {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
+}
+
+/* Orphan-tile guard. With uniform tracks, an odd number of tiles leaves the
+   last one half-width beside dead space (trip detail used to render
+   Freight | Paid / Outstanding / Expenses + a hole). :nth-child(odd) on the
+   last tile is only a reliable test while every tile occupies exactly one
+   track, which is why the dominant tile does not span 2 at this width. */
+@media (max-width: 639px) {
+  .hero-stats > div:last-child:nth-child(odd),
+  .metrics-grid > *:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (min-width: 640px) {
@@ -298,33 +338,33 @@
 
 .hero-stats span {
   display: block;
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  font-weight: 500;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .hero-stats strong {
   display: block;
-  margin-top: var(--space-2);
-  font-size: 1.25rem;
+  margin-top: var(--space-1);
+  font-size: 1.3rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--color-text);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Dominant variant — for the one number that matters most (e.g. Outstanding
    on a trip). Bigger type, colored background/border/text instead of the
    uniform neutral card every other stat gets. */
+/* The dominant tile earns its emphasis from colour and type size, not from a
+   double-width span. It used to span 2 tracks at mobile, which pushed every
+   following tile out of parity and stranded the last one in a half-width box
+   with a hole beside it. */
 .hero-stat-dominant {
-  grid-column: span 2;
-}
-
-@media (min-width: 640px) {
-  .hero-stat-dominant {
-    grid-column: span 1;
-  }
+  grid-column: span 1;
 }
 
 .hero-stat-dominant strong {
@@ -360,7 +400,7 @@
 
 .kv-row {
   display: grid;
-  grid-template-columns: 110px 1fr;
+  grid-template-columns: 110px minmax(0, 1fr);
   gap: var(--space-3);
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border);
@@ -417,14 +457,30 @@
   align-items: center;
 }
 
-/* Empty state */
+/* Empty state.
+
+   grid-column spans the full row: an empty state is frequently rendered as a
+   direct child of a grid (the dashboard drops one into .metrics-grid), where
+   it otherwise gets squeezed into a single ~170px track and wraps one word
+   per line with its action link spilling out of the dashed border. It is a
+   no-op when the parent is not a grid.
+
+   Padding is horizontal-light so the text still has room at 375px; the
+   generous all-round padding only kicks in once there is width for it. */
 .empty-state {
-  padding: var(--space-8);
+  grid-column: 1 / -1;
+  padding: var(--space-6) var(--space-4);
   text-align: center;
   color: var(--color-text-muted);
   border: 2px dashed var(--color-border);
   border-radius: var(--radius-xl);
   background: var(--color-bg-elevated);
+}
+
+@media (min-width: 640px) {
+  .empty-state {
+    padding: var(--space-8);
+  }
 }
 
 .empty-state-icon {
@@ -680,7 +736,7 @@
 .ms-load-card { border: 1px solid var(--color-border); }
 .ms-load-figures {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2) var(--space-4);
   margin: var(--space-3) 0;
 }
@@ -697,6 +753,255 @@
   border-top: 1px solid var(--color-border);
   padding-top: var(--space-3);
 }
-.ms-load-pay input { flex: 1 1 6rem; min-width: 5rem; }
+/* Text/number fields only. Unqualified, the min-width also applied to the
+   "1% TDS" checkbox sharing this row and forced it to 5rem (80px) wide — a
+   big empty square beside its label. */
+.ms-load-pay input:not([type="checkbox"]):not([type="radio"]) { flex: 1 1 6rem; min-width: 5rem; }
 .text-warning { color: var(--color-warning); }
 .text-success { color: var(--color-success); }
+
+/* Extend-trip inline forms + POD list (Sprint 2B follow-up) */
+.ms-inline-form {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+.ms-inline-form input:not([type="checkbox"]):not([type="radio"]),
+.ms-inline-form select { flex: 1 1 8rem; min-width: 6rem; }
+.ms-add-load select,
+.ms-add-load input:not([type="checkbox"]):not([type="radio"]) { flex: 1 1 6rem; min-width: 5rem; }
+.ms-pod-list { list-style: none; padding: 0; margin: 0 0 var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+.ms-pod-list li { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.ms-pod-note { color: var(--color-text-muted); }
+.ms-tds-toggle, .txn-tds-toggle { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+/* `width: auto` used to be enough to undo the full-width text-input sizing,
+   but inside a flex row auto lets the box stretch to the free space (the
+   toggle rendered ~80px wide). Pin it instead, and stop flex from resizing
+   it in either direction. forms.css sets the same box for every checkbox;
+   this rule exists only because it is more specific and would otherwise win. */
+.ms-tds-toggle input, .txn-tds-toggle input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  flex: 0 0 18px;
+  padding: 0;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Khata-style ledger (inspired by the big Indian ledger apps:
+   "You'll get / You'll give" totals + compact contact rows)
+   ═══════════════════════════════════════════════════════ */
+.khata-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.khata-summary-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+}
+
+.khata-summary-tile span {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.khata-summary-tile strong {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.khata-summary-tile--get {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+.khata-summary-tile--get strong { color: var(--color-success); }
+
+.khata-summary-tile--give {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+.khata-summary-tile--give strong { color: var(--color-danger); }
+
+/* Contact-style rows: avatar initials + name on the left, colored amount on
+   the right. One row = one tap target, the pattern SME users already know. */
+.khata-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-3);
+}
+
+.khata-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast);
+  min-height: 60px;
+}
+
+.khata-row:last-child {
+  border-bottom: none;
+}
+
+.khata-row:hover {
+  background: var(--color-panel-hover);
+  text-decoration: none;
+}
+
+.khata-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-primary_light);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.khata-who {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.khata-who strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.khata-who small {
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.khata-amt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.khata-amt strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.khata-amt small {
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.khata-amt--get strong { color: var(--color-success); }
+.khata-amt--give strong { color: var(--color-danger); }
+.khata-amt--settled strong { color: var(--color-text-muted); }
+
+/* ═══════════════════════════════════════════════════════
+   Page loader — lightweight spinner so slow loads never look broken.
+   Transform-only animation: cheap on any device.
+   ═══════════════════════════════════════════════════════ */
+.page-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-12) var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--color-primary_light);
+  border-top-color: var(--color-primary);
+  animation: spin 0.7s linear infinite;
+}
+
+.spinner--sm {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 1.6s; }
+}
+
+/* Error card — was referenced by every detail page but never styled. */
+.error-card {
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-danger-border);
+  border-left: 4px solid var(--color-danger);
+  background: var(--color-danger-bg);
+  border-radius: var(--radius-lg);
+  color: #7f1d1d;
+  font-size: 0.9rem;
+}
+
+/* Profit & Loss report (Sprint 2D) */
+.pl-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.pl-table th, .pl-table td { text-align: left; padding: var(--space-2) var(--space-2); border-bottom: 1px solid var(--color-border); }
+.pl-table th { color: var(--color-text-muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.02em; }
+.pl-table .pl-amount { text-align: right; font-variant-numeric: tabular-nums; }
+.pl-table tfoot td { font-weight: 700; border-top: 2px solid var(--color-border-strong); border-bottom: none; }
+.pl-range-form { align-items: end; }
+
+/* Wide tables scroll within their panel instead of widening it. -1px margin
+   plus matching padding keeps the focus ring from being clipped by the
+   scroll container. */
+.table-scroll {
+  overflow-x: auto;
+  margin: 0 -1px;
+  padding: 0 1px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll .pl-table {
+  min-width: 20rem;
+}

@@ -126,6 +126,27 @@ button[type="submit"]:disabled {
   border-radius: var(--radius-md);
 }
 
+/* Touch devices: 32px/24px are comfortable mouse targets but below the ~44px
+   finger target every mobile HIG asks for, and these are the buttons that sit
+   in dense rows (trip status actions, filter toggles, per-row edit/delete)
+   where a mis-tap hits the neighbour.
+
+   Keyed on pointer:coarse OR a phone-width viewport. The width clause is
+   deliberately redundant on real phones — it exists so the rule is provable
+   in a desktop browser resized to 375px, which is how this gets tested. Full
+   desktop widths keep the tighter sizing. */
+@media (pointer: coarse), (max-width: 639px) {
+  .btn-sm {
+    min-height: 40px;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .btn-xs {
+    min-height: 32px;
+    padding: var(--space-1) var(--space-2);
+  }
+}
+
 .btn-lg {
   padding: var(--space-4) var(--space-6);
   min-height: 52px;
