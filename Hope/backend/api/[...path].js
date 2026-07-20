@@ -7,13 +7,15 @@
  * Express app without binding a port. Both share createApp(), so there is one
  * definition of the API and no chance of the two drifting apart.
  *
- * The filename is an optional catch-all, so Vercel routes both /api and
- * /api/anything/deep here by filesystem convention and req.url arrives as the
- * full original path — which is what the app's own `app.use('/api', ...)`
- * mount needs to match. This replaced an api/index.js plus a vercel.json
- * rewrite: that combination depended on the rewrite layer preserving req.url
- * rather than collapsing it to /api, which is not something I could verify
- * without deploying. Filesystem routing has no such ambiguity.
+ * The filename is a catch-all, so Vercel routes /api/trips and
+ * /api/reports/profit-loss alike here and req.url arrives as the full original
+ * path — which is what the app's own `app.use('/api', ...)` mount needs.
+ *
+ * Single brackets, deliberately. The optional-catch-all spelling [[...path]]
+ * is a Next.js convention; in a bare api/ directory Vercel read it as one
+ * dynamic segment, so /api/trips resolved but /api/reports/profit-loss came
+ * back as an X-Vercel-Error: NOT_FOUND from the router before Express ever
+ * saw it. [...path] matches one segment or many.
  */
 const prisma = require('../src/lib/prisma');
 const { createApp } = require('../src/app');
