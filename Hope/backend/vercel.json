@@ -3,5 +3,6 @@
   "regions": ["bom1"],
   "framework": null,
   "buildCommand": "prisma generate && prisma migrate deploy",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "outputDirectory": "public"
 }
