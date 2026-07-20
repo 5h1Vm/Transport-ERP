@@ -131,11 +131,22 @@ button[type="submit"]:disabled {
    in dense rows (trip status actions, filter toggles, per-row edit/delete)
    where a mis-tap hits the neighbour.
 
-   Keyed on pointer:coarse OR a phone-width viewport. The width clause is
-   deliberately redundant on real phones — it exists so the rule is provable
-   in a desktop browser resized to 375px, which is how this gets tested. Full
-   desktop widths keep the tighter sizing. */
-@media (pointer: coarse), (max-width: 639px) {
+   Keyed on pointer:coarse OR anything below the desktop breakpoint. The width
+   clause is deliberately redundant on real phones — it exists so the rule is
+   provable in a desktop browser resized to 375px, which is how this gets
+   tested, and it also catches tablets, which are touch devices but do not
+   report pointer:coarse under emulation. Full desktop widths keep the
+   tighter sizing. */
+@media (pointer: coarse), (max-width: 1023px) {
+  /* Edit and Delete sit side by side on every record card at 36px tall —
+     the two most consequential buttons in the app to hit by accident.
+     Both listed because Delete carries .btn-ghost AND .btn-danger, and
+     .btn-danger's own min-height would otherwise win on equal specificity. */
+  .btn-ghost,
+  .btn-danger {
+    min-height: 44px;
+  }
+
   .btn-sm {
     min-height: 40px;
     padding: var(--space-2) var(--space-3);

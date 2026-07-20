@@ -230,7 +230,7 @@ export async function renderTripFormPage(mode, tripId) {
   const formHtml = `
     <form data-form="trip" class="form-grid two-col" data-entity-id="${formId}">
       ${formField({ label: 'Internal Ref', type: 'text', id: 'internalRef', name: 'internalRef', placeholder: 'Auto (TRP-001)', maxlength: 40 })}
-      ${formField({ label: 'LR Number', type: 'text', id: 'lrNumber', name: 'lrNumber', placeholder: 'LR number (optional)', maxlength: 40 })}
+      ${formField({ label: 'LR Number', type: 'text', id: 'lrNumber', name: 'lrNumber', placeholder: 'Optional', maxlength: 40 })}
       ${formField({ label: 'Transporter', type: 'select', id: 'transporterId', name: 'transporterId', required: true, options: transporterOptions })}
       ${formField({ label: 'Vehicle', type: 'select', id: 'vehicleId', name: 'vehicleId', required: true, options: vehicleOptions })}
       ${mode === 'new' ? createMultiStopSection() : ''}
@@ -271,7 +271,7 @@ export async function renderTripFormPage(mode, tripId) {
            — it is a fact about the load, not part of the pricing method. -->
       ${formField({ label: 'Freight per ton (₹)', type: 'number', id: 'freightPerTon', name: 'freightPerTon', placeholder: 'e.g. 1500', min: 0, step: 1 })}
       ${formField({ label: 'Freight Amount (₹)', type: 'number', id: 'freightAmount', name: 'freightAmount', placeholder: 'Auto-calculated', min: 0, step: 1 })}
-      ${formField({ label: 'Rate per km (₹)', type: 'number', id: 'ratePerKm', name: 'ratePerKm', placeholder: 'Optional: manual rate', min: 0, step: 1 })}
+      ${formField({ label: 'Rate per km (₹)', type: 'number', id: 'ratePerKm', name: 'ratePerKm', placeholder: 'Optional', min: 0, step: 1 })}
       <!-- Commission is optional: most trips carry none. Both fields used to
            be required with no "none" choice, so the form could not validate
            until a commission was named, and Save Trip did nothing visible when
@@ -279,7 +279,7 @@ export async function renderTripFormPage(mode, tripId) {
            page has no field-level error UI to explain why. Leaving the value
            blank now means no commission. -->
       ${formField({ label: 'Commission type', type: 'select', id: 'commissionType', name: 'commissionType', options: commissionTypeOptions })}
-      ${formField({ label: 'Commission value', type: 'number', id: 'commissionValue', placeholder: 'Leave blank for no commission', name: 'commissionValue', min: 0, step: 0.01 })}
+      ${formField({ label: 'Commission value', type: 'number', id: 'commissionValue', placeholder: 'Blank = none', name: 'commissionValue', min: 0, step: 0.01 })}
       <div class="form-field full-width">
         <label>Drivers</label>
         ${createDriverMultiSelect('driver-multi-select-container')}

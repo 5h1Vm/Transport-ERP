@@ -86,6 +86,21 @@
 }
 .text-link:hover { text-decoration: underline; }
 
+/* These links ("Detail", "View") were 23px tall — well under the 44px a thumb
+   needs on the phone this app is mostly used on, and under WCAG 2.2's 24px
+   floor even for a mouse. The padding grows the hit area while the equal
+   negative margin keeps the text sitting exactly where it did, so nothing in
+   the card layout moves.
+
+   Deliberately not behind a media query. The enlarged area is invisible at
+   every width, so one unconditional rule beats a breakpoint that has to guess
+   whether a given 800px viewport is a tablet or a small window. */
+.text-link {
+  display: inline-block;
+  padding: 11px 8px;
+  margin: -11px -8px;
+}
+
 /* Borders */
 .rounded { border-radius: var(--radius-md) !important; }
 .rounded-lg { border-radius: var(--radius-lg) !important; }
