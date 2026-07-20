@@ -9,6 +9,8 @@
     "db:push": "npx prisma db push",
     "db:seed": "prisma db push && prisma generate && node prisma/seed.js",
     "db:studio": "npx prisma studio",
+    "db:reset-data": "node prisma/reset-data.js",
+    "test:e2e": "node tests/e2e.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {
