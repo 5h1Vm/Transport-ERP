@@ -21,7 +21,7 @@ export function renderTransportersPage() {
 
   const filterHtml = `
     <div class="filter-row" style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
-      <input type="text" id="transporter-search" placeholder="Search by firm name, contact, phone, email"
+      <input type="text" id="transporter-search" placeholder="Firm, contact, phone, or email"
              value="${filter}"
              style="flex: 1; min-width: 200px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: white; font: inherit;"
              aria-label="Search transporters" />

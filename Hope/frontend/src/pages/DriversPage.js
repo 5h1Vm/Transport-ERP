@@ -34,9 +34,11 @@ export function renderDriversPage() {
   `;
 
   const filterHtml = createFilterRow([
-    // Was a bare "Search" while Transporters and Vehicles both spell out what
-    // they match on.
-    { id: 'driver-search', label: 'Search', placeholder: 'Search by name, phone, license', value: filter }
+    // Was a bare "Search" while Transporters and Vehicles spell out what they
+    // match on. Kept short enough to fit the field at 375px — the first
+    // attempt at this ("Search by name, phone, license") measured 230px in a
+    // 225px box and clipped mid-word.
+    { id: 'driver-search', label: 'Search', placeholder: 'Name, phone, or DL number', value: filter }
   ]);
 
   const listHtml = filteredDrivers.length ? filteredDrivers.map(driver => createRecordCard({

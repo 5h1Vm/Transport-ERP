@@ -107,19 +107,21 @@ export function renderTripsPage() {
     const summary = trip.financialSummary || {};
     const totalPaid = summary.tripPaymentTotal || 0;
     const outstanding = summary.outstanding || 0;
-    const paymentCount = trip.paymentCount || 0;
     const isDraft = trip.status === 'DRAFT';
     const isSettled = trip.status === 'SETTLED';
-    let paymentInfo = '';
-    if (isDraft) {
-      paymentInfo = '<span class="chip chip-sm chip-muted">Draft</span>';
-    } else if (isSettled) {
-      paymentInfo = '<span class="chip chip-sm chip-success">Settled ✓</span>';
-    } else if (paymentCount === 0) {
-      paymentInfo = `<span class="chip chip-sm chip-muted">Due ${currency(outstanding)}</span>`;
-    } else {
-      paymentInfo = `<span class="chip chip-sm ${outstanding > 0 ? 'chip-warning' : 'chip-success'}">Due ${currency(outstanding)}</span>`;
-    }
+    // One chip for status, one for money — they used to share a single chip
+    // that showed "Draft"/"Settled ✓" for those two states and "Due ₹X" for
+    // every other one. That made the status read twice on a draft card (once
+    // as chip, once as the "Status:" meta line below) while "Due" appeared on
+    // some cards and not others with nothing to explain the difference.
+    const statusChip = `<span class="chip chip-sm ${getStatusChipClass(trip.status) || 'chip-muted'}">${formatStatus(trip.status)}</span>`;
+
+    // A draft has no receivable yet and a settled trip has nothing left to
+    // collect, so "Due" is meaningful only in between — and there it now
+    // appears on every card, always labelled.
+    const dueChip = (isDraft || isSettled)
+      ? ''
+      : `<span class="chip chip-sm ${outstanding > 0 ? 'chip-warning' : 'chip-success'}">Due ${currency(outstanding)}</span>`;
 
     const tripDate = trip.departureDate || trip.loadingDate || trip.createdAt;
     const isEditable = trip.status !== 'BILLED' && trip.status !== 'SETTLED';
@@ -131,10 +133,13 @@ export function renderTripsPage() {
       subtitle: `${trip.transporter?.firmName || '—'} • ${trip.vehicle?.vehicleNumber || '—'}`,
       meta: [
         trip.lrNumber ? `LR: ${trip.lrNumber}` : '',
-        driverNames ? `Drivers: ${driverNames}` : '',
-        `Status: ${formatStatus(trip.status)}`,
+        // Always rendered. Hiding the line entirely when nobody is assigned
+        // made an unassigned trip look like a card with a missing field
+        // rather than a trip that still needs a driver.
+        driverNames ? `Drivers: ${driverNames}` : 'No driver assigned',
         formatDate(tripDate),
-        paymentInfo
+        statusChip,
+        dueChip
       ],
       chip: currency(trip.displayFreightTotal ?? trip.freightAmount ?? 0),
       chipClass: getStatusChipClass(trip.status) || 'primary',
@@ -258,10 +263,16 @@ export async function renderTripFormPage(mode, tripId) {
           </label>
         </div>
       </div>
-      ${formField({ label: 'Freight Amount (₹)', type: 'number', id: 'freightAmount', name: 'freightAmount', placeholder: 'e.g. 50000 (auto-calculated)', min: 0, step: 1 })}
+      ${formField({ label: 'Freight Amount (₹)', type: 'number', id: 'freightAmount', name: 'freightAmount', placeholder: 'Auto-calculated', min: 0, step: 1 })}
       ${formField({ label: 'Rate per km (₹)', type: 'number', id: 'ratePerKm', name: 'ratePerKm', placeholder: 'Optional: manual rate', min: 0, step: 1 })}
-      ${formField({ label: 'Commission type', type: 'select', id: 'commissionType', name: 'commissionType', required: true, options: commissionTypeOptions })}
-      ${formField({ label: 'Commission value', type: 'number', id: 'commissionValue', name: 'commissionValue', placeholder: 'e.g. 5 for 5% or 500 for fixed amount', min: 0, step: 0.01, required: true })}
+      <!-- Commission is optional: most trips carry none. Both fields used to
+           be required with no "none" choice, so the form could not validate
+           until a commission was named, and Save Trip did nothing visible when
+           it wasn't — the browser blocks submit on an invalid control and the
+           page has no field-level error UI to explain why. Leaving the value
+           blank now means no commission. -->
+      ${formField({ label: 'Commission type', type: 'select', id: 'commissionType', name: 'commissionType', options: commissionTypeOptions })}
+      ${formField({ label: 'Commission value', type: 'number', id: 'commissionValue', placeholder: 'Leave blank for no commission', name: 'commissionValue', min: 0, step: 0.01 })}
       <div class="form-field full-width">
         <label>Drivers</label>
         ${createDriverMultiSelect('driver-multi-select-container')}

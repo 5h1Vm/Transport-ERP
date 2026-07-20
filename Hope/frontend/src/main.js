@@ -185,6 +185,15 @@ async function render() {
   }
 
   try {
+    // "#trip/new" is the natural typo for "#trips/new" — singular, matching
+    // every other detail route. Without this it fell into the detail branch
+    // below, which treated "new" as a trip id, fetched it, got a 404 and left
+    // the user on a "Trip not found" error with nothing to click.
+    if (page === 'trip/new') {
+      window.location.hash = '#trips/new';
+      return;
+    }
+
     // Detail pages fetch their own data (async)
     if (page.startsWith('transporter/')) {
       contentHtml = await renderTransporterDetail(page.split('/')[1]);
@@ -483,7 +492,8 @@ function bindEventHandlers() {
           weightTonsInput.disabled = false;
           freightPerTonInput.disabled = false;
           freightAmountInput.readOnly = false;
-          freightAmountInput.placeholder = 'e.g. 50000 (auto-calculated from route/rate)';
+          // Kept short so it isn't clipped mid-word in a 375px field.
+          freightAmountInput.placeholder = 'Enter amount';
 
           // Remove weight×rate calculation listeners
           if (weightTonsInput._freightCalcHandler) {

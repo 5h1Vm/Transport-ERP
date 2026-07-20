@@ -101,8 +101,12 @@ const tripCreateSchema = z.object({
   weightTons: z.coerce.number().default(0),
   freightAmount: z.coerce.number().optional(),
   freightPerTon: z.coerce.number().optional(),
-  commissionType: z.nativeEnum(CommissionType),
-  commissionValue: z.coerce.number(),
+  // Commission is optional. The column is non-null, so "no commission" is
+  // stored as PERCENTAGE/0 rather than null — but the client must be able to
+  // omit both fields entirely. They used to be strictly required, which meant
+  // no trip could be created without naming a commission.
+  commissionType: z.nativeEnum(CommissionType).default(CommissionType.PERCENTAGE),
+  commissionValue: z.coerce.number().default(0),
   loadingDate: z.string().datetime().optional(),
   departureDate: z.string().datetime().optional(),
   deliveryDate: z.string().datetime().optional(),
@@ -123,8 +127,12 @@ const tripUpdateSchema = z.object({
   weightTons: z.coerce.number().default(0),
   freightAmount: z.coerce.number().optional(),
   freightPerTon: z.coerce.number().optional(),
-  commissionType: z.nativeEnum(CommissionType),
-  commissionValue: z.coerce.number(),
+  // Commission is optional. The column is non-null, so "no commission" is
+  // stored as PERCENTAGE/0 rather than null — but the client must be able to
+  // omit both fields entirely. They used to be strictly required, which meant
+  // no trip could be created without naming a commission.
+  commissionType: z.nativeEnum(CommissionType).default(CommissionType.PERCENTAGE),
+  commissionValue: z.coerce.number().default(0),
   loadingDate: z.string().datetime().optional(),
   departureDate: z.string().datetime().optional(),
   internalRef: z.string().optional(),
