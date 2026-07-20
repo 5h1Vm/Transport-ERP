@@ -13,8 +13,8 @@ export function createSidebar(currentRoute = '#dashboard', loading = false) {
     { hash: '#vehicles', label: 'Vehicles', icon: `<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>` },
     { hash: '#drivers', label: 'Drivers', bottomNavDup: true, icon: `<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>` },
     { hash: '#routes', label: 'Routes', icon: `<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>` },
-    { hash: '#trips', label: 'Trips', bottomNavDup: true, icon: `<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>` },
-    { hash: '#ledgers', label: 'Ledgers', bottomNavDup: true, icon: `<path d="M3 3h18"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M3 21h18"/>` },
+    { hash: '#trips', label: 'Trips', bottomNavDup: true, icon: `<polygon points="3 11 22 2 13 21 11 13 3 11"/>` },
+    { hash: '#ledgers', label: 'Ledgers', bottomNavDup: true, icon: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>` },
     { hash: '#reports/profit-loss', label: 'Profit & Loss', icon: `<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>` }
   ];
 
@@ -26,13 +26,13 @@ export function createSidebar(currentRoute = '#dashboard', loading = false) {
           <div class="eyebrow">Transit Ledger</div>
           <h1 class="sidebar-title">Fleet & khata OS</h1>
         </div>
-        <!-- Mobile only. Below 640px this aside is the "More" drawer and it
-             opens directly beneath the fixed app bar, which already shows the
-             TL mark and "Transit Ledger" — repeating the brand here rendered
-             it twice, stacked. CSS swaps the brand out for this title at that
-             width; on desktop the brand is the only one on screen and stays. -->
-        <span class="sidebar-drawer-title">More</span>
-        <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close menu" style="display:none;">&times;</button>
+        <!-- Below 640px this whole row is hidden (see navigation.css): the
+             fixed app bar directly above already shows the TL mark and
+             "Transit Ledger", so the drawer repeating it rendered the brand
+             twice. The drawer closes by tapping the dimmed overlay, pressing
+             Escape, or picking a destination — so it carries no close button
+             either. On tablet/desktop this is the app's only branding and
+             renders normally. -->
       </div>
       <nav class="nav white-nav">
         ${navItems.map(item => {

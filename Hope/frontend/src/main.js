@@ -829,6 +829,16 @@ async function handleTripStatusChange(tripId, status) {
   }
 }
 
+// The mobile drawer has no close button (it would sit in a header row that
+// only duplicated the app bar's branding), so Escape is its keyboard exit
+// alongside tapping the overlay. Registered once at module scope — putting it
+// in bindEventHandlers would stack a fresh listener on every re-render.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar && sidebar.classList.contains('open')) toggleSidebar(false);
+});
+
 function toggleSidebar(forceOpen) {
   const sidebar = document.querySelector('.sidebar');
   const overlay = document.querySelector('.sidebar-overlay');

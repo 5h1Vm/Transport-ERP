@@ -66,15 +66,6 @@
   color: var(--color-text);
 }
 
-/* Drawer-only heading. Hidden at tablet/desktop, where the sidebar carries
-   the real brand; swapped in for the brand below 640px (see mobile block). */
-.sidebar .sidebar-drawer-title {
-  display: none;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
 .sidebar .sidebar-card {
   display: grid;
   gap: var(--space-1);
@@ -305,39 +296,18 @@
     transform: translateX(0);
   }
 
-  .sidebar .sidebar-close-btn {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border: none;
-    background: transparent;
-    color: var(--color-text-muted);
-    font-size: 1.5rem;
-    cursor: pointer;
-    border-radius: var(--radius-md);
-    margin-left: auto;
-  }
-
-  .sidebar .sidebar-close-btn:hover {
-    background: var(--color-panel-hover);
-    color: var(--color-text);
-  }
-
   /* The app bar directly above already shows the TL mark and "Transit
-     Ledger"; repeating them at the top of the drawer rendered the brand
-     twice, stacked. The drawer gets a plain "More" heading instead — which
-     is also the name of the bottom-nav tab that opens it. */
-  .sidebar .brand-mark,
-  .sidebar .sidebar-brand-text,
-  .sidebar .sidebar-title,
+     Ledger", so the drawer repeating it rendered the brand twice, stacked.
+     The entire row goes — brand and close button both — and the nav items
+     start at the top of the drawer instead of below an empty header. It
+     closes via the overlay, Escape, or picking a destination. */
+  .sidebar .sidebar-brand-row,
   .sidebar .sidebar-card {
     display: none;
   }
 
-  .sidebar .sidebar-drawer-title {
-    display: block;
+  .sidebar .nav {
+    margin-top: 0;
   }
 
   /* Dashboard/Drivers/Trips/Ledgers already have direct bottom-nav buttons —

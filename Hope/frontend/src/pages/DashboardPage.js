@@ -1,7 +1,7 @@
 /**
  * Dashboard Page
  */
-import { createMetricCard, createRecordCard, createEmptyState, createHeroStat } from '../components/CardComponents.js';
+import { createMetricCard, createRecordCard, createEmptyState } from '../components/CardComponents.js';
 import { currency, formatDate, formatStatus, getStatusChipClass } from '../utils/helpers.js';
 import { state } from '../store/index.js';
 
@@ -15,15 +15,14 @@ export function renderDashboardPage() {
   const transporterBalances = dashboard.transporterBalances || [];
   const pendingPodTrips = dashboard.pendingPodTrips || [];
 
-  // Hero stats — use createHeroStat for consistency with trip detail page
-  const heroStats = `
-    <div class="hero-stats">
-      ${createHeroStat({ label: 'Payments today', value: currency(dashboard.paymentTotals?.today || 0) })}
-      ${createHeroStat({ label: 'This month', value: currency(dashboard.paymentTotals?.month || 0) })}
-    </div>
-  `;
-
-  // Metrics grid
+  // Metrics grid.
+  //
+  // The two payment totals used to live in a .hero-stats block inside the
+  // page header. As a flex item beside the heading they sized to content, so
+  // they never lined up with the cards below: 57px short of the right edge on
+  // mobile, and a cramped 143px column of two stacked cards on desktop. They
+  // are ordinary metric cards now, so all seven share one grid and one set of
+  // edges. Money first, then counts.
   const metricHelpers = {
     'Transporters': 'Registered firms',
     'Vehicles': 'Fleet size',
@@ -31,12 +30,16 @@ export function renderDashboardPage() {
     'Trips': 'All time',
     'Open Trips': 'Not yet settled'
   };
-  const metricsHtml = metrics.length
+  const paymentCards =
+    createMetricCard({ label: 'Payments today', value: currency(dashboard.paymentTotals?.today || 0), helper: 'Received today' }) +
+    createMetricCard({ label: 'This month', value: currency(dashboard.paymentTotals?.month || 0), helper: 'Received this month' });
+
+  const metricsHtml = paymentCards + (metrics.length
     ? metrics.map(m => createMetricCard({ label: m.label, value: m.value, helper: metricHelpers[m.label] || '' })).join('')
     : createEmptyState(
         'Add a transporter, vehicle, and driver to get started.',
         '<a href="#transporters" class="text-link">Get started →</a>'
-      );
+      ));
 
   // Recent trips panel
   const recentTripsHtml = recentTrips.length
@@ -85,7 +88,6 @@ export function renderDashboardPage() {
         <h2>Operations at a glance</h2>
         <p class="page-copy">Trip activity, payments, and outstanding balances at a glance.</p>
       </div>
-      ${heroStats}
     </section>
     <section class="metrics-grid white">
       ${metricsHtml}

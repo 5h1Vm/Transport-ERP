@@ -27,8 +27,11 @@ export function createMobileHeader() {
 export function createBottomNav(currentRoute = '#dashboard') {
   const navItems = [
     { hash: '#dashboard', label: 'Dashboard', icon: `<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>` },
-    { hash: '#trips', label: 'Trips', icon: `<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>` },
-    { hash: '#ledgers', label: 'Ledgers', icon: `<path d="M3 3h18"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M3 21h18"/>` },
+    // Trips was a music note and Ledgers four bare lines (a hamburger) —
+    // both stock Feather glyphs that say nothing about a fleet app. Now a
+    // navigation arrow and a ledger book.
+    { hash: '#trips', label: 'Trips', icon: `<polygon points="3 11 22 2 13 21 11 13 3 11"/>` },
+    { hash: '#ledgers', label: 'Ledgers', icon: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>` },
     { hash: '#drivers', label: 'Drivers', icon: `<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>` },
     { hash: '#more', label: 'More', icon: `<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>`, isMenu: true }
   ];
