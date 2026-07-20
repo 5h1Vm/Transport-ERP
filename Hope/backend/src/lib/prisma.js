@@ -252,8 +252,16 @@ const prisma = prismaBase.$extends({
   }
 });
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.__transitLedgerPrisma = prismaBase;
-}
+// Cache the client on the global in EVERY environment, not just development.
+//
+// The old `NODE_ENV !== 'production'` guard is the standard advice for a
+// long-lived server, where the module is required once and the global is
+// pointless. On serverless it is actively harmful: NODE_ENV is 'production',
+// so each warm invocation re-ran this module and built another PrismaClient,
+// each opening its own connection pool against Postgres and never releasing
+// it. A few minutes of traffic exhausts max_connections and the API starts
+// failing on connection limit rather than anything in the query itself.
+// Caching unconditionally means a warm container reuses one client.
+globalForPrisma.__transitLedgerPrisma = prismaBase;
 
 module.exports = prisma;
