@@ -1,8 +1,8 @@
 /**
  * Vercel serverless entrypoint.
  *
- * src/index.js is still the entrypoint for a long-lived server (local dev,
- * Docker, Railway): it calls app.listen(). Vercel never calls listen — it
+ * src/index.js is still the entrypoint for a long-lived server (local dev):
+ * it calls app.listen(). Vercel never calls listen — it
  * hands each request to the exported handler — so this file exports the same
  * Express app without binding a port. Both share createApp(), so there is one
  * definition of the API and no chance of the two drifting apart.

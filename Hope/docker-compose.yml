@@ -1,4 +1,13 @@
-version: "3.9"
+# Local Postgres for development only.
+#
+# The backend and frontend are no longer containerised — both deploy to Vercel,
+# and locally they run straight from npm (`npm run dev` in each), which is
+# faster to iterate on than rebuilding an image. This file exists solely so
+# `docker compose up -d` gives you a database on the same major version as
+# production without installing Postgres on the host.
+#
+# Point the backend at it with:
+#   DATABASE_URL=postgresql://transit:transit123@localhost:5432/transit_ledger
 
 services:
   postgres:
@@ -17,35 +26,5 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
-    build: ./backend
-    ports:
-      - "4000:4000"
-    environment:
-      DATABASE_URL: postgresql://transit:transit123@postgres:5432/transit_ledger
-      JWT_SECRET: transit-ledger-dev-secret-change-in-production
-      JWT_EXPIRY: 7d
-      PORT: 4000
-      NODE_ENV: development
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./backend/src:/app/src
-      - ./backend/prisma:/app/prisma
-      - uploads:/app/uploads
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "5173:5173"
-    environment:
-      VITE_API_URL: http://localhost:4000/api
-    depends_on:
-      - backend
-    volumes:
-      - ./frontend/src:/app/src
-
 volumes:
   pgdata:
-  uploads:

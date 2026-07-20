@@ -3,7 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  // "native" covers local dev and the Railway container. The rhel target is
+  // "native" covers local dev. The rhel target is
   // for Vercel's Lambda runtime: without it the deployed function starts and
   // then fails on the first query with "Query engine binary for current
   // platform could not be found", because prisma generate only emits the

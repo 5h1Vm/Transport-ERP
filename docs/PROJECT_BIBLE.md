@@ -146,6 +146,7 @@ The product works if the owner can answer these in under 30 seconds:
 
 ## Stack (see `DATABASE.md` for schema, `TASKS.md` for build status)
 
-- Backend: Node.js + Express (CommonJS), PostgreSQL + Prisma, Zod validation. Hosted on Railway.
+- Backend: Node.js + Express (CommonJS), Zod validation. Deployed as a Vercel serverless function (`Hope/backend/api/index.js`, region `bom1`).
+- Database: PostgreSQL + Prisma. Neon (Singapore), provisioned through the Vercel marketplace integration, which injects `DATABASE_URL`.
 - Frontend: vanilla JS SPA, no framework (deliberate constraint — keep it simple, keep it fast, keep it cheap to run). Vite build. Hosted on Vercel.
 - Repo layout: `Hope/backend`, `Hope/frontend`.
