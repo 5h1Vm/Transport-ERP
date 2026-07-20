@@ -127,11 +127,15 @@ export async function renderProfitLossPage(params = {}) {
       <article class="panel white full-width">
         <h3>Profit by vehicle</h3>
         <p class="text-muted panel-sub">Driver settlement costs aren't allocated per vehicle here (they're per-driver, not reliably per-vehicle) — this column undercounts total cost slightly; see the overall total above for the complete figure.</p>
-        <table class="pl-table">
-          <thead><tr><th>Vehicle</th><th>Revenue</th><th>Costs</th><th>Profit</th></tr></thead>
-          <tbody>${vehicleRows}</tbody>
-          ${report.byVehicle?.length ? `<tfoot><tr><td>Total</td><td class="pl-amount">${currency(vehicleTotal)}</td><td></td><td></td></tr></tfoot>` : ''}
-        </table>
+        <!-- Four money columns cannot fit a 375px screen; the table scrolls
+             inside this wrapper rather than pushing past the panel edge. -->
+        <div class="table-scroll">
+          <table class="pl-table">
+            <thead><tr><th>Vehicle</th><th>Revenue</th><th>Costs</th><th>Profit</th></tr></thead>
+            <tbody>${vehicleRows}</tbody>
+            ${report.byVehicle?.length ? `<tfoot><tr><td>Total</td><td class="pl-amount">${currency(vehicleTotal)}</td><td></td><td></td></tr></tfoot>` : ''}
+          </table>
+        </div>
       </article>
     </section>
   `;

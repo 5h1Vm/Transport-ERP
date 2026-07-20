@@ -26,6 +26,12 @@ export function createSidebar(currentRoute = '#dashboard', loading = false) {
           <div class="eyebrow">Transit Ledger</div>
           <h1 class="sidebar-title">Fleet & khata OS</h1>
         </div>
+        <!-- Mobile only. Below 640px this aside is the "More" drawer and it
+             opens directly beneath the fixed app bar, which already shows the
+             TL mark and "Transit Ledger" — repeating the brand here rendered
+             it twice, stacked. CSS swaps the brand out for this title at that
+             width; on desktop the brand is the only one on screen and stays. -->
+        <span class="sidebar-drawer-title">More</span>
         <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close menu" style="display:none;">&times;</button>
       </div>
       <nav class="nav white-nav">

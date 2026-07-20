@@ -307,7 +307,8 @@
    last tile is only a reliable test while every tile occupies exactly one
    track, which is why the dominant tile does not span 2 at this width. */
 @media (max-width: 639px) {
-  .hero-stats > div:last-child:nth-child(odd) {
+  .hero-stats > div:last-child:nth-child(odd),
+  .metrics-grid > *:last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
 }
@@ -990,3 +991,17 @@
 .pl-table .pl-amount { text-align: right; font-variant-numeric: tabular-nums; }
 .pl-table tfoot td { font-weight: 700; border-top: 2px solid var(--color-border-strong); border-bottom: none; }
 .pl-range-form { align-items: end; }
+
+/* Wide tables scroll within their panel instead of widening it. -1px margin
+   plus matching padding keeps the focus ring from being clipped by the
+   scroll container. */
+.table-scroll {
+  overflow-x: auto;
+  margin: 0 -1px;
+  padding: 0 1px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll .pl-table {
+  min-width: 20rem;
+}
