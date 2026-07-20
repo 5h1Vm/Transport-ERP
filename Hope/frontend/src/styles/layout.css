@@ -23,6 +23,16 @@
   gap: var(--space-3);
 }
 
+/* The dashboard wraps its sections in .dashboard, so they are not direct
+   children of .content and never received its column gap: "Operations at a
+   glance" sat flush against the metric cards (0px) where every other page
+   had 12px. Same rule, same token, so the rhythm matches everywhere. */
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 /* Page header */
 .page-header {
   display: flex;

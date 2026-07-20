@@ -61,12 +61,9 @@ export function createBottomNav(currentRoute = '#dashboard') {
   `;
 }
 
-/**
- * Back button for More-drawer sub-pages (MOB-014)
- * Shows "← Back" on pages accessed via the More drawer.
- * @param {string} currentRoute
- */
-export function createBackButton(currentRoute) {
-  if (!MORE_SUB_PAGES.has(currentRoute)) return '';
-  return '<a href="#dashboard" class="btn btn-ghost btn-sm" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:8px;">← Back</a>';
-}
+/* createBackButton (MOB-014) removed. It rendered only on Transporters,
+   Vehicles and Routes — not on Drivers, Trips, Ledgers or P&L — so those tabs
+   carried a back link and the rest didn't. It also showed at every width,
+   including desktop, where the persistent sidebar already marks position and
+   a "back to dashboard" link means nothing. Navigation is the sidebar and
+   bottom nav at every width. */

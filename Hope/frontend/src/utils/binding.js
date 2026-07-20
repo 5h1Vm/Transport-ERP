@@ -136,7 +136,9 @@ export function bindNavigation(onNavigate, onMenuToggle) {
       const targetHash = item.getAttribute('data-bottom-nav');
 
       if (targetHash === '#more') {
-        onMenuToggle?.(true);
+        // No argument, so the handler toggles. Passing `true` forced it open,
+        // which meant tapping More again left the drawer sitting there.
+        onMenuToggle?.();
         return;
       }
 
