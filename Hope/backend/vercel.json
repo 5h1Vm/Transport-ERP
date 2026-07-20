@@ -3,9 +3,5 @@
   "regions": ["bom1"],
   "framework": null,
   "buildCommand": "prisma generate && prisma migrate deploy",
-  "installCommand": "npm install",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" },
-    { "source": "/api", "destination": "/api" }
-  ]
+  "installCommand": "npm install"
 }

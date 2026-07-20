@@ -7,9 +7,13 @@
  * Express app without binding a port. Both share createApp(), so there is one
  * definition of the API and no chance of the two drifting apart.
  *
- * The vercel.json beside this file rewrites every /api/* request here, and
- * req.url still carries the full original path, so the app's own
- * `app.use('/api', ...)` mount continues to match unchanged.
+ * The filename is an optional catch-all, so Vercel routes both /api and
+ * /api/anything/deep here by filesystem convention and req.url arrives as the
+ * full original path — which is what the app's own `app.use('/api', ...)`
+ * mount needs to match. This replaced an api/index.js plus a vercel.json
+ * rewrite: that combination depended on the rewrite layer preserving req.url
+ * rather than collapsing it to /api, which is not something I could verify
+ * without deploying. Filesystem routing has no such ambiguity.
  */
 const prisma = require('../src/lib/prisma');
 const { createApp } = require('../src/app');
