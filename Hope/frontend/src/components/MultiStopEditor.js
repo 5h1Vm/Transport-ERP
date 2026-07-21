@@ -33,10 +33,16 @@ const COMMISSION_TYPES = [
 export function createMultiStopSection() {
   return `
     <div class="form-field full-width multistop-toggle-wrap">
+      <!-- Same shape as the freight-mode options below: control on the left,
+           name and explanation stacked beside it. The text is wrapped so the
+           row stays a two-part layout rather than three flex items that
+           centred themselves into a banner. -->
       <label class="form-field-option multistop-toggle">
         <input type="checkbox" id="multiStopToggle" />
-        <span class="freight-option-label">Multi-stop trip</span>
-        <span class="freight-option-desc">One journey, several pickup → drop legs — each leg billed to its own transporter.</span>
+        <span class="form-field-option-text">
+          <span class="freight-option-label">Multi-stop trip</span>
+          <span class="freight-option-desc">One journey, several pickup → drop legs — each leg billed to its own transporter.</span>
+        </span>
       </label>
     </div>
     <div class="form-field full-width multistop-editor" data-ms-editor hidden>

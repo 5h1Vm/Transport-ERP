@@ -326,11 +326,22 @@ select:hover {
 /* ═══════════════════════════════════════════════════════
    Multi-stop trip editor (Sprint 2B)
    ═══════════════════════════════════════════════════════ */
+/* Inherits .form-field-option wholesale now. The old flex-direction: column
+   override stacked the checkbox above the text and, because that class also
+   sets align-items: center, centred the whole thing — so the one checkbox on
+   the form read as a centred banner while every radio beside it was a
+   left-aligned row. */
 .multistop-toggle-wrap .multistop-toggle {
+  cursor: pointer;
+}
+
+/* Keeps the name and its explanation together as one flex item, so the row is
+   [control][text] like the freight-mode options. */
+.form-field-option-text {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  cursor: pointer;
+  gap: 2px;
+  min-width: 0;
 }
 .multistop-toggle input[type="checkbox"] {
   width: auto;

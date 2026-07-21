@@ -651,7 +651,19 @@ async function confirmSurplusPayment(type, body) {
 }
 
 async function handleFormSubmit(type, rawBody, form) {
-  const body = normalizeFormBody(form, type, rawBody);
+  // normalizeFormBody throws on an incomplete multi-stop trip ("needs at least
+  // 2 stops", "Load 1: pick a transporter"). It used to be called out here,
+  // outside the try below, so those messages escaped the handler entirely:
+  // Save Trip did nothing, showed nothing, and logged nothing. The whole point
+  // of those checks is to tell the operator what is missing.
+  let body;
+  try {
+    body = normalizeFormBody(form, type, rawBody);
+  } catch (error) {
+    actions.setError(error.message);
+    render();
+    return;
+  }
 
   if (!(await confirmSurplusPayment(type, body))) return;
 

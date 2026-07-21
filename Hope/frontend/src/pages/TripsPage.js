@@ -244,15 +244,13 @@ export async function renderTripFormPage(mode, tripId) {
       ${formField({ label: 'Transporter', type: 'select', id: 'transporterId', name: 'transporterId', required: true, options: transporterOptions })}
       ${formField({ label: 'Vehicle', type: 'select', id: 'vehicleId', name: 'vehicleId', required: true, options: vehicleOptions })}
       ${mode === 'new' ? createMultiStopSection() : ''}
-      <div class="form-field full-width">
-        <label>From</label>
-        ${formField({ label: '', type: 'select', id: 'fromLocation', name: 'fromLocation', options: originOptions })}
-      </div>
-      <div class="form-field full-width">
-        <label>To</label>
-        ${formField({ label: '', type: 'select', id: 'toLocation', name: 'toLocation', options: destinationOptions })}
-      </div>
-      <div id="route-validation-message" class="form-message error"></div>
+      <!-- Plain fields in the grid, like every other select on this form. They
+           used to be a form-field wrapping a second, label-less form-field,
+           which made each one full width and left Material stranded alone in
+           the right-hand column with a gap beside it. -->
+      ${formField({ label: 'From', type: 'select', id: 'fromLocation', name: 'fromLocation', options: originOptions })}
+      ${formField({ label: 'To', type: 'select', id: 'toLocation', name: 'toLocation', options: destinationOptions })}
+      <div id="route-validation-message" class="form-message error full-width"></div>
       <input type="hidden" id="distanceKm" name="distanceKm" />
       <input type="hidden" id="routeId" name="routeId" />
       ${formField({ label: 'Material', type: 'text', id: 'material', name: 'material', placeholder: 'e.g. Cement', maxlength: 80 })}
@@ -308,8 +306,17 @@ export async function renderTripFormPage(mode, tripId) {
     title: heading,
     copy: mode === 'new' ? 'Fill in the details below to create a new trip.' : 'Update the trip details below.'
   })}
-    <section class="panel-grid white">
+    <!-- one-col: a lone panel in the default grid renders at half width from
+         768px up, leaving the form squeezed into the left column with dead
+         space beside it — the same thing the trip list used to do. -->
+    <section class="panel-grid white one-col">
       <article class="panel white">
+        <!-- Every other panel in the app states what it is. This one went
+             straight into fields, so the card read as a fragment of a page
+             rather than a thing with a name. -->
+        <div class="panel-head">
+          <h3>${mode === 'new' ? 'Trip details' : 'Edit trip details'}</h3>
+        </div>
         ${formHtml}
       </article>
     </section>
