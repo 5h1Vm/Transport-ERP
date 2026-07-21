@@ -39,6 +39,9 @@ export async function renderTripDetail(id) {
   const freightTotal = legacyFreight + loadAgg.freight;
   const totalPaid = (summary.tripPaymentTotal || 0) + loadAgg.paid;
   const outstanding = (hasLegacy ? (summary.outstanding || 0) : 0) + loadAgg.outstanding;
+  // Paid beyond what this trip charges. Shown as its own figure rather than a
+  // negative outstanding, which read as the trip owing money backwards.
+  const advanceAmount = summary.advanceAmount || 0;
   const isCancelled = trip.status === 'CANCELLED';
   const isTerminal = isCancelled || trip.status === 'SETTLED';
 
@@ -58,6 +61,12 @@ export async function renderTripDetail(id) {
         : createHeroStat({ label: 'Freight', value: currency(freightTotal), helper: hasLoads ? `${trip.loads.length} load(s)${hasLegacy ? ' + base' : ''}` : 'Gross freight' })}
       ${(commission > 0 && !hasLoads) ? createHeroStat({ label: 'Commission', value: currency(commission), helper: 'Deducted from freight' }) : ''}
       ${createHeroStat({ label: 'Paid', value: currency(totalPaid), helper: 'Received', className: 'success' })}
+      ${advanceAmount > 0 ? createHeroStat({
+        label: 'Advance',
+        value: currency(advanceAmount),
+        helper: 'Paid beyond this trip — credit on the transporter account',
+        className: 'success'
+      }) : ''}
       ${createHeroStat({
         label: 'Outstanding',
         value: currency(outstanding),

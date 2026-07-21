@@ -52,8 +52,13 @@ export function renderTransportersPage() {
         // outstanding/tripCount are computed server-side (see GET /transporters)
         // so this page never needs the full trips/payments lists in memory.
         meta: [`Trips: ${item.tripCount ?? 0}`],
-        chip: item.outstanding < 0 ? '⚠ ' + currency(item.outstanding) : currency(item.outstanding || 0),
-        chipClass: item.outstanding < 0 ? 'danger' : item.outstanding > 0 ? 'warning' : 'success',
+        // A negative balance is money held in hand, not a fault. It used to
+        // show as "⚠ -₹5,800" in red, which read as broken data — now that
+        // paying ahead is a supported thing to do, it is named as credit.
+        chip: item.outstanding < 0
+          ? `Advance ${currency(Math.abs(item.outstanding))}`
+          : currency(item.outstanding || 0),
+        chipClass: item.outstanding < 0 ? 'info' : item.outstanding > 0 ? 'warning' : 'success',
         actions: `${editButton('transporter', item.id)}${deleteButton('transporter', item.id)} <a href="#transporter/${item.id}" class="text-link">View Details</a>`
       })).join('')
     : createEmptyState('No transporter records yet.');

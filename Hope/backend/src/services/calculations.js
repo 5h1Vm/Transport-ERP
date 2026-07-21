@@ -112,10 +112,21 @@ function computeTripPaymentSummary(trip) {
   const chargeTotal = isCancelled
     ? money(0)
     : (ledgerReceivableTotal.greaterThan(0) ? ledgerReceivableTotal : money(trip.freightAmount));
-  const outstanding = sub(chargeTotal, tripPaymentTotal);
+  const balance = sub(chargeTotal, tripPaymentTotal);
+
+  // A trip cannot owe a negative amount. Anything paid beyond what this trip
+  // charges is an advance sitting on the transporter's account, not a debt
+  // running backwards, so the two are reported as separate figures instead of
+  // one number that flips sign. The transporter-level outstanding still nets
+  // the advance off automatically — it sums every payment against every
+  // receivable — so the money is never counted twice or lost.
+  const outstanding = balance.greaterThan(0) ? balance : money(0);
+  const advanceAmount = balance.lessThan(0) ? balance.negated() : money(0);
 
   let paymentStatus = 'UNPAID';
-  if (!outstanding.greaterThan(0)) {
+  if (advanceAmount.greaterThan(0)) {
+    paymentStatus = 'OVERPAID';
+  } else if (!outstanding.greaterThan(0)) {
     paymentStatus = 'PAID';
   } else if (tripPaymentTotal.greaterThan(0)) {
     paymentStatus = 'PARTIALLY_PAID';
@@ -126,6 +137,8 @@ function computeTripPaymentSummary(trip) {
     tripPaymentTotal: toRupees(tripPaymentTotal),
     chargeTotal: toRupees(chargeTotal),
     outstanding: toRupees(outstanding),
+    // Paid beyond this trip's charge, held as credit against the transporter.
+    advanceAmount: toRupees(advanceAmount),
     paymentStatus,
     // Lets the UI label a ₹0 outstanding as "Cancelled" rather than as a
     // trip that was collected in full — the two mean opposite things.

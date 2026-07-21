@@ -171,15 +171,21 @@ export function renderTripsPage() {
          both halves with a form and a list. -->
     <section class="panel-grid white one-col">
       <article class="panel white">
-        <div class="panel-head">
-          <h3>Trip list</h3>
-          <div class="trip-filter-status">
+        <!-- Adding a trip is what this page is for, so it leads: a full-size
+             primary button, not a small one tucked in a corner. The filters
+             sit beside it as a closed dropdown rather than six controls
+             expanded above the list. -->
+        <div class="panel-head trips-head">
+          <div class="trips-head-main">
+            <h3>Trip list</h3>
             <span class="text-muted">${resultCountLabel}</span>
+          </div>
+          <div class="trips-head-actions">
             ${hasActiveFilters ? '<button type="button" class="btn btn-ghost btn-sm" data-clear-trip-filters>Clear filters</button>' : ''}
-            <a href="#trips/new" class="btn btn-primary btn-sm desktop-add-btn">+ Add trip</a>
+            ${filterContent}
+            <a href="#trips/new" class="btn btn-primary desktop-add-btn">+ Add trip</a>
           </div>
         </div>
-        ${filterContent}
         <div class="stack">${listHtml}</div>
         ${loadMoreHtml}
       </article>

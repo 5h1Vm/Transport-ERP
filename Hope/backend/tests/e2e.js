@@ -3,8 +3,8 @@
  *
  * Drives the real HTTP API exactly as the UI does, asserting the arithmetic at
  * every step: commission across all three types, the status lifecycle and its
- * illegal transitions, TDS, the overpayment guard, cancellation, multi-stop
- * loads, the driver ledger, and the profit-and-loss totals.
+ * illegal transitions, TDS, overpayment becoming a transporter advance,
+ * cancellation, multi-stop loads, the driver ledger, and the P&L totals.
  *
  *   npm run test:e2e          # against a local server on :4000
  *
@@ -140,10 +140,6 @@ async function main() {
 
   // ---- 5. Payments, TDS, overpayment --------------------------------------
   console.log('\n[5] payments');
-  const over = await post('/payments', { transporterId: tA.id, tripId: t1.id, amount: 50000, mode: 'CASH', paymentType: 'FULL_SETTLEMENT' });
-  check('overpayment blocked', over.status, 400);
-  checkThat('...names the allowed amount', /42000/.test(over.body.message || ''), over.body.message);
-
   const part = await post('/payments', { transporterId: tA.id, tripId: t1.id, amount: 20000, mode: 'BANK_TRANSFER', paymentType: 'PART_PAYMENT', referenceNumber: 'NEFT/QA/1' });
   check('partial payment accepted', part.status, 201);
   check('outstanding after 20000 of 42000', (await get(`/trips/${t1.id}`)).body.financialSummary.outstanding, 22000);
@@ -157,6 +153,35 @@ async function main() {
   check('TDS did NOT reduce what came off outstanding', t1after.financialSummary.tripPaymentTotal, 42000);
   // Paying off a BILLED trip auto-advances it to SETTLED, so no manual step.
   check('fully-paid BILLED trip auto-settles', (await get(`/trips/${t1.id}`)).body.status, 'SETTLED');
+
+  // ---- 5b. Overpaying becomes an advance -----------------------------------
+  console.log('\n[5b] overpayment held as an advance');
+  const tOver = (await post('/transporters', { firmName: `${tag} Advance Co`, contactPerson: 'C', phone: '9000000014' })).body;
+  cleanup.transporters.push(tOver.id);
+  const tripOver = (await post('/trips', {
+    transporterId: tOver.id, vehicleId: veh.id, originCity: 'M', destinationCity: 'N',
+    freightAmount: 20000, commissionType: 'PERCENTAGE', commissionValue: 0,
+    departureDate: iso('2026-07-20'), deliveryDate: iso('2026-07-20')
+  })).body;
+  cleanup.trips.push(tripOver.id);
+
+  const surplus = await post('/payments', { transporterId: tOver.id, tripId: tripOver.id, amount: 25000, mode: 'CASH', paymentType: 'FULL_SETTLEMENT' });
+  check('paying more than the trip owes is accepted', surplus.status, 201);
+  const overSummary = (await get(`/trips/${tripOver.id}`)).body.financialSummary;
+  check('trip owes nothing after being overpaid', overSummary.outstanding, 0);
+  check('...and never reports a negative balance', overSummary.outstanding >= 0, true);
+  check('surplus surfaced as an advance', overSummary.advanceAmount, 5000);
+  check('payment status marked OVERPAID', overSummary.paymentStatus, 'OVERPAID');
+  check('transporter holds the advance as credit', (await get(`/transporters/${tOver.id}`)).body.outstanding, -5000);
+
+  // The whole point: the credit is spent by the next trip, with no manual step.
+  const tripNext = (await post('/trips', {
+    transporterId: tOver.id, vehicleId: veh.id, originCity: 'N', destinationCity: 'O',
+    freightAmount: 12000, commissionType: 'PERCENTAGE', commissionValue: 0,
+    departureDate: iso('2026-07-21'), deliveryDate: iso('2026-07-21')
+  })).body;
+  cleanup.trips.push(tripNext.id);
+  check('advance offsets the next trip (32000 billed - 25000 paid)', (await get(`/transporters/${tOver.id}`)).body.outstanding, 7000);
 
   // ---- 6. Cancellation -----------------------------------------------------
   console.log('\n[6] cancellation');

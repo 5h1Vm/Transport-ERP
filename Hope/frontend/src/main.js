@@ -610,8 +610,50 @@ function bindProfitLossRangeForm() {
 /* Mutations                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Paying more than a trip owes is allowed — the surplus becomes credit on the
+ * transporter's account. But an extra zero looks exactly like a deliberate
+ * advance, and the server can no longer tell them apart, so the difference is
+ * settled here: say what the surplus is and let the operator confirm it.
+ *
+ * Returns false only if the operator backs out.
+ * @param {string} type - form type; only 'transaction' can carry a payment
+ * @param {Object} body - the normalized body about to be sent
+ */
+async function confirmSurplusPayment(type, body) {
+  if (type !== 'transaction') return true;
+  const [channel] = String(body.category || '').split(':');
+  if (channel !== 'PAYMENT' || !body.tripId) return true;
+
+  const amount = Number(body.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return true;
+
+  // The detail page is the only place a trip payment is recorded, and it holds
+  // the live figure — read it rather than trusting a possibly stale list.
+  let outstanding;
+  try {
+    const trip = await api.trip.get(body.tripId);
+    outstanding = trip?.financialSummary?.outstanding;
+  } catch {
+    return true; // never block a payment because a lookup failed
+  }
+  if (typeof outstanding !== 'number' || amount <= outstanding) return true;
+
+  const surplus = amount - outstanding;
+  return confirmDialog({
+    title: 'More than this trip owes',
+    message: outstanding > 0
+      ? `This trip owes ${currency(outstanding)}. Recording ${currency(amount)} leaves ${currency(surplus)} as an advance on the transporter's account, available against their next trip.`
+      : `This trip is fully paid. Recording ${currency(amount)} puts the whole amount on the transporter's account as an advance.`,
+    confirmText: 'Record it',
+    cancelText: 'Let me change it'
+  });
+}
+
 async function handleFormSubmit(type, rawBody, form) {
   const body = normalizeFormBody(form, type, rawBody);
+
+  if (!(await confirmSurplusPayment(type, body))) return;
 
   // Disable the submit button instead of swapping the page for a loading card.
   const submitBtn = form.querySelector('button[type="submit"]');

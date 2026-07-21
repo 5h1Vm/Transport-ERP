@@ -111,7 +111,12 @@ async function renderTransporterDetail(id) {
       copy: `${escapeHtml(transporter.contactPerson || 'No contact')} • ${escapeHtml(transporter.phone || 'No phone')} • ${escapeHtml(transporter.email || 'No email')}`
     })}
     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
-      <span class="chip chip-warning">Outstanding: ${currency(outstanding)}</span>
+      ${outstanding < 0
+        // Overpaid: they are in credit with us, not in debt. Saying
+        // "Outstanding: −₹5,800" made money we are holding look like a debt
+        // recorded with the wrong sign.
+        ? `<span class="chip chip-info">Advance held: ${currency(Math.abs(outstanding))}</span>`
+        : `<span class="chip chip-warning">Outstanding: ${currency(outstanding)}</span>`}
       ${commissionTotal > 0 ? `
       <span class="chip">Gross freight: ${currency(grossFreightTotal)}</span>
       <span class="chip">Commission: −${currency(commissionTotal)}</span>` : ''}

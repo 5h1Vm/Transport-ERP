@@ -74,6 +74,22 @@ module.exports = function paymentRoutes(ctx) {
     res.json(payments);
   }));
 
+  /**
+   * POST /payments
+   *
+   * Paying more than a trip owes is allowed, and normal: a transporter often
+   * hands over a round figure, or pays ahead against work not yet run. The
+   * surplus is not rejected and not special-cased — it becomes credit on the
+   * transporter's account, because their outstanding is computed by netting
+   * every payment against every receivable. Pay ₹25,000 against a ₹19,200
+   * trip and their balance simply falls ₹25,000, leaving ₹5,800 in hand for
+   * the next trip.
+   *
+   * The trip itself reports outstanding ₹0 and advanceAmount ₹5,800 rather
+   * than a negative balance, so nothing reads as a debt running backwards.
+   * The client warns before recording a surplus — see handleFormSubmit — so
+   * an extra zero is still caught, but by a prompt rather than a refusal.
+   */
   router.post('/payments', asyncHandler(async (req, res) => {
     const payload = paymentSchema.parse(req.body);
 
@@ -89,24 +105,10 @@ module.exports = function paymentRoutes(ctx) {
     // first transaction commits, then re-reads the now-updated balance.
     const payment = await prisma.$transaction(async (tx) => {
       if (payload.tripId) {
+        // Still locked, even though nothing is rejected here any more: two
+        // concurrent payments on one trip must not both compute paymentStatus
+        // from the same pre-insert balance and write a stale result.
         await tx.$queryRaw`SELECT id FROM "Trip" WHERE id = ${payload.tripId} FOR UPDATE`;
-
-        const summary = await calculateTripPaymentSummary(tx, payload.tripId);
-        // outstanding can be 0 (fully settled) or negative (already overpaid
-        // some other way) — either way, no further payment should be let
-        // through un-flagged. Comparing against max(outstanding, 0) closes
-        // the gap where a `> 0` guard used to silently skip the check once
-        // a trip reached exactly zero outstanding.
-        const allowedAmount = Math.max(summary?.outstanding || 0, 0);
-        if (summary && payload.amount > allowedAmount) {
-          const err = new Error(
-            allowedAmount > 0
-              ? `Overpayment blocked: payment of ₹${payload.amount} exceeds the outstanding balance of ₹${allowedAmount}. Record at most ₹${allowedAmount}.`
-              : `Overpayment blocked: this trip has no outstanding balance. Record at most ₹0.`
-          );
-          err.statusCode = 400;
-          throw err;
-        }
       }
 
       const created = await tx.payment.create({
