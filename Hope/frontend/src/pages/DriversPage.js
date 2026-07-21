@@ -41,6 +41,10 @@ export function renderDriversPage() {
     { id: 'driver-search', label: 'Search', placeholder: 'Name, phone, or DL', value: filter }
   ]);
 
+  // Matches the trip list's header, so every list page states how many
+  // records are on screen in the same place and the same words.
+  const resultCountLabel = `Showing ${filteredDrivers.length} driver${filteredDrivers.length === 1 ? '' : 's'}`;
+
   const listHtml = filteredDrivers.length ? filteredDrivers.map(driver => createRecordCard({
     title: driver.name,
     subtitle: driver.phone || 'No phone',
@@ -61,7 +65,12 @@ export function renderDriversPage() {
     })}
     <section class="panel-grid white two-col">
       <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}${!showForm ? ' form-panel-mobile-hidden' : ''}"><h3>${isEditing ? 'Edit driver' : 'Add driver'}</h3>${formHtml}</article>
-      <article class="panel white"><h3>Driver list</h3>${filterHtml}<div class="stack">${listHtml}</div></article>
+      <article class="panel white">
+        <div class="panel-head">
+          <h3>Driver list</h3>
+          <span class="text-muted">${resultCountLabel}</span>
+        </div>
+        ${filterHtml}<div class="stack">${listHtml}</div></article>
     </section>
     <button type="button" class="fab-btn" data-fab-add="driver" aria-label="Add driver">+</button>
   `;

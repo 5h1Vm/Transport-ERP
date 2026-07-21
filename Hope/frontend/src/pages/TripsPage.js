@@ -165,7 +165,11 @@ export function renderTripsPage() {
     title: 'Trip workspace',
     copy: 'Create and manage trips with driver assignment, freight, payments, and POD tracking.'
   })}
-    <section class="panel-grid white two-col">
+    <!-- one-col, because this page holds a single panel: the two-column grid
+         was leaving an empty half beside a narrow column of trips, which made
+         the page look unfinished next to the master-record pages that fill
+         both halves with a form and a list. -->
+    <section class="panel-grid white one-col">
       <article class="panel white">
         <div class="panel-head">
           <h3>Trip list</h3>

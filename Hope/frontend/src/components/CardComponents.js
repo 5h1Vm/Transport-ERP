@@ -246,6 +246,20 @@ export function createTripExpenses(expenses = [], showDriver = true) {
 // non-final state, not a step in this line — handled separately.
 const TRIP_LIFECYCLE = ['DRAFT', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'POD_RECEIVED', 'BILLED', 'SETTLED'];
 
+// How each stage is written wherever it is shown to a person — the stepper,
+// the undo button, the confirmation prompts. formatStatus() title-cases every
+// word, which turned the POD initialism into "Pod" and read as a typo.
+const STAGE_LABEL = {
+  DRAFT: 'Draft',
+  LOADING: 'Loading',
+  IN_TRANSIT: 'In transit',
+  DELIVERED: 'Unloaded / delivered',
+  POD_RECEIVED: 'POD received',
+  BILLED: 'Billed',
+  SETTLED: 'Settled'
+};
+
+
 /**
  * Create a visual step indicator for the trip lifecycle — done / current /
  * upcoming states, so where a trip stands is obvious without reading raw
@@ -262,7 +276,7 @@ export function createStatusStepper(status) {
     return `
       <div class="status-step status-step--${stepState}">
         <span class="status-step-dot">${stepState === 'done' ? '✓' : ''}</span>
-        <span class="status-step-label">${escapeHtml(formatStatus(step))}</span>
+        <span class="status-step-label">${escapeHtml(STAGE_LABEL[step] || formatStatus(step))}</span>
       </div>
       ${i < TRIP_LIFECYCLE.length - 1 ? `<span class="status-step-connector status-step-connector--${i < currentIndex ? 'done' : 'upcoming'}"></span>` : ''}
     `;
@@ -275,7 +289,23 @@ export function createStatusStepper(status) {
  * Create status action buttons — the actual controls to advance a trip,
  * shown below the (passive) stepper.
  */
-export function createStatusActions(tripId, status) {
+/**
+ * What the operator is actually doing at each step, in their words. The raw
+ * enum name made the button read "In Transit" — a state, not an action — so
+ * it was never clear whether it described where the trip was or what the tap
+ * would do. "Delivered" doubles as the unloaded-at-destination step, which is
+ * why it says both.
+ */
+const STEP_ACTION_LABEL = {
+  LOADING: 'Mark loaded',
+  IN_TRANSIT: 'Mark in transit',
+  DELIVERED: 'Mark unloaded / delivered',
+  POD_RECEIVED: 'Mark POD received',
+  BILLED: 'Mark billed',
+  SETTLED: 'Mark settled'
+};
+
+export function createStatusActions(tripId, status, internalRef = '') {
   const nextStatusMap = {
     DRAFT: ['LOADING'],
     LOADING: ['IN_TRANSIT'],
@@ -289,16 +319,27 @@ export function createStatusActions(tripId, status) {
 
   const allowed = nextStatusMap[status] || [];
   const transitionsAllowingCancel = ['DRAFT', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'POD_RECEIVED', 'BILLED'];
-  if (!allowed.length && !transitionsAllowingCancel.includes(status)) return '';
 
-  let html = '<div class="status-actions-wrap"><span class="status-actions-label">Progress to:</span><div class="status-actions">';
+  // Undo is offered anywhere past the first stage — including SETTLED, which
+  // can be reached by tapping as well as by paying the last rupee.
+  const lifecycleIndex = TRIP_LIFECYCLE.indexOf(status);
+  const previousStep = lifecycleIndex > 0 ? TRIP_LIFECYCLE[lifecycleIndex - 1] : null;
+
+  if (!allowed.length && !transitionsAllowingCancel.includes(status) && !previousStep) return '';
+
+  let html = '<div class="status-actions-wrap"><span class="status-actions-label">Next step:</span><div class="status-actions">';
 
   allowed.forEach(s => {
-    html += `<button type="button" class="btn btn-primary btn-sm" data-trip-status="${escapeHtml(s)}" data-trip-id="${tripId}">${escapeHtml(formatStatus(s))}</button>`;
+    const label = STEP_ACTION_LABEL[s] || formatStatus(s);
+    html += `<button type="button" class="btn btn-primary btn-sm" data-trip-status="${escapeHtml(s)}" data-trip-id="${tripId}" data-trip-ref="${escapeHtml(internalRef)}">${escapeHtml(label)}</button>`;
   });
 
+  if (previousStep) {
+    html += `<button type="button" class="btn btn-ghost btn-sm" data-trip-undo="${tripId}" data-trip-prev="${escapeHtml(previousStep)}" data-trip-ref="${escapeHtml(internalRef)}">↩ Undo, back to ${escapeHtml(STAGE_LABEL[previousStep] || formatStatus(previousStep))}</button>`;
+  }
+
   if (transitionsAllowingCancel.includes(status)) {
-    html += `<button type="button" class="btn btn-ghost btn-danger btn-sm" data-trip-status="CANCELLED" data-trip-id="${tripId}">Cancel trip</button>`;
+    html += `<button type="button" class="btn btn-ghost btn-danger btn-sm" data-trip-status="CANCELLED" data-trip-id="${tripId}" data-trip-ref="${escapeHtml(internalRef)}">Cancel trip</button>`;
   }
 
   html += '</div></div>';

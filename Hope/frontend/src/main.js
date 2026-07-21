@@ -278,7 +278,7 @@ function bindEventHandlers() {
   bindDeleteButtons(handleDelete);
   bindEditButtons(handleEdit);
   bindCancelEditButtons(handleCancelEdit);
-  bindTripStatusButtons(handleTripStatusChange);
+  bindTripStatusButtons(handleTripStatusChange, handleTripStatusUndo);
   bindExpenseDeleteButtons(handleExpenseDelete);
   bindTransactionForm();
   bindLoadPaymentForms();
@@ -848,15 +848,44 @@ function handleCancelEdit(entity) {
   render();
 }
 
-async function handleTripStatusChange(tripId, status) {
+// What each step means in plain terms, for the confirmation prompt. Advancing
+// a trip is a record of something that happened in the physical world, so the
+// prompt names the event rather than the status value.
+// Titles for the same prompts. formatStatus() alone produced "Pod Received"
+// — it title-cases each word, and POD is an initialism, not a word.
+const STEP_CONFIRM_TITLE = {
+  DRAFT: 'Draft',
+  LOADING: 'Loaded',
+  IN_TRANSIT: 'In transit',
+  DELIVERED: 'Unloaded / delivered',
+  POD_RECEIVED: 'POD received',
+  BILLED: 'Billed',
+  SETTLED: 'Settled'
+};
+
+const STEP_CONFIRM_COPY = {
+  LOADING: 'Confirm the goods have been loaded onto the vehicle.',
+  IN_TRANSIT: 'Confirm the vehicle has departed and is on the road.',
+  DELIVERED: 'Confirm the goods have been unloaded at the destination.',
+  POD_RECEIVED: 'Confirm the signed proof of delivery is in hand.',
+  BILLED: 'Confirm the bill has been raised to the transporter.',
+  SETTLED: 'Confirm this trip is fully paid and closed.'
+};
+
+async function handleTripStatusChange(tripId, status, refFromButton = '') {
+  // The button carries the reference. Looking it up in state.data.trips only
+  // worked if the trips list happened to be loaded — open a trip detail page
+  // directly and every prompt said "this trip", which is exactly when naming
+  // the trip matters most.
+  const trip = (state.data.trips || []).find((t) => t.id === tripId);
+  const ref = refFromButton || trip?.internalRef || 'this trip';
+
   // Cancelling is terminal — a cancelled trip can't be moved back along the
   // status flow — and its button sits directly beside the ordinary "advance
   // to next status" button on the trip detail. Deleting a trip or an expense
   // has always asked for confirmation; this had none, so one stray tap ended
   // a live trip silently.
   if (status === 'CANCELLED') {
-    const trip = (state.data.trips || []).find((t) => t.id === tripId);
-    const ref = trip?.internalRef || 'this trip';
     const confirmed = await confirmDialog({
       title: 'Cancel trip?',
       message: `Are you sure you want to cancel ${ref}? A cancelled trip cannot be reopened.`,
@@ -865,12 +894,53 @@ async function handleTripStatusChange(tripId, status) {
       danger: true
     });
     if (!confirmed) return;
+  } else {
+    // Every forward step confirms too. These buttons live under the thumb on
+    // a phone, and the stages are a legal-ish record of what happened to
+    // someone's freight — worth one tap to be sure. Undo exists as well, but
+    // not asking at all made the record too easy to falsify by accident.
+    const confirmed = await confirmDialog({
+      title: `${STEP_CONFIRM_TITLE[status] || formatStatus(status)} — ${ref}?`,
+      message: STEP_CONFIRM_COPY[status] || `Move ${ref} to ${formatStatus(status)}.`,
+      confirmText: 'Yes, confirm',
+      cancelText: 'Not yet'
+    });
+    if (!confirmed) return;
   }
 
   actions.setError('');
   try {
     await api.trip.updateStatus(tripId, status);
     actions.setMessage(`Trip updated to ${formatStatus(status)}.`);
+    await refreshAfterMutation();
+  } catch (error) {
+    actions.setError(error.message);
+    render();
+  }
+}
+
+/**
+ * Step a trip back one stage. Reverses the status only — payments, expenses
+ * and ledger entries are untouched, so an undo never moves money.
+ */
+async function handleTripStatusUndo(tripId, previousStatus, refFromButton = '') {
+  const trip = (state.data.trips || []).find((t) => t.id === tripId);
+  const ref = refFromButton || trip?.internalRef || 'this trip';
+
+  const confirmed = await confirmDialog({
+    title: `Undo the last step?`,
+    // Same label map as the button, so the prompt cannot say "In Transit"
+    // while the button that opened it says "In transit".
+    message: `${ref} goes back to ${STEP_CONFIRM_TITLE[previousStatus] || formatStatus(previousStatus)}. Payments and expenses already recorded are not affected.`,
+    confirmText: 'Yes, step back',
+    cancelText: 'Keep as is'
+  });
+  if (!confirmed) return;
+
+  actions.setError('');
+  try {
+    await api.trip.undoStatus(tripId);
+    actions.setMessage(`Trip moved back to ${STEP_CONFIRM_TITLE[previousStatus] || formatStatus(previousStatus)}.`);
     await refreshAfterMutation();
   } catch (error) {
     actions.setError(error.message);

@@ -192,6 +192,27 @@ const STATUS_TRANSITIONS = {
   CANCELLED: []
 };
 
+// The lifecycle as a straight line, used to work out what "one step back"
+// means. CANCELLED is deliberately absent: it branches off the line rather
+// than sitting on it, and a cancelled trip is not meant to come back.
+const TRIP_LIFECYCLE = ['DRAFT', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'POD_RECEIVED', 'BILLED', 'SETTLED'];
+
+/**
+ * Date columns each stage stamps on the way forward, so stepping back can
+ * clear them. Without this an undone stage leaves its timestamp behind and
+ * the trip reads as "POD received" on a trip whose POD has not been received.
+ *
+ * deliveryDate is deliberately NOT cleared when undoing DELIVERED: unlike the
+ * others it is usually entered by hand when the trip is created, revenue in
+ * the P&L is recognised from it, and silently blanking a date the user typed
+ * would move money out of a report they had already reconciled.
+ */
+const STAGE_STAMPS = {
+  POD_RECEIVED: 'podReceivedDate',
+  BILLED: 'billedDate',
+  SETTLED: 'settledDate'
+};
+
 // Replace a trip's driver assignments with the given driverIds/roles.
 async function syncTripDrivers(prisma, tripId, driverIds, driverRoles) {
   await prisma.tripDriver.deleteMany({ where: { tripId } });
@@ -400,6 +421,45 @@ module.exports = function tripRoutes(ctx) {
       await prisma.trip.update({ where: { id: tripId }, data: { podReceivedDate: new Date() } });
     }
 
+    res.json(updatedTrip);
+  }));
+
+  /**
+   * PATCH /trips/:tripId/status/undo — step one stage back.
+   *
+   * The lifecycle is otherwise strictly forward, which is right for a ledger
+   * but unforgiving on a phone: the "advance" button sits under the operator's
+   * thumb and one stray tap used to be permanent. This reverses exactly one
+   * step and nothing else — it never touches payments, expenses or ledger
+   * entries, so no money moves as a result of an undo.
+   *
+   * A cancelled trip stays cancelled: cancelling already asks for confirmation
+   * and is documented as final, so undo does not quietly become a way to
+   * resurrect one.
+   */
+  router.patch('/trips/:tripId/status/undo', asyncHandler(async (req, res) => {
+    const tripId = req.params.tripId;
+    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+
+    if (!trip) {
+      return res.status(404).json({ message: 'Trip not found' });
+    }
+
+    if (trip.status === 'CANCELLED') {
+      return res.status(400).json({ message: 'A cancelled trip cannot be reopened.' });
+    }
+
+    const index = TRIP_LIFECYCLE.indexOf(trip.status);
+    if (index <= 0) {
+      return res.status(400).json({ message: 'This trip is at the first stage — there is nothing to undo.' });
+    }
+
+    const previous = TRIP_LIFECYCLE[index - 1];
+    const data = { status: previous };
+    const stamp = STAGE_STAMPS[trip.status];
+    if (stamp) data[stamp] = null;
+
+    const updatedTrip = await prisma.trip.update({ where: { id: tripId }, data });
     res.json(updatedTrip);
   }));
 

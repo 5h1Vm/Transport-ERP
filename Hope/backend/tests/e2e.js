@@ -184,6 +184,33 @@ async function main() {
   const revAfter = (plAfter.byTransporter.find(r => r.transporterId === tA.id) || {}).revenue || 0;
   check('delivered-then-cancelled trip leaves P&L revenue', revBefore - revAfter, 77000);
 
+  // ---- 6b. Undo (step one stage back) -------------------------------------
+  console.log('\n[6b] undo a status step');
+  const t6 = (await post('/trips', {
+    transporterId: tB.id, vehicleId: veh.id, originCity: 'U', destinationCity: 'V',
+    freightAmount: 5000, commissionType: 'PERCENTAGE', commissionValue: 0,
+    departureDate: iso('2026-07-16'), deliveryDate: iso('2026-07-16')
+  })).body;
+  cleanup.trips.push(t6.id);
+  for (const s of ['LOADING', 'IN_TRANSIT', 'DELIVERED', 'POD_RECEIVED']) await patch(`/trips/${t6.id}/status`, { status: s });
+  checkThat('POD stamped on the way forward', !!(await get(`/trips/${t6.id}`)).body.podReceivedDate);
+
+  const undo1 = await patch(`/trips/${t6.id}/status/undo`, {});
+  check('undo accepted', undo1.status, 200);
+  check('stepped back one stage', undo1.body.status, 'DELIVERED');
+  check('POD date cleared with the stage it belonged to', (await get(`/trips/${t6.id}`)).body.podReceivedDate, null);
+  check('undo moved no money', (await get(`/trips/${t6.id}`)).body.financialSummary.outstanding, 5000);
+
+  for (const _ of [1, 2, 3]) await patch(`/trips/${t6.id}/status/undo`, {});
+  check('undo walks back to the first stage', (await get(`/trips/${t6.id}`)).body.status, 'DRAFT');
+  const undoAtStart = await patch(`/trips/${t6.id}/status/undo`, {});
+  check('undo refused at the first stage', undoAtStart.status, 400);
+
+  await patch(`/trips/${t6.id}/status`, { status: 'CANCELLED' });
+  const undoCancelled = await patch(`/trips/${t6.id}/status/undo`, {});
+  check('a cancelled trip cannot be undone back to life', undoCancelled.status, 400);
+  check('unknown trip undo 404s', (await patch('/trips/cmxxxxxxxxxxxxxxxxxxxxxxx/status/undo', {})).status, 404);
+
   // ---- 7. Transporter ledger ----------------------------------------------
   console.log('\n[7] transporter ledger');
   const tAfull = (await get(`/transporters/${tA.id}`)).body;

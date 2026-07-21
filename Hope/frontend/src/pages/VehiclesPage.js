@@ -73,6 +73,10 @@ export function renderVehiclesPage() {
     </form>
   `;
 
+  // Matches the trip list's header, so every list page states how many
+  // records are on screen in the same place and the same words.
+  const resultCountLabel = `Showing ${filteredItems.length} vehicle${filteredItems.length === 1 ? '' : 's'}`;
+
   const listHtml = filteredItems.length
     ? filteredItems.map(item => createRecordCard({
         title: item.vehicleNumber,
@@ -93,7 +97,12 @@ export function renderVehiclesPage() {
     </section>
     <section class="panel-grid white two-col">
       <article class="panel white form-panel${isEditing ? ' form-panel-editing' : ''}${!showForm ? ' form-panel-mobile-hidden' : ''}"><h3>${isEditing ? 'Edit vehicle' : 'Add vehicle'}</h3>${formHtml}</article>
-      <article class="panel white"><h3>Vehicle list</h3>${filterHtml}<div class="stack">${listHtml}</div></article>
+      <article class="panel white">
+        <div class="panel-head">
+          <h3>Vehicle list</h3>
+          <span class="text-muted">${resultCountLabel}</span>
+        </div>
+        ${filterHtml}<div class="stack">${listHtml}</div></article>
     </section>
     <button type="button" class="fab-btn" data-fab-add="vehicle" aria-label="Add vehicle">+</button>
   `;

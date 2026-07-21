@@ -102,6 +102,9 @@ export const tripApi = {
   update: (id, data) => request(`/trips/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id) => request(`/trips/${id}`, { method: 'DELETE' }),
   updateStatus: (id, status) => request(`/trips/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  // Steps the trip back one stage. Takes no body — the server derives the
+  // previous stage, so the client can never ask for an arbitrary jump.
+  undoStatus: (id) => request(`/trips/${id}/status/undo`, { method: 'PATCH' }),
   addPayment: (data) => request('/payments', { method: 'POST', body: JSON.stringify(data) }),
   addPod: (id, data) => request(`/trips/${id}/pod`, { method: 'POST', body: JSON.stringify(data) }),
   // Sprint 2B follow-up: grow an ongoing trip in place.

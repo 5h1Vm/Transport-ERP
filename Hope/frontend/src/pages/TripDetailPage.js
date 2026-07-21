@@ -100,7 +100,7 @@ export async function renderTripDetail(id) {
         ${metadataTable}
         ${createStatusStepper(trip.status)}
         ${createPodMeta(trip)}
-        ${!isTerminal ? createStatusActions(trip.id, trip.status) : ''}
+        ${!isTerminal ? createStatusActions(trip.id, trip.status, trip.internalRef) : ''}
       </article>
       <article class="panel white">
         <h3>Drivers (${(trip.drivers || []).length})</h3>

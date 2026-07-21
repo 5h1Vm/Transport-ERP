@@ -105,7 +105,7 @@ export function bindExpenseDeleteButtons(onDeleteExpense) {
  * Bind trip status buttons
  * @param {Function} onStatusChange - Status change handler
  */
-export function bindTripStatusButtons(onStatusChange) {
+export function bindTripStatusButtons(onStatusChange, onStatusUndo) {
   document.querySelectorAll('[data-trip-status]').forEach(button => {
     button.removeEventListener('click', button._clickHandler);
 
@@ -113,10 +113,26 @@ export function bindTripStatusButtons(onStatusChange) {
       e.preventDefault();
       const tripId = button.getAttribute('data-trip-id');
       const status = button.getAttribute('data-trip-status');
-      onStatusChange(tripId, status);
+      onStatusChange(tripId, status, button.getAttribute('data-trip-ref') || '');
     };
 
     button._clickHandler = handler;
+    button.addEventListener('click', handler);
+  });
+
+  document.querySelectorAll('[data-trip-undo]').forEach(button => {
+    button.removeEventListener('click', button._undoHandler);
+
+    const handler = (e) => {
+      e.preventDefault();
+      onStatusUndo?.(
+        button.getAttribute('data-trip-undo'),
+        button.getAttribute('data-trip-prev'),
+        button.getAttribute('data-trip-ref') || ''
+      );
+    };
+
+    button._undoHandler = handler;
     button.addEventListener('click', handler);
   });
 }

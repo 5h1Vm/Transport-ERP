@@ -121,7 +121,11 @@ button[type="submit"]:disabled {
 
 .btn-xs {
   padding: 2px 8px;
-  min-height: 24px;
+  /* 24px is WCAG 2.2's floor exactly, with nothing to spare, and the only
+     thing wearing this size is the "×" that deletes a recorded expense.
+     A destructive control should not be the smallest target on the page. */
+  min-height: 32px;
+  min-width: 32px;
   font-size: 0.7rem;
   border-radius: var(--radius-md);
 }
@@ -153,7 +157,8 @@ button[type="submit"]:disabled {
   }
 
   .btn-xs {
-    min-height: 32px;
+    min-height: 40px;
+    min-width: 40px;
     padding: var(--space-1) var(--space-2);
   }
 }
